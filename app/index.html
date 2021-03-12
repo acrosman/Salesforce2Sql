@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:">
+    <link rel="stylesheet" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
+    <link rel="stylesheet" href="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <title>Electron Salesforce Starter Package</title>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-default">
+                    <h1 class="header">
+                        Electron Salesforce Starter Package
+                    </h1>
+                    <div class="card-body">
+                        <p class="card-text">
+                            This is a Salesforce API interface build using JSForce and Electron. It allows basic
+                            interactions with Salesforce.
+                        </p>
+                        <button type="button" class="btn btn-info btn-lg" data-toggle="modal"
+                            data-target="#loginModal">Create New Connection</button>
+                    </div>
+                    <div class="card-footer" id="org-status">
+                        <label for="active-org">Active Org for next action.</label>
+                        <select id="active-org" class="custom-select"></select>
+                        <p>Message: <span id="login-response-message"></span><br>
+                            Org Id: <span id="active-org-id"></span></p>
+                        <button type="button" id="logout-trigger" class="btn btn-warning" value="Logout">Logout</button>
+                    </div>
+
+                    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog"
+                        aria-labelledby="loginModalLabel" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="loginModalLabel">Enter Salesforce Login</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="login-username">User Name</label>
+                                            <input type="text" id="login-username" class="form-control" aria-describedby="usernameHelp" placeholder="Enter Salesforce Username">
+                                            <small id="usernameHelp" class="form-text">Your Salesforce username must be in the form of an email address.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="login-password">Password</label>
+                                            <input type="password" id="login-password" class="form-control" >
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="login-token">Security Token</label>
+                                            <input type="password" class="form-control" aria-describedby="tokenHelp"  id="login-token">
+                                            <small id="tokenHelp" class="form-text">Likely you will need your Saleforce Security token. If you do not have it follow <a href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these reset instructions.</a></small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="login-url">Login URL</label>
+                                            <input type="url" id="login-url" class="form-control" value="https://login.salesforce.com">
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" id="login-trigger" data-dismiss="modal">Connect</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card bg-default" id=raw-response-wrapper>
+                    <h2>Last Response:</h2>
+                    <pre id="raw-response" class="pre-scrollable"></pre>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-2">
+                <div class="card">
+                    Placeholder
+                </div>
+            </div>
+            <div class="col-md-10">
+                <div class="card">
+                    Placeholder
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12" id="results-message-wrapper">
+                <div id="results-message-only" class="results-message alert alert-primary" role="alert""></div>
+                </div>
+                <div class=" col-md-12" id="results-table-wrapper">
+                    <div class="results-summary">
+                        <h3 id="results-summary-count"></h3>
+                    </div>
+                    <table id="results-table" class="table table-striped table-bordered table-hover">
+                        <tr class="results-table-header"></tr>
+                        <tr class="results-table-row"></tr>
+                    </table>
+                </div>
+                <div class="col-md-12" id="results-object-viewer-wrapper">
+                    <div class="results-summary">
+                        <h3></h3>
+                        <p></p>
+                    </div>
+                    <div id="results-object-viewer"></div>
+                </div>
+            </div>
+        </div>
+</body>
+<script src="../node_modules/jquery/dist/jquery.min.js"></script>
+<script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.js"></script>
+<script src="render.js"></script>
+
+</html>
