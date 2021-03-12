@@ -111,6 +111,38 @@ const handlers = {
       return true;
     });
   },
+  // Run a Global Describe.
+  sf_describeGlobal: (event, args) => {
+    const conn = new jsforce.Connection(sfConnections[args.org]);
+    conn.describeGlobal((err, result) => {
+      if (err) {
+        mainWindow.webContents.send('response_generic', {
+          status: false,
+          message: 'Describe Global Failed',
+          response: `${err}`,
+          limitInfo: conn.limitInfo,
+          request: args,
+        });
+
+        consoleWindow.webContents.send('log_message', {
+          sender: event.sender.getTitle(),
+          channel: 'Error',
+          message: `Describe Global Failed ${err}`,
+        });
+        return true;
+      }
+
+      // Send records back to the interface.
+      mainWindow.webContents.send('response_list_objects', {
+        status: true,
+        message: 'Describe Global Successful',
+        response: result,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+      return true;
+    });
+  },
   send_log: (event, args) => {
     consoleWindow.webContents.send('log_message', {
       sender: event.sender.getTitle(),

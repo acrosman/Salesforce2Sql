@@ -159,6 +159,91 @@ const refreshObjectDisplay = (data) => {
   });
 };
 
+/**
+ * Displays the list of objects from a Global describe query.
+ * @param {Object} sObjectData The results from JSForce to display.
+ */
+const displayObjectList = (sObjectData) => {
+  // Define prioirty columns to display at left.
+  const prioirtyColumns = [
+    'label',
+    'name',
+    'labelPlural',
+  ];
+
+  // Define list of columns known to have a list of information for the right edge.
+  const listColumns = ['urls'];
+
+  // Display area.
+  document.getElementById('results-table-wrapper').style.display = 'block';
+  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
+  document.getElementById('results-message-wrapper').style.display = 'none';
+  document.getElementById('results-summary-count').innerText = `Your orgs contains ${sObjectData.length} objects (custom and standard)`;
+
+  // Get the table.
+  const resultsTable = document.querySelector('#results-table');
+
+  // Clear existing table.
+  while (resultsTable.firstChild) {
+    resultsTable.removeChild(resultsTable.firstChild);
+  }
+
+  // Extract the header.
+  const keys = Object.keys(sObjectData[0]);
+
+  // Create the header row for the table.
+  const tHead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.setAttribute('class', 'table-primary');
+
+  // Add Priority Columns to the header
+  for (let i = 0; i < prioirtyColumns.length; i += 1) {
+    generateTableHeader(headRow, prioirtyColumns[i]);
+  }
+
+  // Add the other columns from the result set.
+  for (let i = 0; i < keys.length; i += 1) {
+    if (!prioirtyColumns.includes(keys[i]) && !listColumns.includes(keys[i])) {
+      generateTableHeader(headRow, keys[i]);
+    }
+  }
+
+  // Add the trailing list columns.
+  for (let i = 0; i < listColumns.length; i += 1) {
+    generateTableHeader(headRow, listColumns[i]);
+  }
+
+  tHead.appendChild(headRow);
+  resultsTable.appendChild(tHead);
+
+  // Add the data.
+  let dataRow;
+  const tBody = document.createElement('tbody');
+  for (let i = 0; i < sObjectData.length; i += 1) {
+    dataRow = document.createElement('tr');
+
+    // Start with the priority columns.
+    for (let j = 0; j < prioirtyColumns.length; j += 1) {
+      generateTableCell(dataRow, sObjectData[i][prioirtyColumns[j]]);
+    }
+
+    // Add all non-special cased columns.
+    for (let j = 0; j < keys.length; j += 1) {
+      if (!prioirtyColumns.includes(keys[j]) && !listColumns.includes(keys[j])) {
+        generateTableCell(dataRow, sObjectData[i][keys[j]]);
+      }
+    }
+
+    // Add the list columns at the end
+    for (let j = 0; j < listColumns.length; j += 1) {
+      generateTableCell(dataRow, object2ul(sObjectData[i][listColumns[j]]), false);
+    }
+
+    tBody.appendChild(dataRow);
+  }
+  resultsTable.appendChild(tBody);
+};
+
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
@@ -208,4 +293,14 @@ window.api.receive('response_logout', (data) => {
 // Generic Response.
 window.api.receive('response_generic', (data) => {
   displayRawResponse(data);
+});
+
+// List Objects From Global Describe.
+window.api.receive('response_list_objects', (data) => {
+  document.getElementById('results-table-wrapper').style.display = 'none';
+  document.getElementById('results-object-viewer-wrapper').style.display = 'block';
+  displayRawResponse(data);
+  if (data.status) {
+    displayObjectList(data.response.sobjects);
+  }
 });
