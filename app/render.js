@@ -89,64 +89,6 @@ const displayRawResponse = (responseObject) => {
 };
 
 /**
- * Generates a data table from a list of sObjects returned from a query, and displays it
- * in the results-table-wrapper area of the interface.
- * @param {Object} sObjectData A JSForce query response with SF SObject data.
- */
-const refreshResponseTable = (sObjectData) => {
-  document.getElementById('results-table-wrapper').style.display = 'block';
-  document.getElementById('results-message-wrapper').style.display = 'none';
-  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
-  document.getElementById(
-    'results-summary-count',
-  ).innerText = `Fetched ${sObjectData.records.length} of ${sObjectData.totalSize} records`;
-
-  // Get the table.
-  const resultsTable = document.querySelector('#results-table');
-
-  // Clear existing table.
-  while (resultsTable.firstChild) {
-    resultsTable.removeChild(resultsTable.firstChild);
-  }
-
-  // Extract the header.
-  const keys = Object.keys(sObjectData.records[0]).filter(
-    (value) => value !== 'attributes',
-  );
-
-  // Create the header row for the table.
-  const tHead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.setAttribute('class', 'table-primary');
-
-  // Add the type column.
-  generateTableHeader(headRow, 'Type');
-
-  // Add the other columns from the result set.
-  for (let i = 0; i < keys.length; i += 1) {
-    generateTableHeader(headRow, keys[i]);
-  }
-  tHead.appendChild(headRow);
-  resultsTable.appendChild(tHead);
-
-  // Add the data.
-  let dataRow;
-  const tBody = document.createElement('tbody');
-  for (let i = 0; i < sObjectData.records.length; i += 1) {
-    dataRow = document.createElement('tr');
-    // Put the object type as a row level header.
-    generateTableHeader(dataRow, sObjectData.records[i].attributes.type, 'row');
-
-    // Add the result details.
-    for (let j = 0; j < keys.length; j += 1) {
-      generateTableCell(dataRow, sObjectData.records[i][keys[j]]);
-    }
-    tBody.appendChild(dataRow);
-  }
-  resultsTable.appendChild(tBody);
-};
-
-/**
  * Displays an object in the results-object-viewer section of the interface using JSONViewer.
  *
  * @param {Object} data The object to display, object must contain message and response attributes.
