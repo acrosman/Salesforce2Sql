@@ -298,6 +298,19 @@ document.getElementById('btn-fetch-objects').addEventListener('click', () => {
   });
 });
 
+// Fetch Object Field lists
+document.getElementById('btn-fetch-details').addEventListener('click', () => {
+  const activeCheckboxes = document.querySelectorAll('inbput[checkbox]');
+  const selectedObjects = [];
+  for (let i = 0; i < activeCheckboxes.length; i += 1) {
+    selectedObjects.push(activeCheckboxes[i].dataset.objectName);
+  }
+  window.api.end('sf_getObjectFields', {
+    org: document.getElementById('active-org').value,
+    objects: selectedObjects,
+  });
+});
+
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {

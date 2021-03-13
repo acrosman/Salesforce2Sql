@@ -143,6 +143,11 @@ const handlers = {
       return true;
     });
   },
+  // Get a list of all fields on a provided list of objects.
+  sf_getObjectFields: (event, args) => {
+    const conn = new jsforce.Connection(sfConnections[args.org]);
+  },
+  // Send a log message to the console window.
   send_log: (event, args) => {
     consoleWindow.webContents.send('log_message', {
       sender: event.sender.getTitle(),
