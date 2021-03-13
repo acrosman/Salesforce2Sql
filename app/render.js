@@ -305,7 +305,7 @@ const displayObjectList = (sObjectData) => {
   }
   // Seconds pass for the rare ones.
   for (let i = 0; i < sObjectData.length; i += 1) {
-    if (!displayed.includes(sObjectData[i].name)) {
+    if (!displayed.includes(sObjectData[i].name) && sObjectData[i].createable) {
       dataRow = document.createElement('tr');
 
       // Generate a checkbox
