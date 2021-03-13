@@ -15,26 +15,27 @@ const replaceText = (selector, text) => {
   if (element) element.innerText = text;
 };
 
-// Convert a simple object with name/value pairs, and sub-objects into an Unordered list
-const object2ul = (data) => {
-  const ul = document.createElement('ul');
-  const keys = Object.keys(data);
-  let li;
-  let i;
+/**
+ * Reviews an org's list of objects to guess the org type
+ * @param {Object} sObjectList The list of objects for the org.
+ * @returns {String} org type. One of npsp, eda, other.
+ */
+const snifOrgType = (sObjectList) => {
+  const namespaces = {
+    npsp: 'npsp',
+    npe: 'npsp',
+    hed: 'eda',
+  };
 
-  for (i = 0; i < keys.length; i += 1) {
-    li = document.createElement('li');
-    // if it's sub-object recurse.
-    if (typeof data[keys[i]] === 'object' && data[keys[i]] !== null) {
-      li.appendChild(object2ul(data[keys[i]]));
-    } else {
-      // append the text to the li.
-      li.appendChild(document.createTextNode(data[keys[i]]));
+  const keys = Object.getOwnPropertyNames(namespaces);
+  for (let i = 0; i < sObjectList.length; i += 1) {
+    for (let j = 0; j < keys.length; j += 1) {
+      if (sObjectList[i].name.startsWith(keys[j])) {
+        return namespaces[keys[j]];
+      }
     }
-    ul.appendChild(li); // append the list item to the ul
   }
-
-  return ul;
+  return 'other';
 };
 
 /**
@@ -54,13 +55,24 @@ const generateTableHeader = (headerRow, labelText, scope = 'col') => {
 /**
  * Attaches a new table cell to an existing row.
  * @param {Object} tableRow The DOM element to attach the new element to.
- * @param {String} content The text to put in the cell.
+ * @param {object} content The content to put in the cell.
+ * @param {boolean} isText Defines if the content should be treated as text or a sub-element.
+ * @param {Integer} position The index to insert to new cell. Default -1 appends to the end.
  */
-const generateTableCell = (tableRow, content) => {
-  const contentNode = document.createTextNode(content);
+const generateTableCell = (tableRow, content, isText = true, position = -1) => {
+  let contentNode;
+  if (isText) {
+    contentNode = document.createTextNode(content);
+  } else {
+    contentNode = content;
+  }
   const cellNode = document.createElement('td');
   cellNode.appendChild(contentNode);
-  tableRow.appendChild(cellNode);
+  if (position === -1) {
+    tableRow.appendChild(cellNode);
+  } else {
+    tableRow.insertBefore(cellNode, tableRow.children[position]);
+  }
 };
 
 /**
@@ -187,21 +199,60 @@ const handleLogin = (responseData) => {
  * @param {Object} sObjectData The results from JSForce to display.
  */
 const displayObjectList = (sObjectData) => {
-  // Define prioirty columns to display at left.
-  const prioirtyColumns = [
+  // Define  columns to display.
+  const displayColumns = [
     'label',
     'name',
-    'labelPlural',
   ];
 
-  // Define list of columns known to have a list of information for the right edge.
-  const listColumns = ['urls'];
+  // Different common packages beg for different sets of Standard objects as likely to be used.
+  const selectStandardObjects = {
+    npsp: [
+      'Account',
+      'Contact',
+      'Campaign',
+      'CampaignMember',
+      'Case',
+      'Document',
+      'Opportunity',
+      'OpportunityContactRole',
+      'Task',
+    ],
+    eda: [
+      'Account',
+      'Contact',
+      'Campaign',
+      'CampaignMember',
+      'Case',
+      'Document',
+      'Lead',
+      'Task',
+    ],
+    other: [
+      'Account',
+      'Contact',
+      'Campaign',
+      'CampaignMember',
+      'Case',
+      'Document',
+      'Lead',
+      'Opportunity',
+      'OpportunityContactRole',
+      'Order',
+      'OrderItem',
+      'PriceBook2',
+      'Product2',
+      'Task',
+    ],
+  };
 
   // Display area.
-  document.getElementById('results-table-wrapper').style.display = 'block';
-  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
-  document.getElementById('results-message-wrapper').style.display = 'none';
-  document.getElementById('results-summary-count').innerText = `Your orgs contains ${sObjectData.length} objects (custom and standard)`;
+  $('#results-table-wrapper').show();
+  $('#results-object-viewer-wrapper').hide();
+  $('#results-message-wrapper').hide();
+  $('#results-summary-count').text(`Your orgs contains ${sObjectData.length} objects (custom and standard)`);
+
+  const orgType = snifOrgType(sObjectData);
 
   // Get the table.
   const resultsTable = document.querySelector('#results-table');
@@ -211,60 +262,70 @@ const displayObjectList = (sObjectData) => {
     resultsTable.removeChild(resultsTable.firstChild);
   }
 
-  // Extract the header.
-  const keys = Object.keys(sObjectData[0]);
-
   // Create the header row for the table.
   const tHead = document.createElement('thead');
   const headRow = document.createElement('tr');
   headRow.setAttribute('class', 'table-primary');
 
-  // Add Priority Columns to the header
-  for (let i = 0; i < prioirtyColumns.length; i += 1) {
-    generateTableHeader(headRow, prioirtyColumns[i]);
-  }
-
-  // Add the other columns from the result set.
-  for (let i = 0; i < keys.length; i += 1) {
-    if (!prioirtyColumns.includes(keys[i]) && !listColumns.includes(keys[i])) {
-      generateTableHeader(headRow, keys[i]);
-    }
-  }
-
-  // Add the trailing list columns.
-  for (let i = 0; i < listColumns.length; i += 1) {
-    generateTableHeader(headRow, listColumns[i]);
+  // Add the header
+  generateTableHeader(headRow, 'Select');
+  for (let i = 0; i < displayColumns.length; i += 1) {
+    generateTableHeader(headRow, displayColumns[i]);
   }
 
   tHead.appendChild(headRow);
   resultsTable.appendChild(tHead);
 
-  // Add the data.
+  // Add the data in two passes: custom and selected standard objects, then all the others.
   let dataRow;
   const tBody = document.createElement('tbody');
+  const orgSelects = selectStandardObjects[orgType];
+  const displayed = [];
+  let checkCell;
+  // First pass for popular objects
+  // @todo: create helper for the internals to avoid having twice.
   for (let i = 0; i < sObjectData.length; i += 1) {
-    dataRow = document.createElement('tr');
+    if (orgSelects.includes(sObjectData[i].name) || sObjectData[i].name.endsWith('__c')) {
+      displayed.push(sObjectData[i].name);
+      dataRow = document.createElement('tr');
 
-    // Start with the priority columns.
-    for (let j = 0; j < prioirtyColumns.length; j += 1) {
-      generateTableCell(dataRow, sObjectData[i][prioirtyColumns[j]]);
-    }
-
-    // Add all non-special cased columns.
-    for (let j = 0; j < keys.length; j += 1) {
-      if (!prioirtyColumns.includes(keys[j]) && !listColumns.includes(keys[j])) {
-        generateTableCell(dataRow, sObjectData[i][keys[j]]);
+      // Generate a checkbox
+      checkCell = document.createElement('input');
+      checkCell.type = 'checkbox';
+      checkCell.checked = true;
+      checkCell.dataset.objectName = sObjectData[i].name;
+      generateTableCell(dataRow, checkCell, false);
+      // Add the details
+      for (let j = 0; j < displayColumns.length; j += 1) {
+        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
       }
-    }
 
-    // Add the list columns at the end
-    for (let j = 0; j < listColumns.length; j += 1) {
-      generateTableCell(dataRow, object2ul(sObjectData[i][listColumns[j]]), false);
+      tBody.appendChild(dataRow);
     }
-
-    tBody.appendChild(dataRow);
   }
+  // Seconds pass for the rare ones.
+  for (let i = 0; i < sObjectData.length; i += 1) {
+    if (!displayed.includes(sObjectData[i].name)) {
+      dataRow = document.createElement('tr');
+
+      // Generate a checkbox
+      checkCell = document.createElement('input');
+      checkCell.type = 'checkbox';
+      checkCell.dataset.objectName = sObjectData[i].name;
+      generateTableCell(dataRow, checkCell, false);
+      // Add the details
+      for (let j = 0; j < displayColumns.length; j += 1) {
+        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
+      }
+
+      tBody.appendChild(dataRow);
+    }
+  }
+
   resultsTable.appendChild(tBody);
+
+  // Enable the button to fetch object list.
+  $('#btn-fetch-details').prop('disabled', false);
 };
 
 // ========= Messages to the main process ===============
