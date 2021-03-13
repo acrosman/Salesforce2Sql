@@ -81,15 +81,28 @@
                 </div>
             </div>
         </div>
-        <div class="row">
+        <div class="row" id="controls-wrapper">
             <div class="col-md-2">
-                <div class="card">
-                    Placeholder
+                <div id="instruction-panel" class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Instructions</h5>
+                        <p class="card-text">Fetch the objects from your Salesforce org, then select the ones you want in your database
+                            (we'll try to help you
+                            make good choices). Finally generate the database schema.</p>
+                    </div>
                 </div>
             </div>
             <div class="col-md-10">
-                <div class="card">
-                    Placeholder
+                <div id="control-panel" class="card">
+                    <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-lg btn-primary" disabled>
+                        Fetch Objects
+                    </button>
+                    <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-lg btn-secondary" disabled>
+                        Fetch Details
+                    </button>
+                    <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" disabled>
+                        Generate SQL
+                    </button>
                 </div>
             </div>
         </div>

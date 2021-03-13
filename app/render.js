@@ -159,6 +159,29 @@ const refreshObjectDisplay = (data) => {
   });
 };
 
+// ================ Response Handlers =================
+
+/**
+ * Handles interface adjustments after login is complete.
+ * @param {*} responseData The data sent from the main process.
+ */
+const handleLogin = (responseData) => {
+  // Add the new connection to the list of options.
+  const opt = document.createElement('option');
+  opt.value = responseData.response.organizationId;
+  opt.innerHTML = document.getElementById('login-username').value;
+  opt.id = `sforg-${opt.value}`;
+  document.getElementById('active-org').appendChild(opt);
+
+  // Shuffle what's shown.
+  document.getElementById('org-status').style.display = 'block';
+  replaceText('active-org-id', responseData.response.organizationId);
+  replaceText('login-response-message', responseData.message);
+
+  // Enable the button to fetch object list.
+  $('#btn-fetch-objects').prop('disabled', false);
+};
+
 /**
  * Displays the list of objects from a Global describe query.
  * @param {Object} sObjectData The results from JSForce to display.
@@ -265,21 +288,18 @@ document.getElementById('logout-trigger').addEventListener('click', () => {
   // @TODO: Update/hide status area if no orgs remain.
 });
 
+// Fetch Org Objects
+document.getElementById('btn-fetch-objects').addEventListener('click', () => {
+  window.api.send('sf_describeGlobal', {
+    org: document.getElementById('active-org').value,
+  });
+});
+
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {
   if (data.status) {
-    // Add the new connection to the list of options.
-    const opt = document.createElement('option');
-    opt.value = data.response.organizationId;
-    opt.innerHTML = document.getElementById('login-username').value;
-    opt.id = `sforg-${opt.value}`;
-    document.getElementById('active-org').appendChild(opt);
-
-    // Shuffle what's shown.
-    document.getElementById('org-status').style.display = 'block';
-    replaceText('active-org-id', data.response.organizationId);
-    replaceText('login-response-message', data.message);
+    handleLogin(data);
     displayRawResponse(data.response);
   }
 });
