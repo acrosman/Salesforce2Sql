@@ -11,7 +11,6 @@ if (isDev) {
 
 // Additional Tooling.
 const path = require('path');
-const url = require('url');
 
 // Import the functions that we can use in the render processes.
 const ipcFunctions = require('./src/sf_calls');
@@ -45,13 +44,7 @@ function createWindow() {
   });
 
   // and load the index.html of the app.
-  mainWindow.loadURL(
-    url.format({
-      pathname: path.join(app.getAppPath(), 'app/index.html'),
-      protocol: 'file:',
-      slashes: true,
-    }),
-  );
+  mainWindow.loadURL(`file://${__dirname}/app/index.html`);
 
   // Attach to IPC handlers
   ipcFunctions.setwindow('main', mainWindow);
@@ -84,13 +77,7 @@ function createLoggingConsole() {
       preload: path.join(app.getAppPath(), 'app/consolePreload.js'),
     },
   });
-  consoleWindow.loadURL(
-    url.format({
-      pathname: path.join(app.getAppPath(), 'app/console.html'),
-      protocol: 'file:',
-      slashes: true,
-    }),
-  );
+  consoleWindow.loadURL(`file://${__dirname}/app/console.html`);
 
   // Attach to IPC handlers
   ipcFunctions.setwindow('console', mainWindow);
