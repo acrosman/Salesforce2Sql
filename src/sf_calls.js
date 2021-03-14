@@ -146,6 +146,32 @@ const handlers = {
   // Get a list of all fields on a provided list of objects.
   sf_getObjectFields: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
+    const describeCalls = [];
+    const objectDescribes = {};
+    const proposedSchema = {};
+
+    // Create a collection of promises for the various objects.
+    for (let i = 0; i < args.objects.length; i += 1) {
+      describeCalls.push(conn.sobject(args.objects[i]).describe());
+    }
+
+    // Wait for all of them to resolve, and build a collection.
+    Promise.all(describeCalls).then((responses) => {
+      for (let i = 0; i < responses.length; i += 1) {
+        objectDescribes[responses[i].name] = responses[i];
+      }
+      // Build draft schema.
+
+      // Send Schema to interface for review.
+      consoleWindow.webContents.send('response_generic', {
+        status: false,
+        message: 'Got a lot of field data',
+        response: objectDescribes,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+    });
+    return true;
   },
   // Send a log message to the console window.
   send_log: (event, args) => {

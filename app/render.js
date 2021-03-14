@@ -20,6 +20,7 @@ const replaceText = (selector, text) => {
  * @param {Object} sObjectList The list of objects for the org.
  * @returns {String} org type. One of npsp, eda, other.
  */
+// @TODO: Move to main thread and handling when describe comes back.
 const snifOrgType = (sObjectList) => {
   const namespaces = {
     npsp: 'npsp',
@@ -147,6 +148,7 @@ const displayObjectList = (sObjectData) => {
     'name',
   ];
 
+  // @todo: move to main thread to get through a seperate IPC.
   // Different common packages beg for different sets of Standard objects as likely to be used.
   const selectStandardObjects = {
     npsp: [
@@ -300,12 +302,12 @@ document.getElementById('btn-fetch-objects').addEventListener('click', () => {
 
 // Fetch Object Field lists
 document.getElementById('btn-fetch-details').addEventListener('click', () => {
-  const activeCheckboxes = document.querySelectorAll('inbput[checkbox]');
+  const activeCheckboxes = document.querySelectorAll('input[type=checkbox]:checked');
   const selectedObjects = [];
   for (let i = 0; i < activeCheckboxes.length; i += 1) {
     selectedObjects.push(activeCheckboxes[i].dataset.objectName);
   }
-  window.api.end('sf_getObjectFields', {
+  window.api.send('sf_getObjectFields', {
     org: document.getElementById('active-org').value,
     objects: selectedObjects,
   });
