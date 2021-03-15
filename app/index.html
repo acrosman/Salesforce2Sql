@@ -72,8 +72,63 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                    <div class="modal fade" id="dbModal" tabindex="-1" role="dialog" aria-labelledby="dbModalLabel" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="dbModalLabel">Enter Database Information</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="db-radio-selectors">Select Database Type</label>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL"
+                                                    value="mysql">
+                                                <label class="form-check-label" for="db-MySQL">MySQL</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-Postgres"
+                                                    value="postgres">
+                                                <label class="form-check-label" for="db-Postgres">Postgress</label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="db-host">Host</label>
+                                            <input type="text" id="db-host" class="form-control" aria-describedby="hostHelp"
+                                                placeholder="127.0.0.1">
+                                            <small id="hostHelp" class="form-text">The host address for your database.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="db-username">User Name</label>
+                                            <input type="text" id="db-username" class="form-control" aria-describedby="dbUsernameHelp"
+                                                placeholder="Enter Database Username">
+                                            <small id="dbUsernameHelp" class="form-text">Database username</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="bd-password">Password</label>
+                                            <input type="password" id="db-password" class="form-control">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="db-name">Database Name</label>
+                                            <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp"
+                                                placeholder="Enter Database Name">
+                                            <small id="dbNameHelp" class="form-text">Database Name</small>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" id="login-trigger" data-dismiss="modal">Connect</button>
+                                </div>
+                                </div>
+                                </div>
+                                </div>
+                                </div>
+                                </div>
             <div class="col-md-8">
                 <div class="card bg-default" id=raw-response-wrapper>
                     <h2>Last Response:</h2>
@@ -100,7 +155,8 @@
                     <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-lg btn-secondary" disabled>
                         Fetch Details
                     </button>
-                    <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" disabled>
+                    <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" data-toggle="modal"
+                        data-target="#dbModal" disabled>
                         Generate SQL
                     </button>
                 </div>
@@ -108,7 +164,7 @@
         </div>
         <div class="row">
             <div class="col-md-12" id="results-message-wrapper">
-                <div id="results-message-only" class="results-message alert alert-primary" role="alert""></div>
+                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
                 </div>
                 <div class=" col-md-12" id="results-table-wrapper">
                     <div class="results-summary">

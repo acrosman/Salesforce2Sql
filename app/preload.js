@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld(
         'response_logout',
         'response_generic',
         'response_list_objects',
+        'response_schema',
       ];
       if (validChannels.includes(channel)) {
         // Remove the event to avoid information leaks.

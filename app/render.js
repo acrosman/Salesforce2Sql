@@ -272,6 +272,18 @@ const displayObjectList = (sObjectData) => {
   $('#btn-fetch-details').prop('disabled', false);
 };
 
+/**
+ * Displays the drafted schema in the JSONViewer
+ * @param {*} schema the built-out schema from main thread.
+ */
+const displayDraftSchema = (schema) => {
+  refreshObjectDisplay({
+    message: 'Proposed Database Schema',
+    response: schema,
+  });
+  $('#btn-generate-schema').prop('disabled', false);
+};
+
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
@@ -333,10 +345,17 @@ window.api.receive('response_generic', (data) => {
   displayRawResponse(data);
 });
 
-// List Objects From Global Describe.
-window.api.receive('response_list_objects', (data) => {
+window.api.receive('response_schema', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
+  displayRawResponse(data);
+  displayDraftSchema(data.response.schema);
+});
+
+// List Objects From Global Describe.
+window.api.receive('response_list_objects', (data) => {
+  document.getElementById('results-table-wrapper').style.display = 'block';
+  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
   displayRawResponse(data);
   if (data.status) {
     displayObjectList(data.response.sobjects);

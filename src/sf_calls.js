@@ -40,27 +40,30 @@ const proposeSchema = (objectList) => {
   // For each object we need to extract the field list, including their types.
   const objects = Object.getOwnPropertyNames(objectList);
   let objFields;
+  let fld;
   let obj;
   for (let i = 0; i < objects.length; i += 1) {
     objFields = {};
     obj = objectList[objects[i]];
     for (let f = 0; f < obj.fields.length; f += 1) {
+      fld = {};
       // Values we want for all fields.
-      objFields.name = obj.fields[f].name;
-      objFields.label = obj.fields[f].label;
-      objFields.type = obj.fields[f].type;
-      objFields.size = obj.fields[f].length;
+      fld.name = obj.fields[f].name;
+      fld.label = obj.fields[f].label;
+      fld.type = obj.fields[f].type;
+      fld.size = obj.fields[f].length;
       // Type specific values.
-      switch (objFields.type) {
+      switch (fld.type) {
         case 'reference':
-          objFields.target = obj.fields[f].referenceTo;
+          fld.target = obj.fields[f].referenceTo;
           break;
         case 'picklist':
-          objFields.values = extractPicklistValues(obj.fields[f].picklistValues);
+          fld.values = extractPicklistValues(obj.fields[f].picklistValues);
           break;
         default:
           break;
       }
+      objFields[fld.name] = fld;
     }
     schema[objects[i]] = objFields;
   }
@@ -217,9 +220,9 @@ const handlers = {
       proposedSchema = proposeSchema(objectDescribes);
 
       // Send Schema to interface for review.
-      consoleWindow.webContents.send('response_generic', {
+      consoleWindow.webContents.send('response_schema', {
         status: false,
-        message: 'Got a lot of field data',
+        message: 'Processed Objects',
         response: {
           objects: objectDescribes,
           schema: proposedSchema,
