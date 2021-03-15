@@ -47,17 +47,22 @@
                                     <form>
                                         <div class="form-group">
                                             <label for="login-username">User Name</label>
-                                            <input type="text" id="login-username" class="form-control" aria-describedby="usernameHelp" placeholder="Enter Salesforce Username">
-                                            <small id="usernameHelp" class="form-text">Your Salesforce username must be in the form of an email address.</small>
+                                            <input type="text" id="login-username" class="form-control" aria-describedby="usernameHelp"
+                                                placeholder="Enter Salesforce Username">
+                                            <small id="usernameHelp" class="form-text">Your Salesforce username must be
+                                                in the form of an email address.</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="login-password">Password</label>
-                                            <input type="password" id="login-password" class="form-control" >
+                                            <input type="password" id="login-password" class="form-control">
                                         </div>
                                         <div class="form-group">
                                             <label for="login-token">Security Token</label>
-                                            <input type="password" class="form-control" aria-describedby="tokenHelp"  id="login-token">
-                                            <small id="tokenHelp" class="form-text">Likely you will need your Saleforce Security token. If you do not have it follow <a href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these reset instructions.</a></small>
+                                            <input type="password" class="form-control" aria-describedby="tokenHelp" id="login-token">
+                                            <small id="tokenHelp" class="form-text">Likely you will need your Saleforce
+                                                Security token. If you do not have it follow <a
+                                                    href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
+                                                    reset instructions.</a></small>
                                         </div>
                                         <div class="form-group">
                                             <label for="login-url">Login URL</label>
@@ -86,21 +91,19 @@
                                         <div class="form-group">
                                             <label for="db-radio-selectors">Select Database Type</label>
                                             <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL"
-                                                    value="mysql">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL" value="mysql">
                                                 <label class="form-check-label" for="db-MySQL">MySQL</label>
                                             </div>
                                             <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-Postgres"
-                                                    value="postgres">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-Postgres" value="postgres">
                                                 <label class="form-check-label" for="db-Postgres">Postgress</label>
                                             </div>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-host">Host</label>
-                                            <input type="text" id="db-host" class="form-control" aria-describedby="hostHelp"
-                                                placeholder="127.0.0.1">
-                                            <small id="hostHelp" class="form-text">The host address for your database.</small>
+                                            <input type="text" id="db-host" class="form-control" aria-describedby="hostHelp" placeholder="127.0.0.1">
+                                            <small id="hostHelp" class="form-text">The host address for your
+                                                database.</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-username">User Name</label>
@@ -114,8 +117,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="db-name">Database Name</label>
-                                            <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp"
-                                                placeholder="Enter Database Name">
+                                            <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp" placeholder="Enter Database Name">
                                             <small id="dbNameHelp" class="form-text">Database Name</small>
                                         </div>
                                     </form>
@@ -124,11 +126,11 @@
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                                     <button type="button" class="btn btn-primary" id="login-trigger" data-dismiss="modal">Connect</button>
                                 </div>
-                                </div>
-                                </div>
-                                </div>
-                                </div>
-                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="col-md-8">
                 <div class="card bg-default" id=raw-response-wrapper>
                     <h2>Last Response:</h2>
@@ -141,7 +143,8 @@
                 <div id="instruction-panel" class="card">
                     <div class="card-body">
                         <h5 class="card-title">Instructions</h5>
-                        <p class="card-text">Fetch the objects from your Salesforce org, then select the ones you want in your database
+                        <p class="card-text">Fetch the objects from your Salesforce org, then select the ones you want
+                            in your database
                             (we'll try to help you
                             make good choices). Finally generate the database schema.</p>
                     </div>
@@ -165,25 +168,25 @@
         <div class="row">
             <div class="col-md-12" id="results-message-wrapper">
                 <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
+            </div>
+            <div class=" col-md-12" id="results-table-wrapper">
+                <div class="results-summary">
+                    <h3 id="results-summary-count"></h3>
                 </div>
-                <div class=" col-md-12" id="results-table-wrapper">
-                    <div class="results-summary">
-                        <h3 id="results-summary-count"></h3>
-                    </div>
-                    <table id="results-table" class="table table-striped table-bordered table-hover">
-                        <tr class="results-table-header"></tr>
-                        <tr class="results-table-row"></tr>
-                    </table>
+                <table id="results-table" class="table table-striped table-bordered table-hover">
+                    <tr class="results-table-header"></tr>
+                    <tr class="results-table-row"></tr>
+                </table>
+            </div>
+            <div class="col-md-12" id="results-object-viewer-wrapper">
+                <div class="results-summary">
+                    <h3></h3>
+                    <p></p>
                 </div>
-                <div class="col-md-12" id="results-object-viewer-wrapper">
-                    <div class="results-summary">
-                        <h3></h3>
-                        <p></p>
-                    </div>
-                    <div id="results-object-viewer"></div>
-                </div>
+                <div id="results-object-viewer"></div>
             </div>
         </div>
+    </div>
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>
 <script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
