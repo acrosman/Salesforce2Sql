@@ -16,6 +16,58 @@ const setwindow = (windowName, window) => {
   }
 };
 
+/**
+ * Extracts the list of field values from a picklist value set.
+ * @param {Array} valueList list of values from a Salesforce describe response.
+ * @returns the actual list of values.
+ */
+const extractPicklistValues = (valueList) => {
+  const values = [];
+  for (let i = 0; i < valueList.length; i += 1) {
+    values.push(valueList[i].value);
+  }
+  return values;
+};
+
+/**
+ *
+ * @param {Object} objectList Collection of sObject describes to convert to schema.
+ * @returns An object we can convert easily into an SQL schema.
+ */
+const proposeSchema = (objectList) => {
+  const schema = {};
+
+  // For each object we need to extract the field list, including their types.
+  const objects = Object.getOwnPropertyNames(objectList);
+  let objFields;
+  let obj;
+  for (let i = 0; i < objects.length; i += 1) {
+    objFields = {};
+    obj = objectList[objects[i]];
+    for (let f = 0; f < obj.fields.length; f += 1) {
+      // Values we want for all fields.
+      objFields.name = obj.fields[f].name;
+      objFields.label = obj.fields[f].label;
+      objFields.type = obj.fields[f].type;
+      objFields.size = obj.fields[f].length;
+      // Type specific values.
+      switch (objFields.type) {
+        case 'reference':
+          objFields.target = obj.fields[f].referenceTo;
+          break;
+        case 'picklist':
+          objFields.values = extractPicklistValues(obj.fields[f].picklistValues);
+          break;
+        default:
+          break;
+      }
+    }
+    schema[objects[i]] = objFields;
+  }
+
+  return schema;
+};
+
 const handlers = {
   // Login to an org using password authentication.
   sf_login: (event, args) => {
@@ -148,7 +200,7 @@ const handlers = {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     const describeCalls = [];
     const objectDescribes = {};
-    const proposedSchema = {};
+    let proposedSchema;
 
     // Create a collection of promises for the various objects.
     for (let i = 0; i < args.objects.length; i += 1) {
@@ -160,13 +212,18 @@ const handlers = {
       for (let i = 0; i < responses.length; i += 1) {
         objectDescribes[responses[i].name] = responses[i];
       }
+
       // Build draft schema.
+      proposedSchema = proposeSchema(objectDescribes);
 
       // Send Schema to interface for review.
       consoleWindow.webContents.send('response_generic', {
         status: false,
         message: 'Got a lot of field data',
-        response: objectDescribes,
+        response: {
+          objects: objectDescribes,
+          schema: proposedSchema,
+        },
         limitInfo: conn.limitInfo,
         request: args,
       });
