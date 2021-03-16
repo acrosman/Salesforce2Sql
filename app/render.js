@@ -325,6 +325,27 @@ document.getElementById('btn-fetch-details').addEventListener('click', () => {
   });
 });
 
+// Build database (including database connection)
+document.getElementById('schema-trigger').addEventListener('click', () => {
+  const dbTypes = document.getElementsByName('db-radio-selectors');
+  let dbType;
+  for (let i = 0; i < dbTypes.length; i += 1) {
+    if (dbTypes[i].checked) {
+      dbType = dbTypes[i].value;
+      break;
+    }
+  }
+
+  window.api.send('knex_schema', {
+    type: dbType,
+    active: document.getElementById('db-active').checked,
+    host: document.getElementById('db-host').value,
+    username: document.getElementById('db-username').value,
+    password: document.getElementById('db-password').value,
+    dbname: document.getElementById('db-name').value,
+  });
+});
+
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {

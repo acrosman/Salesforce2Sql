@@ -3,6 +3,7 @@ const jsforce = require('jsforce');
 const sfConnections = {};
 let mainWindow = null;
 let consoleWindow = null;
+let proposedSchema = {};
 
 const setwindow = (windowName, window) => {
   switch (windowName) {
@@ -14,6 +15,22 @@ const setwindow = (windowName, window) => {
       mainWindow = window;
       break;
   }
+};
+
+/**
+ * Send a log message to the console window.
+ * @param {String} title  Message title or sender
+ * @param {String} channel  Message category
+ * @param {String} message  Message
+ * @returns True (always).
+ */
+const logMessage = (title, channel, message) => {
+  consoleWindow.webContents.send('log_message', {
+    sender: title,
+    channel,
+    message,
+  });
+  return true;
 };
 
 /**
@@ -34,7 +51,7 @@ const extractPicklistValues = (valueList) => {
  * @param {Object} objectList Collection of sObject describes to convert to schema.
  * @returns An object we can convert easily into an SQL schema.
  */
-const proposeSchema = (objectList) => {
+const buildSchema = (objectList) => {
   const schema = {};
 
   // For each object we need to extract the field list, including their types.
@@ -69,6 +86,10 @@ const proposeSchema = (objectList) => {
   }
 
   return schema;
+};
+
+const buildDatabase = (settings) => {
+
 };
 
 const handlers = {
@@ -108,16 +129,7 @@ const handlers = {
       }
       // Now you can get the access token and instance URL information.
       // Save them to establish connection next time.
-      consoleWindow.webContents.send('log_message', {
-        sender: event.sender.getTitle(),
-        channel: 'Info',
-        message: `New Connection to ${conn.instanceUrl} with Access Token ${conn.accessToken}`,
-      });
-      consoleWindow.webContents.send('log_message', {
-        sender: event.sender.getTitle(),
-        channel: 'Info',
-        message: `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`,
-      });
+      logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
 
       // Save the next connection in the global storage.
       sfConnections[userInfo.organizationId] = {
@@ -147,11 +159,7 @@ const handlers = {
           limitInfo: conn.limitInfo,
           request: args,
         });
-        consoleWindow.webContents.send('log_message', {
-          sender: event.sender.getTitle(),
-          channel: 'Error',
-          message: `Logout Failed ${err}`,
-        });
+        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err}`);
         return true;
       }
       // now the session has been expired.
@@ -179,11 +187,7 @@ const handlers = {
           request: args,
         });
 
-        consoleWindow.webContents.send('log_message', {
-          sender: event.sender.getTitle(),
-          channel: 'Error',
-          message: `Describe Global Failed ${err}`,
-        });
+        logMessage(event.sender.getTitle(), 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
@@ -203,7 +207,6 @@ const handlers = {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     const describeCalls = [];
     const objectDescribes = {};
-    let proposedSchema;
 
     // Create a collection of promises for the various objects.
     for (let i = 0; i < args.objects.length; i += 1) {
@@ -217,10 +220,10 @@ const handlers = {
       }
 
       // Build draft schema.
-      proposedSchema = proposeSchema(objectDescribes);
+      proposedSchema = buildSchema(objectDescribes);
 
       // Send Schema to interface for review.
-      consoleWindow.webContents.send('response_schema', {
+      mainWindow.webContents.send('response_schema', {
         status: false,
         message: 'Processed Objects',
         response: {
@@ -232,6 +235,18 @@ const handlers = {
       });
     });
     return true;
+  },
+  // Connect to a database and set the schema.
+  knex_schema: (event, args) => {
+    const results = buildDatabase(args);
+    logMessage('Database built', 'info', 'Successfully built database');
+    mainWindow.webContents.send('response_generic', {
+      status: true,
+      message: 'Generated Database',
+      response: results,
+      limitInfo: null,
+      request: args,
+    });
   },
   // Send a log message to the console window.
   send_log: (event, args) => {
