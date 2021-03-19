@@ -1,4 +1,5 @@
 const jsforce = require('jsforce');
+const knex = require('knex');
 
 const sfConnections = {};
 let mainWindow = null;
@@ -15,6 +16,41 @@ const setwindow = (windowName, window) => {
       mainWindow = window;
       break;
   }
+};
+
+const resolveFieldType = (sfTypeName) => {
+  const typeResolver = {
+    base64: 'binary',
+    boolean: 'boolean',
+    byte: 'binary',
+    calculated: 'string',
+    comboBox: 'string',
+    currency: 'decimal',
+    date: 'date',
+    datetime: 'datetime',
+    double: 'float',
+    email: 'string',
+    encryptedstring: 'string',
+    id: 'string',
+    int: 'integer',
+    long: 'biginteger',
+    masterrecord: 'string',
+    multipicklist: 'string',
+    percent: 'decimal',
+    phone: 'string',
+    picklist: 'enum',
+    reference: 'reference',
+    string: 'string',
+    textarea: 'string',
+    time: 'time',
+    url: 'string',
+  };
+
+  if (Object.prototype.hasOwnProperty.call(typeResolver, sfTypeName)) {
+    return typeResolver[sfTypeName];
+  }
+
+  return 'text';
 };
 
 /**
@@ -77,6 +113,11 @@ const buildSchema = (objectList) => {
         case 'picklist':
           fld.values = extractPicklistValues(obj.fields[f].picklistValues);
           break;
+        case 'float':
+        case 'double':
+          fld.scale = obj.fields[f].scale;
+          fld.precision = obj.fields[f].precision;
+          break;
         default:
           break;
       }
@@ -89,7 +130,83 @@ const buildSchema = (objectList) => {
 };
 
 const buildDatabase = (settings) => {
+  // Create database connection.
+  const db = knex({
+    client: settings.type,
+    connection: {
+      host: settings.host,
+      user: settings.username,
+      password: settings.password,
+      database: settings.database,
+    },
+    log: {
+      warn(message) {
+        logMessage('Knex', 'Warn', message);
+      },
+      error(message) {
+        logMessage('Knex', 'Error', message);
+      },
+      deprecate(message) {
+        logMessage('Knex', 'Deprecated', message);
+      },
+      debug(message) {
+        logMessage('Knex', 'Debug', message);
+      },
+    },
+  });
 
+  const tables = Object.getOwnPropertyNames(proposedSchema);
+
+  // define callback to build out tables.
+  const buildTable = (table) => {
+    const fields = proposedSchema[table.name];
+    let field;
+    let fieldType;
+    for (let i; i < fields.length; i += 1) {
+      field = fields[i].type;
+      fieldType = resolveFieldType(field.type);
+      switch (fieldType) {
+        case 'binary':
+          table.binary(field.name, field.size);
+          break;
+        case 'boolean':
+          table.boolean(field.name);
+          break;
+        case 'biginteger':
+          table.biginteger(field.name);
+          break;
+        case 'date':
+          table.date(field.name);
+          break;
+        case 'datetime':
+          table.datetime(field.name);
+          break;
+        case 'decimal':
+          table.decimal(field.name, field.precision, field.scale);
+          break;
+        case 'enum':
+          table.enu(field.name, field.values);
+          break;
+        case 'float':
+          table.float(field.name, field.precision, field.scale);
+          break;
+        case 'integer':
+          table.integer(field.name);
+          break;
+        case 'reference':
+          table.string(field.name, 18);
+          break;
+        case 'time':
+          table.time(field.name);
+          break;
+        default:
+          table.string(field.name, field.size);
+      }
+    }
+  };
+  for (let i = 0; i < tables.length; i += 1) {
+    db.schema.createTable(tables[i], buildTable);
+  }
 };
 
 const handlers = {
@@ -221,6 +338,9 @@ const handlers = {
 
       // Build draft schema.
       proposedSchema = buildSchema(objectDescribes);
+
+      // Log status
+      logMessage('Schema', 'info', 'Draft schema built');
 
       // Send Schema to interface for review.
       mainWindow.webContents.send('response_schema', {
