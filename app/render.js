@@ -61,6 +61,9 @@ function logMessage(context, importance, message, data) {
     case 'warn':
       row.className += 'table-warning';
       break;
+    case 'success':
+      row.className += 'table-success';
+      break;
     default:
       break;
   }
@@ -429,7 +432,7 @@ window.api.receive('response_generic', (data) => {
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
-  logMessage('Schema', 'Info', 'Draft schema built', data);
+  logMessage('Schema', 'Success', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
 });
 

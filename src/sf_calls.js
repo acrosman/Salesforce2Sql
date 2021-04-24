@@ -211,13 +211,15 @@ const buildDatabase = (settings) => {
           table.string(field.name, field.size);
       }
     }
+
+    logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
   };
 
   // Helper to keep one line of logic for creating the tables.
   const createDbTable = (schema, table) => {
     schema.createTable(table, buildTable)
       .then((response) => {
-        logMessage('Database Create', 'Info', `Created new table: ${response}`);
+        logMessage('Database', 'Success', 'Successfully created new table');
       })
       .catch((err) => {
         logMessage('Database Create', 'Error', `Error creating table: ${err}`);
@@ -382,15 +384,7 @@ const handlers = {
   // Connect to a database and set the schema.
   knex_schema: (event, args) => {
     const results = buildDatabase(args);
-    // @TODO don't assume success.
-    logMessage('Database built', 'info', 'Successfully built database');
-    mainWindow.webContents.send('response_generic', {
-      status: true,
-      message: 'Generated Database',
-      response: results,
-      limitInfo: null,
-      request: args,
-    });
+    logMessage('Database', 'Info', 'Database build started.');
   },
   // Send a log message to the console window.
   log_message: (event, args) => {
