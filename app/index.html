@@ -120,7 +120,7 @@
                                         <div class="form-group">
                                             <label for="db-radio-selectors">Select Database Type</label>
                                             <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL" value="mysql">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL" value="mysql" checked>
                                                 <label class="form-check-label" for="db-MySQL">MySQL</label>
                                             </div>
                                             <div class="form-check form-check-inline">
@@ -148,6 +148,12 @@
                                             <label for="db-name">Database Name</label>
                                             <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp" placeholder="Enter Database Name">
                                             <small id="dbNameHelp" class="form-text">Database Name</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="db-overwrite">Drop and Recreate Tables</label>
+                                            <input type="checkbox" id="db-overwrite" class="form-control" aria-describedby="dbOverwriteHelp">
+                                            <small id="dbOverwriteHelp" class="form-text">Drop all tables and recreate them. <em>Delete's any data in the
+                                                    tables.</em></small>
                                         </div>
                                     </form>
                                 </div>

@@ -38,7 +38,7 @@ const resolveFieldType = (sfTypeName) => {
     picklist: 'enum',
     reference: 'reference',
     string: 'string',
-    textarea: 'string',
+    textarea: 'text',
     time: 'time',
     url: 'string',
   };
@@ -102,6 +102,12 @@ const buildSchema = (objectList) => {
       fld.label = obj.fields[f].label;
       fld.type = obj.fields[f].type;
       fld.size = obj.fields[f].length;
+
+      // Large text fields go to TEXT.
+      if (fld.type == 'string' && fld.size > 255) {
+        fld.type = 'text';
+      }
+
       // Type specific values.
       switch (fld.type) {
         case 'reference':
@@ -195,6 +201,9 @@ const buildDatabase = (settings) => {
         case 'reference':
           table.string(field.name, 18);
           break;
+        case 'text':
+          table.text(field.name);
+          break;
         case 'time':
           table.time(field.name);
           break;
@@ -203,14 +212,28 @@ const buildDatabase = (settings) => {
       }
     }
   };
-  for (let i = 0; i < tables.length; i += 1) {
-    db.schema.createTable(tables[i], buildTable)
+
+  // Helper to keep one line of logic for creating the tables.
+  const createDbTable = (schema, table) => {
+    schema.createTable(table, buildTable)
       .then((response) => {
         logMessage('Database Create', 'Info', `Created new table: ${response}`);
       })
       .catch((err) => {
         logMessage('Database Create', 'Error', `Error creating table: ${err}`);
       });
+  };
+
+  for (let i = 0; i < tables.length; i += 1) {
+    if (settings.overwrite) {
+      db.schema.dropTableIfExists(tables[i])
+        .then(() => { createDbTable(db.schema, tables[i]) })
+        .catch((err) => {
+          logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
+        });
+    } else {
+      createDbTable(db.schema, tables[i]);
+    }
   }
 };
 

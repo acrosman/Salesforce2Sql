@@ -49,7 +49,7 @@ function logMessage(context, importance, message, data) {
   const mesData = document.createElement('td');
 
   // Add Classes.
-  mesText.setAttribute('class', 'pre-scrollable console-message');
+  mesText.setAttribute('class', 'console-message');
   mesData.setAttribute('class', 'console-raw-data');
 
   // Set the row highlights as needed.
@@ -401,6 +401,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
     username: document.getElementById('db-username').value,
     password: document.getElementById('db-password').value,
     dbname: document.getElementById('db-name').value,
+    overwrite: document.getElementById('db-overwrite').checked,
   });
 });
 
