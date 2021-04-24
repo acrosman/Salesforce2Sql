@@ -61,7 +61,7 @@ const resolveFieldType = (sfTypeName) => {
  * @returns True (always).
  */
 const logMessage = (title, channel, message) => {
-  consoleWindow.webContents.send('log_message', {
+  mainWindow.webContents.send('log_message', {
     sender: title,
     channel,
     message,
@@ -205,7 +205,13 @@ const buildDatabase = (settings) => {
     }
   };
   for (let i = 0; i < tables.length; i += 1) {
-    db.schema.createTable(tables[i], buildTable);
+    db.schema.createTable(tables[i], buildTable)
+      .then((response) => {
+        logMessage('Database Create', 'Info', `Created new table: ${response}`);
+      })
+      .catch((err) => {
+        logMessage('Database Create', 'Error', `Error creating table: ${err}`);
+      });
   }
 };
 
@@ -304,11 +310,12 @@ const handlers = {
           request: args,
         });
 
-        logMessage(event.sender.getTitle(), 'Error', `Describe Global Failed ${err}`);
+        logMessage('Fetch Objects', 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
       // Send records back to the interface.
+      logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.length} SObjects.`);
       mainWindow.webContents.send('response_list_objects', {
         status: true,
         message: 'Describe Global Successful',
@@ -370,8 +377,8 @@ const handlers = {
   },
   // Send a log message to the console window.
   send_log: (event, args) => {
-    consoleWindow.webContents.send('log_message', {
-      sender: event.sender.getTitle(),
+    mainWindow.webContents.send('log_message', {
+      sender: args.sender,
       channel: args.channel,
       message: args.message,
     });

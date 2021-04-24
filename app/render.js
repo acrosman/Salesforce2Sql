@@ -6,6 +6,10 @@ $.when($.ready).then(() => {
   $('#results-table-wrapper').hide();
   $('#results-message-wrapper').hide();
   $('#results-object-viewer-wrapper').hide();
+  window.api.send('send_log', {
+    channel: 'Info',
+    message: 'Main window initialized.',
+  });
 });
 
 // ============= Helpers ==============
@@ -14,6 +18,74 @@ const replaceText = (selector, text) => {
   const element = document.getElementById(selector);
   if (element) element.innerText = text;
 };
+
+/**
+ * Displays an object as JSON in the raw response section of the interface.
+ * @param {Object} responseObject The JSForce response object.
+ */
+const displayRawResponse = (responseObject) => {
+  $('#raw-response').jsonViewer(responseObject, {
+    collapsed: true,
+    rootCollapsable: false,
+    withQuotes: true,
+    withLinks: true,
+  });
+};
+
+/**
+ * Log a message to the console.
+ * @param {String} context The part of the system that generated the message.
+ * @param {String} importance The level of importance of the message.
+ * @param {String} message The message to display.
+ * @param {*} data Raw data to display in JSON viewer.
+ */
+function logMessage(context, importance, message, data) {
+  // Create elements for display.
+  const logTable = document.getElementById('consoleMessageTable');
+  const row = logTable.insertRow(1);
+  const mesImportance = document.createElement('td');
+  const mesContext = document.createElement('td');
+  const mesText = document.createElement('td');
+  const mesData = document.createElement('td');
+
+  // Add Classes.
+  mesText.setAttribute('class', 'pre-scrollable console-message');
+  mesData.setAttribute('class', 'console-raw-data');
+
+  // Set the row highlights as needed.
+  switch (importance.toLowerCase()) {
+    case 'error':
+      row.className += 'table-danger';
+      break;
+    case 'warning':
+    case 'warn':
+      row.className += 'table-warning';
+      break;
+    default:
+      break;
+  }
+
+  // Add Text
+  mesContext.innerHTML = context;
+  mesImportance.innerHTML = importance;
+  mesText.innerHTML = message;
+
+  // Attach Elements
+  row.appendChild(mesImportance);
+  row.appendChild(mesContext);
+  row.appendChild(mesText);
+  row.appendChild(mesData);
+
+  if (data) {
+    displayRawResponse(data);
+    $('#consoleMessageTable :last-child td.console-raw-data').jsonViewer(data, {
+      collapsed: true,
+      rootCollapsable: false,
+      withQuotes: true,
+      withLinks: true,
+    });
+  }
+}
 
 /**
  * Reviews an org's list of objects to guess the org type
@@ -74,19 +146,6 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   } else {
     tableRow.insertBefore(cellNode, tableRow.children[position]);
   }
-};
-
-/**
- * Displays an object as JSON in the raw response section of the interface.
- * @param {Object} responseObject The JSForce response object.
- */
-const displayRawResponse = (responseObject) => {
-  $('#raw-response').jsonViewer(responseObject, {
-    collapsed: true,
-    rootCollapsable: false,
-    withQuotes: true,
-    withLinks: true,
-  });
 };
 
 /**
@@ -350,7 +409,9 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
 window.api.receive('response_login', (data) => {
   if (data.status) {
     handleLogin(data);
-    displayRawResponse(data.response);
+    logMessage('Login Success', 'Info', data.message, data.response);
+  } else {
+    logMessage('Login Failure', 'Error', data.message, data.response);
   }
 });
 
@@ -380,4 +441,8 @@ window.api.receive('response_list_objects', (data) => {
   if (data.status) {
     displayObjectList(data.response.sobjects);
   }
+});
+
+window.api.receive('log_message', (data) => {
+  logMessage(data.sender, data.channel, data.message);
 });
