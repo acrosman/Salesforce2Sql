@@ -1,7 +1,7 @@
 {
-  "name": "electron-sf-base",
+  "name": "salesforce2sql",
   "version": "0.0.1",
-  "description": "An Electron Wrapper on JSForce that is meant to be extended.",
+  "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -12,8 +12,8 @@
     "test": "mocha"
   },
   "build": {
-    "appId": "com.electron.electronForce",
-    "productName": "ElectronForce",
+    "appId": "com.electron.acrosman.Salesforce2Sql",
+    "productName": "Salesforce2Sql",
     "mac": {
       "category": "public.app-category.utilities"
     },
@@ -30,7 +30,7 @@
           "path": "/Applications"
         }
       ],
-      "artifactName": "electron-force-${version}.${ext}"
+      "artifactName": "salesforce2sql-${version}.${ext}"
     },
     "win": {
       "target": [
@@ -47,10 +47,10 @@
     },
     "nsis": {
       "runAfterFinish": true,
-      "artifactName": "electron-force-${version}.${ext}"
+      "artifactName": "salesforce2sql-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "electron-force.exe"
+      "artifactName": "salesforce2sql.exe"
     },
     "linux": {
       "target": "zip"
@@ -65,7 +65,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/acrosman/electronForce"
+    "url": "https://github.com/acrosman/Salesforce2Sql"
   },
   "dependencies": {
     "bootstrap": "^4.5.2",
