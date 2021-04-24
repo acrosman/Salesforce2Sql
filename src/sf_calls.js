@@ -359,6 +359,7 @@ const handlers = {
   // Connect to a database and set the schema.
   knex_schema: (event, args) => {
     const results = buildDatabase(args);
+    // @TODO don't assume success.
     logMessage('Database built', 'info', 'Successfully built database');
     mainWindow.webContents.send('response_generic', {
       status: true,
