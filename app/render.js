@@ -409,27 +409,26 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
 window.api.receive('response_login', (data) => {
   if (data.status) {
     handleLogin(data);
-    logMessage('Login Success', 'Info', data.message, data.response);
+    logMessage('Salesforce', 'Info', data.message, data.response);
   } else {
-    logMessage('Login Failure', 'Error', data.message, data.response);
+    logMessage('Salesforce', 'Error', data.message, data.response);
   }
 });
 
 // Logout Response.
 window.api.receive('response_logout', (data) => {
-  displayRawResponse(data);
-  // TODO: Remove connection information.
+  logMessage('Salesforce', 'Info', 'Log out complete', data);
 });
 
 // Generic Response.
 window.api.receive('response_generic', (data) => {
-  displayRawResponse(data);
+  logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
 });
 
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
-  displayRawResponse(data);
+  logMessage('Schema', 'Info', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
 });
 
@@ -437,9 +436,11 @@ window.api.receive('response_schema', (data) => {
 window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
   document.getElementById('results-object-viewer-wrapper').style.display = 'none';
-  displayRawResponse(data);
   if (data.status) {
+    logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
     displayObjectList(data.response.sobjects);
+  } else {
+    logMessage('Salesforce', 'Error', 'Error while retreiving object listing.', data);
   }
 });
 
