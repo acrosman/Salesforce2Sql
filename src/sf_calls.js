@@ -134,7 +134,7 @@ const buildDatabase = (settings) => {
       host: settings.host,
       user: settings.username,
       password: settings.password,
-      database: settings.database,
+      database: settings.dbname,
     },
     log: {
       warn(message) {
