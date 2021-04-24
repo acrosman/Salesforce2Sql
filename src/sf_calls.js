@@ -3,14 +3,11 @@ const knex = require('knex');
 
 const sfConnections = {};
 let mainWindow = null;
-let consoleWindow = null;
 let proposedSchema = {};
 
+// @todo remove this and set window reference directly.
 const setwindow = (windowName, window) => {
   switch (windowName) {
-    case 'console':
-      consoleWindow = window;
-      break;
     case 'main':
     default:
       mainWindow = window;
@@ -235,12 +232,6 @@ const handlers = {
       args.token = '';
 
       if (err) {
-        consoleWindow.webContents.send('log_message', {
-          sender: event.sender.getTitle(),
-          channel: 'Error',
-          message: `Login Failed ${err}`,
-        });
-
         mainWindow.webContents.send('sfShowOrgId', {
           status: false,
           message: 'Login Failed',
