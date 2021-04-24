@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld(
         'response_generic',
         'response_list_objects',
         'response_schema',
+        'log_message',
       ];
       if (validChannels.includes(channel)) {
         // Remove the event to avoid information leaks.

@@ -156,11 +156,13 @@ const buildDatabase = (settings) => {
 
   // define callback to build out tables.
   const buildTable = (table) => {
-    const fields = proposedSchema[table.name];
+    const fields = proposedSchema[table._tableName];
     let field;
     let fieldType;
-    for (let i; i < fields.length; i += 1) {
-      field = fields[i].type;
+    const fieldNames = Object.getOwnPropertyNames(fields)
+
+    for (let i = 0; i < fieldNames.length; i += 1) {
+      field = fields[fieldNames[i]];
       fieldType = resolveFieldType(field.type);
       switch (fieldType) {
         case 'binary':
@@ -306,7 +308,7 @@ const handlers = {
       }
 
       // Send records back to the interface.
-      logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.length} SObjects.`);
+      logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
       mainWindow.webContents.send('response_list_objects', {
         status: true,
         message: 'Describe Global Successful',
@@ -328,7 +330,10 @@ const handlers = {
       describeCalls.push(conn.sobject(args.objects[i]).describe());
     }
 
-    // Wait for all of them to resolve, and build a collection.
+    // Log status
+    logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
+
+      // Wait for all of them to resolve, and build a collection.
     Promise.all(describeCalls).then((responses) => {
       for (let i = 0; i < responses.length; i += 1) {
         objectDescribes[responses[i].name] = responses[i];
@@ -336,9 +341,6 @@ const handlers = {
 
       // Build draft schema.
       proposedSchema = buildSchema(objectDescribes);
-
-      // Log status
-      logMessage('Schema', 'info', 'Draft schema built');
 
       // Send Schema to interface for review.
       mainWindow.webContents.send('response_schema', {
@@ -367,7 +369,7 @@ const handlers = {
     });
   },
   // Send a log message to the console window.
-  send_log: (event, args) => {
+  log_message: (event, args) => {
     mainWindow.webContents.send('log_message', {
       sender: args.sender,
       channel: args.channel,
