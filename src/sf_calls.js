@@ -104,7 +104,7 @@ const buildSchema = (objectList) => {
       fld.size = obj.fields[f].length;
 
       // Large text fields go to TEXT.
-      if (fld.type == 'string' && fld.size > 255) {
+      if (fld.type === 'string' && fld.size > 255) {
         fld.type = 'text';
       }
 
@@ -165,7 +165,7 @@ const buildDatabase = (settings) => {
     const fields = proposedSchema[table._tableName];
     let field;
     let fieldType;
-    const fieldNames = Object.getOwnPropertyNames(fields)
+    const fieldNames = Object.getOwnPropertyNames(fields);
 
     for (let i = 0; i < fieldNames.length; i += 1) {
       field = fields[fieldNames[i]];
@@ -218,7 +218,7 @@ const buildDatabase = (settings) => {
   // Helper to keep one line of logic for creating the tables.
   const createDbTable = (schema, table) => {
     schema.createTable(table, buildTable)
-      .then((response) => {
+      .then(() => {
         logMessage('Database', 'Success', 'Successfully created new table');
       })
       .catch((err) => {
@@ -229,7 +229,7 @@ const buildDatabase = (settings) => {
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
       db.schema.dropTableIfExists(tables[i])
-        .then(() => { createDbTable(db.schema, tables[i]) })
+        .then(() => { createDbTable(db.schema, tables[i]); })
         .catch((err) => {
           logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
         });
@@ -358,7 +358,7 @@ const handlers = {
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
 
-      // Wait for all of them to resolve, and build a collection.
+    // Wait for all of them to resolve, and build a collection.
     Promise.all(describeCalls).then((responses) => {
       for (let i = 0; i < responses.length; i += 1) {
         objectDescribes[responses[i].name] = responses[i];
@@ -383,7 +383,7 @@ const handlers = {
   },
   // Connect to a database and set the schema.
   knex_schema: (event, args) => {
-    const results = buildDatabase(args);
+    buildDatabase(args);
     logMessage('Database', 'Info', 'Database build started.');
   },
   // Send a log message to the console window.

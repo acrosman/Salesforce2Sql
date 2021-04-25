@@ -14,6 +14,6 @@ module.exports = {
     "rules": {
         "no-unused-vars": 1,
         "no-param-reassign": ["error", { "props": false }],
-        "no-underscore-dangle": false,
+        "no-underscore-dangle": 0,
     }
 };
