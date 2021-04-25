@@ -95,7 +95,6 @@ function logMessage(context, importance, message, data) {
  * @param {Object} sObjectList The list of objects for the org.
  * @returns {String} org type. One of npsp, eda, other.
  */
-// @TODO: Move to main thread and handling when describe comes back.
 const snifOrgType = (sObjectList) => {
   const namespaces = {
     npsp: 'npsp',
@@ -210,7 +209,6 @@ const displayObjectList = (sObjectData) => {
     'name',
   ];
 
-  // @todo: move to main thread to get through a seperate IPC.
   // Different common packages beg for different sets of Standard objects as likely to be used.
   const selectStandardObjects = {
     npsp: [
@@ -289,7 +287,6 @@ const displayObjectList = (sObjectData) => {
   const displayed = [];
   let checkCell;
   // First pass for popular objects
-  // @todo: create helper for the internals to avoid having twice.
   for (let i = 0; i < sObjectData.length; i += 1) {
     if (orgSelects.includes(sObjectData[i].name) || sObjectData[i].name.endsWith('__c')) {
       displayed.push(sObjectData[i].name);
@@ -363,8 +360,6 @@ document.getElementById('logout-trigger').addEventListener('click', () => {
     org: document.getElementById('active-org').value,
   });
   document.getElementById('org-status').style.display = 'none';
-  // @TODO: Remove org from list of active orgs.
-  // @TODO: Update/hide status area if no orgs remain.
 });
 
 // Fetch Org Objects
