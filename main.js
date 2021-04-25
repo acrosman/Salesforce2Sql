@@ -50,9 +50,8 @@ function createWindow() {
   mainWindow.loadURL(`file://${__dirname}/app/index.html`);
 
   // Attach to IPC handlers
-  ipcFunctions.setwindow('main', mainWindow);
+  ipcFunctions.setwindow(mainWindow);
 
-  // @todo add event listener for built-in console messages and route a copy to displayed console.
   // Emitted when the window is closed.
   mainWindow.on('closed', () => {
     // Dereference the window object, usually you would store windows

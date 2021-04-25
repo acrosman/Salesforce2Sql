@@ -5,14 +5,8 @@ const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
 
-// @todo remove this and set window reference directly.
-const setwindow = (windowName, window) => {
-  switch (windowName) {
-    case 'main':
-    default:
-      mainWindow = window;
-      break;
-  }
+const setwindow = (window) => {
+  mainWindow = window;
 };
 
 const resolveFieldType = (sfTypeName) => {
