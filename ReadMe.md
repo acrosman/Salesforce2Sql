@@ -1,6 +1,6 @@
 # Salesforce2Sql
 
-![Main Interface](https://github.com/version0chiro/Salesforce2Sql/blob/adding_screenshots_to_readme/documentation/Interface%20Screenshots/Main%20Screen.jpeg?raw=true)
+![Main Interface](documentation/Interface%20Screenshots/Main%20Screen.jpeg?raw=true)
 
 
 This is a tool to generate a SQL schema to match a Salesforce Org Schema.
@@ -9,7 +9,7 @@ Salesforce2Sql will connect to a Salesforce org, allow you to select a collectio
 
 ## Salesforce Login
 
-![Login Screen](https://github.com/version0chiro/Salesforce2Sql/blob/adding_screenshots_to_readme/documentation/Interface%20Screenshots/Login.PNG?raw=true)
+![Login Screen](documentation/Interface%20Screenshots/Login.PNG?raw=true)
 
 Currently only the username and password login system is supported, not OAuth2, so you likely will need your [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5).
 
