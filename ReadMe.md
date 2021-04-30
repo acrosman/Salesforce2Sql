@@ -1,11 +1,14 @@
 # Salesforce2Sql
 
-![Main Interface](documentation/Interface%20Screenshots/Main%20Screen.jpeg?raw=true)
-
-
 This is a tool to generate a SQL schema to match a Salesforce Org Schema.
 
-Salesforce2Sql will connect to a Salesforce org, allow you to select a collection of objects, and have the schema for those objects replicated to a local database. This can be very useful when working on data migration and archiving projects. _No data is replicated just the schema._ If you are looking for help migrating data between Salesforce Orgs you may want check out the [Salesforce Open Source Commons Data Generation Toolkit Project](https://github.com/SFDO-Community-Sprints/DataGenerationToolkit).
+![Main Interface](documentation/Interface%20Screenshots/MainScreen.png?raw=true)
+
+Salesforce2Sql will connect to a Salesforce org, allow you to select a collection of objects, and have the schema for those objects replicated to a local database. This can be very useful when working on data migration and archiving projects.
+
+_No data is replicated just the schema._
+
+If you are looking for help migrating data between Salesforce Orgs you may want check out the [Salesforce Open Source Commons Data Generation Toolkit Project](https://github.com/SFDO-Community-Sprints/DataGenerationToolkit).
 
 ## Salesforce Login
 
