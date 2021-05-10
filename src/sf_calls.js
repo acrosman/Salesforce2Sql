@@ -1,5 +1,11 @@
+const fs = require('fs');
+const path = require('path');
+const electron = require('electron'); // eslint-disable-line
 const jsforce = require('jsforce');
 const knex = require('knex');
+
+// Get the dialog library from Electron
+const { dialog } = electron;
 
 const sfConnections = {};
 let mainWindow = null;
@@ -130,7 +136,30 @@ const buildSchema = (objectList) => {
  * Open a save dialogue and write settings to a file.
  */
 const saveSchemaToFile = () => {
+  const dialogOptions = {
+    title: 'Save Schema To',
+    message: 'Create File',
+  };
 
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    let fileName = response.filePath;
+
+    if (path.extname(fileName).toLowerCase() !== 'json') {
+      fileName = `${fileName}.json`;
+    }
+
+    fs.writeFile(fileName, JSON.stringify(proposedSchema), (err) => {
+      if (err) {
+        logMessage('Save', 'Error', `Unable to save file: ${err}`);
+      } else {
+        logMessage('Save', 'Info', `Schema saved to ${fileName}`);
+      }
+    });
+  }).catch((err) => {
+    logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+  });
 };
 
 const buildDatabase = (settings) => {

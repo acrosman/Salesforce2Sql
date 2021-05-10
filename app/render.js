@@ -341,6 +341,7 @@ const displayDraftSchema = (schema) => {
     response: schema,
   });
   $('#btn-generate-schema').prop('disabled', false);
+  $('#btn-save-schema').prop('disabled', false);
 };
 
 // ========= Messages to the main process ===============
