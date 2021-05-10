@@ -126,6 +126,13 @@ const buildSchema = (objectList) => {
   return schema;
 };
 
+/**
+ * Open a save dialogue and write settings to a file.
+ */
+const saveSchemaToFile = () => {
+
+};
+
 const buildDatabase = (settings) => {
   // Create database connection.
   const db = knex({
@@ -388,6 +395,10 @@ const handlers = {
       message: args.message,
     });
     return true;
+  },
+  // Save the current schema settings to a file.
+  save_schema: () => {
+    saveSchemaToFile();
   },
 };
 

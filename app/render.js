@@ -403,6 +403,10 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
   });
 });
 
+document.getElementById('btn-save-schema').addEventListener('click', () => {
+  window.api.send('save_schema');
+});
+
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {
