@@ -67,8 +67,14 @@ const logMessage = (title, channel, message) => {
  */
 const extractPicklistValues = (valueList) => {
   const values = [];
+  let val;
   for (let i = 0; i < valueList.length; i += 1) {
-    values.push(valueList[i].value);
+    val = valueList[i].value;
+    // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
+    if (val.includes("'")) {
+      val = val.replaceAll("'", "\\'");
+    }
+    values.push(val);
   }
   return values;
 };
