@@ -5,6 +5,7 @@ const {
   app,
   BrowserWindow,
   ipcMain,
+  session,
 } = electron;
 
 // Developer Dependencies.
@@ -39,6 +40,7 @@ function createWindow() {
       nodeIntegration: false, // Disable nodeIntegration for security.
       nodeIntegrationInWorker: false,
       nodeIntegrationInSubFrames: false,
+      disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
       contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
       worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
       enableRemoteModule: false, // Turn off remote to avoid temptation.
@@ -59,6 +61,15 @@ function createWindow() {
     // when you should delete the corresponding element.
     mainWindow = null;
   });
+
+  // Lock down session permissions.
+  // https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
+  // https://github.com/doyensec/electronegativity/wiki/PERMISSION_REQUEST_HANDLER_GLOBAL_CHECK
+  session
+    .fromPartition('secured-partition')
+    .setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(false);
+    });
 }
 
 // This method will be called when Electron has finished
