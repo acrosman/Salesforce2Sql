@@ -190,17 +190,20 @@
             </div>
             <div class="col-md-10">
                 <div id="control-panel" class="card">
-                    <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-lg btn-primary" disabled>
+                    <div class="btn-group">
+                        <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-primary" disabled>
                         Fetch Objects
                     </button>
+                    <button type="button" id="btn-load-sf-schema" class="sf-api-trigger-button btn">Load Schema</button>
+                    </div>
                     <div class="btn-group">
-                        <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-lg btn-secondary" disabled>
+                        <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-secondary" disabled>
                             Fetch Details
                         </button>
                         <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-sf-schema" disabled>Save Schema</button>
                         </div>
                     <div class="btn-group">
-                        <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" data-toggle="modal"
+                        <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success" data-toggle="modal"
                             data-target="#dbModal" disabled>
                             Generate SQL
                         </button>
