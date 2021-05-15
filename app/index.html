@@ -152,7 +152,8 @@
                                         <div class="form-group">
                                             <label for="db-overwrite">Drop and Recreate Tables</label>
                                             <input type="checkbox" id="db-overwrite" class="form-control" aria-describedby="dbOverwriteHelp">
-                                            <small id="dbOverwriteHelp" class="form-text">Drop all tables and recreate them. <em>Delete's any data in the
+                                            <small id="dbOverwriteHelp" class="form-text">Drop all tables and recreate
+                                                them. <em>Delete's any data in the
                                                     tables.</em></small>
                                         </div>
                                     </form>
@@ -192,41 +193,44 @@
                     <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-lg btn-primary" disabled>
                         Fetch Objects
                     </button>
-                    <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-lg btn-secondary" disabled>
-                        Fetch Details
-                    </button>
                     <div class="btn-group">
-                    <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" data-toggle="modal"
-                        data-target="#dbModal" disabled>
-                        Generate SQL
-                    </button>
-                    <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-schema" disabled>Save
-                        Schema</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12" id="results-message-wrapper">
-                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
-            </div>
-            <div class=" col-md-12" id="results-table-wrapper">
-                <div class="results-summary">
-                    <h3 id="results-summary-count"></h3>
-                </div>
-                <table id="results-table" class="table table-striped table-bordered table-hover">
-                    <tr class="results-table-header"></tr>
-                    <tr class="results-table-row"></tr>
-                </table>
-            </div>
-            <div class="col-md-12" id="results-object-viewer-wrapper">
-                <div class="results-summary">
-                    <h3></h3>
-                    <p></p>
-                </div>
-                <div id="results-object-viewer"></div>
-            </div>
-        </div>
+                        <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-lg btn-secondary" disabled>
+                            Fetch Details
+                        </button>
+                        <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-sf-schema" disabled>Save Schema</button>
+                        </div>
+                    <div class="btn-group">
+                        <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-lg btn-success" data-toggle="modal"
+                            data-target="#dbModal" disabled>
+                            Generate SQL
+                        </button>
+                        <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema" disabled>Save SQL</button>
+                        </div>
+                        </div>
+                        </div>
+                        </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12" id="results-message-wrapper">
+                                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
+                            </div>
+                            <div class=" col-md-12" id="results-table-wrapper">
+                                <div class="results-summary">
+                                    <h3 id="results-summary-count"></h3>
+                                </div>
+                                <table id="results-table" class="table table-striped table-bordered table-hover">
+                                    <tr class="results-table-header"></tr>
+                                    <tr class="results-table-row"></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-12" id="results-object-viewer-wrapper">
+                                <div class="results-summary">
+                                    <h3></h3>
+                                    <p></p>
+                                </div>
+                                <div id="results-object-viewer"></div>
+                            </div>
+                        </div>
     </div>
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>

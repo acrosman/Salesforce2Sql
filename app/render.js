@@ -341,7 +341,7 @@ const displayDraftSchema = (schema) => {
     response: schema,
   });
   $('#btn-generate-schema').prop('disabled', false);
-  $('#btn-save-schema').prop('disabled', false);
+  $('#btn-save-sf-schema').prop('disabled', false);
 };
 
 // ========= Messages to the main process ===============
@@ -404,7 +404,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
   });
 });
 
-document.getElementById('btn-save-schema').addEventListener('click', () => {
+document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
 
