@@ -132,6 +132,41 @@ const buildSchema = (objectList) => {
   return schema;
 };
 
+const loadSchemaFromFile = () => {
+  const dialogOptions = {
+    title: 'Load Schema',
+    message: 'Load schema from JSON previously saved by Salesforce2Sql',
+    filters: [
+      { name: JSON, extenions: ['json'] },
+    ],
+    properties: {
+      openFile: true,
+      openDirectory: false,
+      createDirectory: false,
+      promptToCreate: false,
+      noResolveAliases: false,
+      treatPackageAsDirectory: false,
+      dontAddToRecent: false,
+    },
+  };
+
+  dialog.showOpenDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    const fileName = response.filePaths[0];
+
+    fs.readFile(fileName, (err, data) => {
+      if (err) {
+        logMessage('File', 'Error', `Unable to load requested file: ${err.message}`);
+        return;
+      }
+
+      proposedSchema = data;
+      // Need to send something back with this data for handling.
+    });
+  });
+};
+
 /**
  * Open a save dialogue and write settings to a file.
  */
@@ -424,6 +459,10 @@ const handlers = {
       message: args.message,
     });
     return true;
+  },
+  // Load a previously saved Schema from a file.
+  load_schema: () => {
+    loadSchemaFromFile();
   },
   // Save the current schema settings to a file.
   save_schema: () => {

@@ -408,6 +408,10 @@ document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
 
+document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
+  window.api.send('load_schema');
+});
+
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {
