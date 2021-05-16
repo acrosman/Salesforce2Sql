@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld(
     },
     receive: (channel, func) => {
       const validChannels = [
+        'response_db_generated',
         'response_login',
         'response_logout',
         'response_generic',

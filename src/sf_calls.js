@@ -200,6 +200,10 @@ const saveSchemaToFile = () => {
   });
 };
 
+const saveSchemaToSql = (settings) => {
+
+};
+
 const buildDatabase = (settings) => {
   // Create database connection.
   const db = knex({
@@ -470,6 +474,10 @@ const handlers = {
   // Save the current schema settings to a file.
   save_schema: () => {
     saveSchemaToFile();
+  },
+  // Save the current schema to a SQL file.
+  save_ddl_sql: (event, args) => {
+    saveSchemaToSql(args);
   },
 };
 

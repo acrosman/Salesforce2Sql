@@ -404,6 +404,26 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
   });
 });
 
+// Save the database create statement to a file.
+document.getElementById('btn-save-sql-schema').addEventListener('click', () => {
+  const dbTypes = document.getElementsByName('db-radio-selectors');
+  let dbType;
+  for (let i = 0; i < dbTypes.length; i += 1) {
+    if (dbTypes[i].checked) {
+      dbType = dbTypes[i].value;
+      break;
+    }
+  }
+  window.api.send('save_ddl_sql', {
+    type: dbType,
+    host: document.getElementById('db-host').value,
+    username: document.getElementById('db-username').value,
+    password: document.getElementById('db-password').value,
+    dbname: document.getElementById('db-name').value,
+    overwrite: document.getElementById('db-overwrite').checked,
+  });
+});
+
 document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
@@ -431,6 +451,12 @@ window.api.receive('response_logout', (data) => {
 // Generic Response.
 window.api.receive('response_generic', (data) => {
   logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
+});
+
+// Response after building database
+window.api.receive('response_db_generated', (data) => {
+  logMessage('Database', 'Info', 'Database generation complete.', data);
+  $('#btn-save-sql-schema').prop('disabled', false);
 });
 
 window.api.receive('response_schema', (data) => {
