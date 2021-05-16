@@ -161,8 +161,19 @@ const loadSchemaFromFile = () => {
         return;
       }
 
+      // @TODO: Validate that schema is in a useable form.
+
       proposedSchema = data;
-      // Need to send something back with this data for handling.
+      logMessage('File', 'Info', `Loaded schema from file: ${err.message}`);
+
+      // Send Schema to interface for review.
+      mainWindow.webContents.send('response_schema', {
+        status: false,
+        message: `Loaded schema from ${fileName}`,
+        response: {
+          schema: proposedSchema,
+        },
+      });
     });
   });
 };
