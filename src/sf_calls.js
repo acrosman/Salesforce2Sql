@@ -73,8 +73,14 @@ const logMessage = (title, channel, message) => {
  */
 const extractPicklistValues = (valueList) => {
   const values = [];
+  let val;
   for (let i = 0; i < valueList.length; i += 1) {
-    values.push(valueList[i].value);
+    val = valueList[i].value;
+    // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
+    if (val.includes("'")) {
+      val = val.replaceAll("'", "\\'");
+    }
+    values.push(val);
   }
   return values;
 };
@@ -288,27 +294,50 @@ const buildDatabase = (settings) => {
   };
 
   // Helper to keep one line of logic for creating the tables.
-  const createDbTable = (schema, table) => {
-    schema.createTable(table, buildTable)
-      .then(() => {
-        logMessage('Database', 'Success', 'Successfully created new table');
-      })
-      .catch((err) => {
-        logMessage('Database Create', 'Error', `Error creating table: ${err}`);
-      });
-  };
+  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .catch((err) => {
+      logMessage('Database Create', 'Error', `Error creating table: ${err}`);
+      return err;
+    });
 
+  const createTablePromises = [];
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
       db.schema.dropTableIfExists(tables[i])
-        .then(() => { createDbTable(db.schema, tables[i]); })
+        .then(() => {
+          createDbTable(db.schema, tables[i]).then((response) => {
+            logMessage('Database', 'Success', `Successfully created new table: ${response[0].message}`);
+            return response[0].message;
+          });
+        })
         .catch((err) => {
           logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
+          return err;
         });
     } else {
-      createDbTable(db.schema, tables[i]);
+      createTablePromises.push(createDbTable(db.schema, tables[i]));
     }
   }
+
+  Promise.all(createTablePromises).then((values) => {
+    const tableStatuses = {
+      Errors: [],
+      Successes: [],
+    };
+    for (let i = 0; i < values.length; i += 1) {
+      if (Object.prototype.hasOwnProperty.call(values[i], 'message')) {
+        tableStatuses.Errors.push(values[i].message);
+      } else {
+        tableStatuses.Successes.push(values[i]);
+      }
+    }
+
+    mainWindow.webContents.send('response_db_generated', {
+      status: true,
+      message: 'Database created',
+      responses: tableStatuses,
+    });
+  });
 };
 
 const handlers = {
