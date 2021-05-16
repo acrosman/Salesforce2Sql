@@ -297,46 +297,31 @@ const saveSchemaToSql = (settings) => {
   const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
+  // Simple callback used to generate the DDL statements.
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
-    .catch((err) => {
-      logMessage('Schema Save', 'Error', `Error creating generation statement table: ${err}`);
-      return err;
-    })
-    .generateDllCommands();
+    .generateDdlCommands();
 
-  const commandList = {};
-  const ddlPromises = [];
-  for (let i = 0; i < tables.length; i += 1) {
-    ddlPromises.push(createDbTable(db.schema, tables[i]).then((result) => {
-      logMessage('Schema Save', 'Info', `Created DDL statements for ${tables[i]}`);
-      commandList[tables[i]] = result;
-      return result;
-    }));
-  }
+  const dialogOptions = {
+    title: 'Save SQL File',
+    message: 'Create File',
+  };
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    let fileName = response.filePath;
 
-  Promise.all(ddlPromises).then((ddlStatements) => {
-    const dialogOptions = {
-      title: 'Save SQL File',
-      message: 'Create File',
-    };
+    if (path.extname(fileName).toLowerCase() !== '.sql') {
+      fileName = `${fileName}.sql`;
+    }
 
-    dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
-      let fileName = response.filePath;
-
-      if (path.extname(fileName).toLowerCase() !== 'json') {
-        fileName = `${fileName}.json`;
-      }
-
-      fs.writeFile(fileName, JSON.stringify(ddlStatements), (err) => {
-        if (err) {
-          logMessage('Save', 'Error', `Unable to save file: ${err}`);
-        } else {
-          logMessage('Save', 'Info', `SQL saved to ${fileName}`);
-        }
-      });
-    }).catch((err) => {
-      logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+    const writeStream = fs.createWriteStream(fileName);
+    writeStream.on('error', (err) => {
+      logMessage('SQL File', 'Error', `Error saving to file ${err}`);
     });
+    for (let i = 0; i < tables.length; i += 1) {
+      createDbTable(db.schema, tables[i]).then((result) => {
+        logMessage('Schema Save', 'Info', `Created DDL statements for ${tables[i]}`);
+        writeStream.write(`${result.sql[0].sql};\n`);
+      });
+    }
   });
 };
 
