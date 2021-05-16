@@ -424,6 +424,11 @@ window.api.receive('response_generic', (data) => {
   logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
 });
 
+// Response after building database
+window.api.receive('response_db_generated', (data) => {
+  logMessage('Database', 'Info', 'Database generation complete.', data);
+});
+
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
