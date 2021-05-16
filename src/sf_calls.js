@@ -139,15 +139,7 @@ const loadSchemaFromFile = () => {
     filters: [
       { name: JSON, extenions: ['json'] },
     ],
-    properties: {
-      openFile: true,
-      openDirectory: false,
-      createDirectory: false,
-      promptToCreate: false,
-      noResolveAliases: false,
-      treatPackageAsDirectory: false,
-      dontAddToRecent: false,
-    },
+    properties: ['openFile'],
   };
 
   dialog.showOpenDialog(mainWindow, dialogOptions).then((response) => {
@@ -163,8 +155,8 @@ const loadSchemaFromFile = () => {
 
       // @TODO: Validate that schema is in a useable form.
 
-      proposedSchema = data;
-      logMessage('File', 'Info', `Loaded schema from file: ${err.message}`);
+      proposedSchema = JSON.parse(data);
+      logMessage('File', 'Info', `Loaded schema from file: ${fileName}`);
 
       // Send Schema to interface for review.
       mainWindow.webContents.send('response_schema', {
