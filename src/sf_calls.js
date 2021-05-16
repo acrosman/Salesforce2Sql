@@ -237,6 +237,12 @@ const buildDatabase = (settings) => {
       createDbTable(db.schema, tables[i]);
     }
   }
+
+  mainWindow.webContents.send('response_generic', {
+    status: true,
+    message: 'Database created',
+    response: db.schema,
+  });
 };
 
 const handlers = {
