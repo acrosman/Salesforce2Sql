@@ -177,6 +177,64 @@ const loadSchemaFromFile = () => {
 };
 
 /**
+ * A callback to build out tables.
+ * @param {object} table the table we're building out.
+ */
+const buildTable = (table) => {
+  const fields = proposedSchema[table._tableName];
+  let field;
+  let fieldType;
+  const fieldNames = Object.getOwnPropertyNames(fields);
+
+  for (let i = 0; i < fieldNames.length; i += 1) {
+    field = fields[fieldNames[i]];
+    fieldType = resolveFieldType(field.type);
+    switch (fieldType) {
+      case 'binary':
+        table.binary(field.name, field.size);
+        break;
+      case 'boolean':
+        table.boolean(field.name);
+        break;
+      case 'biginteger':
+        table.biginteger(field.name);
+        break;
+      case 'date':
+        table.date(field.name);
+        break;
+      case 'datetime':
+        table.datetime(field.name);
+        break;
+      case 'decimal':
+        table.decimal(field.name, field.precision, field.scale);
+        break;
+      case 'enum':
+        table.enu(field.name, field.values);
+        break;
+      case 'float':
+        table.float(field.name, field.precision, field.scale);
+        break;
+      case 'integer':
+        table.integer(field.name);
+        break;
+      case 'reference':
+        table.string(field.name, 18);
+        break;
+      case 'text':
+        table.text(field.name);
+        break;
+      case 'time':
+        table.time(field.name);
+        break;
+      default:
+        table.string(field.name, field.size);
+    }
+  }
+
+  logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
+};
+
+/**
  * Open a save dialogue and write settings to a file.
  */
 const saveSchemaToFile = () => {
@@ -206,11 +264,7 @@ const saveSchemaToFile = () => {
   });
 };
 
-const saveSchemaToSql = (settings) => {
-
-};
-
-const buildDatabase = (settings) => {
+const createKnexConnection = (settings) => {
   // Create database connection.
   const db = knex({
     client: settings.type,
@@ -236,62 +290,59 @@ const buildDatabase = (settings) => {
     },
   });
 
+  return db;
+};
+
+const saveSchemaToSql = (settings) => {
+  const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
-  // define callback to build out tables.
-  const buildTable = (table) => {
-    const fields = proposedSchema[table._tableName];
-    let field;
-    let fieldType;
-    const fieldNames = Object.getOwnPropertyNames(fields);
+  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .catch((err) => {
+      logMessage('Schema Save', 'Error', `Error creating generation statement table: ${err}`);
+      return err;
+    })
+    .generateDllCommands();
 
-    for (let i = 0; i < fieldNames.length; i += 1) {
-      field = fields[fieldNames[i]];
-      fieldType = resolveFieldType(field.type);
-      switch (fieldType) {
-        case 'binary':
-          table.binary(field.name, field.size);
-          break;
-        case 'boolean':
-          table.boolean(field.name);
-          break;
-        case 'biginteger':
-          table.biginteger(field.name);
-          break;
-        case 'date':
-          table.date(field.name);
-          break;
-        case 'datetime':
-          table.datetime(field.name);
-          break;
-        case 'decimal':
-          table.decimal(field.name, field.precision, field.scale);
-          break;
-        case 'enum':
-          table.enu(field.name, field.values);
-          break;
-        case 'float':
-          table.float(field.name, field.precision, field.scale);
-          break;
-        case 'integer':
-          table.integer(field.name);
-          break;
-        case 'reference':
-          table.string(field.name, 18);
-          break;
-        case 'text':
-          table.text(field.name);
-          break;
-        case 'time':
-          table.time(field.name);
-          break;
-        default:
-          table.string(field.name, field.size);
+  const commandList = {};
+  const ddlPromises = [];
+  for (let i = 0; i < tables.length; i += 1) {
+    ddlPromises.push(createDbTable(db.schema, tables[i]).then((result) => {
+      logMessage('Schema Save', 'Info', `Created DDL statements for ${tables[i]}`);
+      commandList[tables[i]] = result;
+      return result;
+    }));
+  }
+
+  Promise.all(ddlPromises).then((ddlStatements) => {
+    const dialogOptions = {
+      title: 'Save SQL File',
+      message: 'Create File',
+    };
+
+    dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+      let fileName = response.filePath;
+
+      if (path.extname(fileName).toLowerCase() !== 'json') {
+        fileName = `${fileName}.json`;
       }
-    }
 
-    logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
-  };
+      fs.writeFile(fileName, JSON.stringify(ddlStatements), (err) => {
+        if (err) {
+          logMessage('Save', 'Error', `Unable to save file: ${err}`);
+        } else {
+          logMessage('Save', 'Info', `SQL saved to ${fileName}`);
+        }
+      });
+    }).catch((err) => {
+      logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+    });
+  });
+};
+
+const buildDatabase = (settings) => {
+  const db = createKnexConnection(settings);
+  const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Helper to keep one line of logic for creating the tables.
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
