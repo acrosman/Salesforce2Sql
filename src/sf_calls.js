@@ -1,5 +1,11 @@
+const fs = require('fs');
+const path = require('path');
+const electron = require('electron'); // eslint-disable-line
 const jsforce = require('jsforce');
 const knex = require('knex');
+
+// Get the dialog library from Electron
+const { dialog } = electron;
 
 const sfConnections = {};
 let mainWindow = null;
@@ -132,7 +138,133 @@ const buildSchema = (objectList) => {
   return schema;
 };
 
-const buildDatabase = (settings) => {
+const loadSchemaFromFile = () => {
+  const dialogOptions = {
+    title: 'Load Schema',
+    message: 'Load schema from JSON previously saved by Salesforce2Sql',
+    filters: [
+      { name: JSON, extenions: ['json'] },
+    ],
+    properties: ['openFile'],
+  };
+
+  dialog.showOpenDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    const fileName = response.filePaths[0];
+
+    fs.readFile(fileName, (err, data) => {
+      if (err) {
+        logMessage('File', 'Error', `Unable to load requested file: ${err.message}`);
+        return;
+      }
+
+      // @TODO: Validate that schema is in a useable form.
+
+      proposedSchema = JSON.parse(data);
+      logMessage('File', 'Info', `Loaded schema from file: ${fileName}`);
+
+      // Send Schema to interface for review.
+      mainWindow.webContents.send('response_schema', {
+        status: false,
+        message: `Loaded schema from ${fileName}`,
+        response: {
+          schema: proposedSchema,
+        },
+      });
+    });
+  });
+};
+
+/**
+ * A callback to build out tables.
+ * @param {object} table the table we're building out.
+ */
+const buildTable = (table) => {
+  const fields = proposedSchema[table._tableName];
+  let field;
+  let fieldType;
+  const fieldNames = Object.getOwnPropertyNames(fields);
+
+  for (let i = 0; i < fieldNames.length; i += 1) {
+    field = fields[fieldNames[i]];
+    fieldType = resolveFieldType(field.type);
+    switch (fieldType) {
+      case 'binary':
+        table.binary(field.name, field.size);
+        break;
+      case 'boolean':
+        table.boolean(field.name);
+        break;
+      case 'biginteger':
+        table.biginteger(field.name);
+        break;
+      case 'date':
+        table.date(field.name);
+        break;
+      case 'datetime':
+        table.datetime(field.name);
+        break;
+      case 'decimal':
+        table.decimal(field.name, field.precision, field.scale);
+        break;
+      case 'enum':
+        table.enu(field.name, field.values);
+        break;
+      case 'float':
+        table.float(field.name, field.precision, field.scale);
+        break;
+      case 'integer':
+        table.integer(field.name);
+        break;
+      case 'reference':
+        table.string(field.name, 18);
+        break;
+      case 'text':
+        table.text(field.name);
+        break;
+      case 'time':
+        table.time(field.name);
+        break;
+      default:
+        table.string(field.name, field.size);
+    }
+  }
+
+  logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
+};
+
+/**
+ * Open a save dialogue and write settings to a file.
+ */
+const saveSchemaToFile = () => {
+  const dialogOptions = {
+    title: 'Save Schema To',
+    message: 'Create File',
+  };
+
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    let fileName = response.filePath;
+
+    if (path.extname(fileName).toLowerCase() !== 'json') {
+      fileName = `${fileName}.json`;
+    }
+
+    fs.writeFile(fileName, JSON.stringify(proposedSchema), (err) => {
+      if (err) {
+        logMessage('Save', 'Error', `Unable to save file: ${err}`);
+      } else {
+        logMessage('Save', 'Info', `Schema saved to ${fileName}`);
+      }
+    });
+  }).catch((err) => {
+    logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+  });
+};
+
+const createKnexConnection = (settings) => {
   // Create database connection.
   const db = knex({
     client: settings.type,
@@ -158,62 +290,44 @@ const buildDatabase = (settings) => {
     },
   });
 
+  return db;
+};
+
+const saveSchemaToSql = (settings) => {
+  const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
-  // define callback to build out tables.
-  const buildTable = (table) => {
-    const fields = proposedSchema[table._tableName];
-    let field;
-    let fieldType;
-    const fieldNames = Object.getOwnPropertyNames(fields);
+  // Simple callback used to generate the DDL statements.
+  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .generateDdlCommands();
 
-    for (let i = 0; i < fieldNames.length; i += 1) {
-      field = fields[fieldNames[i]];
-      fieldType = resolveFieldType(field.type);
-      switch (fieldType) {
-        case 'binary':
-          table.binary(field.name, field.size);
-          break;
-        case 'boolean':
-          table.boolean(field.name);
-          break;
-        case 'biginteger':
-          table.biginteger(field.name);
-          break;
-        case 'date':
-          table.date(field.name);
-          break;
-        case 'datetime':
-          table.datetime(field.name);
-          break;
-        case 'decimal':
-          table.decimal(field.name, field.precision, field.scale);
-          break;
-        case 'enum':
-          table.enu(field.name, field.values);
-          break;
-        case 'float':
-          table.float(field.name, field.precision, field.scale);
-          break;
-        case 'integer':
-          table.integer(field.name);
-          break;
-        case 'reference':
-          table.string(field.name, 18);
-          break;
-        case 'text':
-          table.text(field.name);
-          break;
-        case 'time':
-          table.time(field.name);
-          break;
-        default:
-          table.string(field.name, field.size);
-      }
+  const dialogOptions = {
+    title: 'Save SQL File',
+    message: 'Create File',
+  };
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    let fileName = response.filePath;
+
+    if (path.extname(fileName).toLowerCase() !== '.sql') {
+      fileName = `${fileName}.sql`;
     }
 
-    logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
-  };
+    const writeStream = fs.createWriteStream(fileName);
+    writeStream.on('error', (err) => {
+      logMessage('SQL File', 'Error', `Error saving to file ${err}`);
+    });
+    for (let i = 0; i < tables.length; i += 1) {
+      createDbTable(db.schema, tables[i]).then((result) => {
+        logMessage('Schema Save', 'Info', `Created DDL statements for ${tables[i]}`);
+        writeStream.write(`${result.sql[0].sql};\n`);
+      });
+    }
+  });
+};
+
+const buildDatabase = (settings) => {
+  const db = createKnexConnection(settings);
+  const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Helper to keep one line of logic for creating the tables.
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
@@ -417,6 +531,18 @@ const handlers = {
       message: args.message,
     });
     return true;
+  },
+  // Load a previously saved Schema from a file.
+  load_schema: () => {
+    loadSchemaFromFile();
+  },
+  // Save the current schema settings to a file.
+  save_schema: () => {
+    saveSchemaToFile();
+  },
+  // Save the current schema to a SQL file.
+  save_ddl_sql: (event, args) => {
+    saveSchemaToSql(args);
   },
 };
 
