@@ -76,8 +76,8 @@
                                     <form>
                                         <div class="form-group">
                                             <label for="login-username">User Name</label>
-                                            <input type="text" id="login-username" class="form-control" aria-describedby="usernameHelp"
-                                                placeholder="Enter Salesforce Username">
+                                            <input type="text" id="login-username" class="form-control"
+                                                aria-describedby="usernameHelp" placeholder="Enter Salesforce Username">
                                             <small id="usernameHelp" class="form-text">Your Salesforce username must be
                                                 in the form of an email address.</small>
                                         </div>
@@ -87,7 +87,8 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="login-token">Security Token</label>
-                                            <input type="password" class="form-control" aria-describedby="tokenHelp" id="login-token">
+                                            <input type="password" class="form-control" aria-describedby="tokenHelp"
+                                                id="login-token">
                                             <small id="tokenHelp" class="form-text">Likely you will need your Saleforce
                                                 Security token. If you do not have it follow <a
                                                     href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
@@ -95,18 +96,21 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="login-url">Login URL</label>
-                                            <input type="url" id="login-url" class="form-control" value="https://login.salesforce.com">
+                                            <input type="url" id="login-url" class="form-control"
+                                                value="https://login.salesforce.com">
                                         </div>
                                     </form>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-primary" id="login-trigger" data-dismiss="modal">Connect</button>
+                                    <button type="button" class="btn btn-primary" id="login-trigger"
+                                        data-dismiss="modal">Connect</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal fade" id="dbModal" tabindex="-1" role="dialog" aria-labelledby="dbModalLabel" aria-hidden="true">
+                    <div class="modal fade" id="dbModal" tabindex="-1" role="dialog" aria-labelledby="dbModalLabel"
+                        aria-hidden="true">
                         <div class="modal-dialog" role="document">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -120,24 +124,27 @@
                                         <div class="form-group">
                                             <label for="db-radio-selectors">Select Database Type</label>
                                             <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL" value="mysql" checked>
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors"
+                                                    id="db-MySQL" value="mysql" checked>
                                                 <label class="form-check-label" for="db-MySQL">MySQL</label>
                                             </div>
                                             <div class="form-check form-check-inline">
-                                                <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-Postgres" value="postgres">
+                                                <input class="form-check-input" type="radio" name="db-radio-selectors"
+                                                    id="db-Postgres" value="postgres">
                                                 <label class="form-check-label" for="db-Postgres">Postgress</label>
                                             </div>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-host">Host</label>
-                                            <input type="text" id="db-host" class="form-control" aria-describedby="hostHelp" placeholder="127.0.0.1">
+                                            <input type="text" id="db-host" class="form-control"
+                                                aria-describedby="hostHelp" placeholder="127.0.0.1">
                                             <small id="hostHelp" class="form-text">The host address for your
                                                 database.</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-username">User Name</label>
-                                            <input type="text" id="db-username" class="form-control" aria-describedby="dbUsernameHelp"
-                                                placeholder="Enter Database Username">
+                                            <input type="text" id="db-username" class="form-control"
+                                                aria-describedby="dbUsernameHelp" placeholder="Enter Database Username">
                                             <small id="dbUsernameHelp" class="form-text">Database username</small>
                                         </div>
                                         <div class="form-group">
@@ -146,12 +153,14 @@
                                         </div>
                                         <div class="form-group">
                                             <label for="db-name">Database Name</label>
-                                            <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp" placeholder="Enter Database Name">
+                                            <input type="text" id="db-name" class="form-control"
+                                                aria-describedby="dbNameHelp" placeholder="Enter Database Name">
                                             <small id="dbNameHelp" class="form-text">Database Name</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-overwrite">Drop and Recreate Tables</label>
-                                            <input type="checkbox" id="db-overwrite" class="form-control" aria-describedby="dbOverwriteHelp">
+                                            <input type="checkbox" id="db-overwrite" class="form-control"
+                                                aria-describedby="dbOverwriteHelp">
                                             <small id="dbOverwriteHelp" class="form-text">Drop all tables and recreate
                                                 them. <em>Delete's any data in the
                                                     tables.</em></small>
@@ -160,24 +169,13 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-primary" id="schema-trigger" data-dismiss="modal">Connect & Build</button>
+                                    <button type="button" class="btn btn-primary" id="schema-trigger"
+                                        data-dismiss="modal">Connect & Build</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-8">
-                <div class="card bg-default" id=raw-response-wrapper>
-                    <h2>Last Response:</h2>
-                    <pre id="raw-response" class="pre-scrollable"></pre>
-                    <button type="button" id="show-console" class="btn btn-info" value="Show Log Console" data-toggle="modal"
-                        data-target="#consoleModal">Show Log Console</button>
-                </div>
-            </div>
-        </div>
-        <div class="row" id="controls-wrapper">
-            <div class="col-md-2">
                 <div id="instruction-panel" class="card">
                     <div class="card-body">
                         <h5 class="card-title">Instructions</h5>
@@ -188,52 +186,105 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-10">
-                <div id="control-panel" class="card">
-                    <div class="btn-group">
-                        <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-primary" disabled>
-                        Fetch Objects
-                    </button>
-                    <button type="button" id="btn-load-sf-schema" class="sf-api-trigger-button btn">Load Schema</button>
+            <div class="col-md-8">
+                <div class="card bg-default" id=raw-response-wrapper>
+                    <h2>Last Response:</h2>
+                    <pre id="raw-response" class="pre-scrollable"></pre>
+                    <button type="button" id="show-console" class="btn btn-info" value="Show Log Console"
+                        data-toggle="modal" data-target="#consoleModal">Show Log Console</button>
+                </div>
+            </div>
+        </div>
+        <div class="row" id="message-wrapper">
+            <div class="col-md-12" id="results-message-wrapper">
+                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
+            </div>
+        </div>
+        <div class="row" id="controls-wrapper">
+            <div class="col-md-12">
+                <ul class="nav nav-tabs" id="nav-tab" role="navigation">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="nav-objects-tab" data-toggle="tab" href="#nav-objects" role="tab"
+                            aria-controls="nav-objects" aria-selected="true">Org Objects</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-schema-tab" data-toggle="tab" href="#nav-schema" role="tab"
+                            aria-controls="nav-schema" aria-selected="false">Proposed
+                            Schema</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-sql-tab" data-toggle="tab" href="#nav-sql" role="tab"
+                            aria-controls="nav-sql" aria-selected="false">Generated
+                            SQL</a>
+                    </li>
+                </ul>
+                <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-objects" role="tabpanel"
+                        aria-labelledby="nav-objects-tab">
+                        <div class="btn-group">
+                            <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-primary"
+                                disabled>
+                                Fetch Objects
+                            </button>
+                            <button type="button" id="btn-load-sf-schema" class="sf-api-trigger-button btn">Load
+                                Objects
+                            </button>
+                            <button type="button" id="btn-objects-next" class="btn btn-next"
+                                data-next="#nav-schema-tab">Next &rarr;</button>
+                        </div>
+                        <div class=" col-md-12" id="results-table-wrapper">
+                            <div class="results-summary">
+                                <h3 id="results-summary-count"></h3>
+                            </div>
+                            <table id="results-table" class="table table-striped table-bordered table-hover">
+                                <tr class="results-table-header"></tr>
+                                <tr class="results-table-row"></tr>
+                            </table>
+                        </div>
                     </div>
-                    <div class="btn-group">
-                        <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-secondary" disabled>
-                            Fetch Details
-                        </button>
-                        <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-sf-schema" disabled>Save Schema</button>
+                    <div class="tab-pane fade" id="nav-schema" role="tabpanel" aria-labelledby="nav-schema-tab">
+                        <div class="btn-group">
+                            <button type="button" id="btn-schema-prev" class="btn btn-prev"
+                                data-prev="#nav-objects-tab">
+                                &larr; Previous</button>
+                            <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-secondary"
+                                disabled>
+                                Fetch Details
+                            </button>
+                            <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-sf-schema"
+                                disabled>
+                                Save Schema
+                            </button>
+                            <button type="button" id="btn-schema-next" class="btn btn-next"
+                                data-next="#nav-sql-tab">Next
+                                &rarr;</button>
                         </div>
-                    <div class="btn-group">
-                        <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success" data-toggle="modal"
-                            data-target="#dbModal" disabled>
-                            Generate SQL
-                        </button>
-                        <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema" disabled>Save SQL</button>
-                        </div>
-                        </div>
-                        </div>
-                        </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12" id="results-message-wrapper">
-                                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
+                        <div class="col-md-12" id="results-object-viewer-wrapper">
+                            <div class="results-summary">
+                                <h3></h3>
+                                <p></p>
                             </div>
-                            <div class=" col-md-12" id="results-table-wrapper">
-                                <div class="results-summary">
-                                    <h3 id="results-summary-count"></h3>
-                                </div>
-                                <table id="results-table" class="table table-striped table-bordered table-hover">
-                                    <tr class="results-table-header"></tr>
-                                    <tr class="results-table-row"></tr>
-                                </table>
-                            </div>
-                            <div class="col-md-12" id="results-object-viewer-wrapper">
-                                <div class="results-summary">
-                                    <h3></h3>
-                                    <p></p>
-                                </div>
-                                <div id="results-object-viewer"></div>
-                            </div>
+                            <div id="results-object-viewer"></div>
                         </div>
+                    </div>
+                    <div class="tab-pane fade" id="nav-sql" role="tabpanel" aria-labelledby="nav-sql-tab">
+                        <div class="btn-group">
+                            <button type="button" id="btn-sql-prev" class="btn btn-prev" data-prev="#nav-schema-tab">
+                                &larr; Previous</button>
+                            <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
+                                data-toggle="modal" data-target="#dbModal" disabled>
+                                Generate SQL
+                            </button>
+                            <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema"
+                                disabled>
+                                Save SQL
+                            </button>
+                        </div>
+                        <div class="col-md-12" id="sql-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>

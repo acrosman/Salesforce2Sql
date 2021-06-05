@@ -6,6 +6,22 @@ $.when($.ready).then(() => {
   $('#results-table-wrapper').hide();
   $('#results-message-wrapper').hide();
   $('#results-object-viewer-wrapper').hide();
+
+  // Setup next buttons.
+  $('button.btn-next').on('click', (event) => {
+    event.preventDefault();
+    const tab = $(event.target).data('next');
+    $(tab).tab('show');
+  });
+
+  // Setup prev buttons.
+  $('button.btn-prev').on('click', (event) => {
+    event.preventDefault();
+    const tab = $(event.target).data('prev');
+    $(tab).trigger('click');
+  });
+
+  // Log a message that the interface is ready to go.
   window.api.send('send_log', {
     channel: 'Info',
     message: 'Main window initialized.',
@@ -460,7 +476,6 @@ window.api.receive('response_db_generated', (data) => {
 });
 
 window.api.receive('response_schema', (data) => {
-  document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
@@ -469,7 +484,6 @@ window.api.receive('response_schema', (data) => {
 // List Objects From Global Describe.
 window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
-  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
     displayObjectList(data.response.sobjects);
