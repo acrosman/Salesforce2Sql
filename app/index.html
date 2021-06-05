@@ -208,7 +208,7 @@
                             aria-controls="nav-objects" aria-selected="true">Org Objects</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="nav-schame-tab" data-toggle="tab" href="#nav-schema" role="tab"
+                        <a class="nav-link" id="nav-schema-tab" data-toggle="tab" href="#nav-schema" role="tab"
                             aria-controls="nav-schema" aria-selected="false">Proposed
                             Schema</a>
                     </li>
@@ -229,6 +229,8 @@
                             <button type="button" id="btn-load-sf-schema" class="sf-api-trigger-button btn">Load
                                 Objects
                             </button>
+                            <button type="button" id="btn-objects-next" class="btn btn-next"
+                                data-next="#nav-schema-tab">Next &rarr;</button>
                         </div>
                         <div class=" col-md-12" id="results-table-wrapper">
                             <div class="results-summary">
@@ -242,6 +244,9 @@
                     </div>
                     <div class="tab-pane fade" id="nav-schema" role="tabpanel" aria-labelledby="nav-schema-tab">
                         <div class="btn-group">
+                            <button type="button" id="btn-schema-prev" class="btn btn-prev"
+                                data-prev="#nav-objects-tab">
+                                &larr; Previous</button>
                             <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-secondary"
                                 disabled>
                                 Fetch Details
@@ -250,6 +255,9 @@
                                 disabled>
                                 Save Schema
                             </button>
+                            <button type="button" id="btn-schema-next" class="btn btn-next"
+                                data-next="#nav-sql-tab">Next
+                                &rarr;</button>
                         </div>
                         <div class="col-md-12" id="results-object-viewer-wrapper">
                             <div class="results-summary">
@@ -261,6 +269,8 @@
                     </div>
                     <div class="tab-pane fade" id="nav-sql" role="tabpanel" aria-labelledby="nav-sql-tab">
                         <div class="btn-group">
+                            <button type="button" id="btn-sql-prev" class="btn btn-prev" data-prev="#nav-schema-tab">
+                                &larr; Previous</button>
                             <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
                                 data-toggle="modal" data-target="#dbModal" disabled>
                                 Generate SQL

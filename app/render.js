@@ -6,6 +6,22 @@ $.when($.ready).then(() => {
   $('#results-table-wrapper').hide();
   $('#results-message-wrapper').hide();
   $('#results-object-viewer-wrapper').hide();
+
+  // Setup next buttons.
+  $('button.btn-next').on('click', (event) => {
+    event.preventDefault();
+    const tab = $(event.target).data('next');
+    $(tab).tab('show');
+  });
+
+  // Setup prev buttons.
+  $('button.btn-prev').on('click', (event) => {
+    event.preventDefault();
+    const tab = $(event.target).data('prev');
+    $(tab).trigger('click');
+  });
+
+  // Log a message that the interface is ready to go.
   window.api.send('send_log', {
     channel: 'Info',
     message: 'Main window initialized.',
