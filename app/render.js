@@ -476,7 +476,6 @@ window.api.receive('response_db_generated', (data) => {
 });
 
 window.api.receive('response_schema', (data) => {
-  document.getElementById('results-table-wrapper').style.display = 'none';
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
@@ -485,7 +484,6 @@ window.api.receive('response_schema', (data) => {
 // List Objects From Global Describe.
 window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
-  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
     displayObjectList(data.response.sobjects);
