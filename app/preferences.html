@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:">
+  <link rel="stylesheet" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
+  <link rel="stylesheet" href="preferences.css">
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-12">
+        <form role="form">
+          <div class="form-group">
+            <label for="settting-theme-select">Select Theme</label>
+            <select class="form-control" id="settting-theme-select">
+              <option>Cerulean</option>
+              <option>Cosmo</option>
+              <option>Cyborg</option>
+              <option>Darkly</option>
+              <option>Flatly</option>
+              <option>Journal</option>
+              <option>Litera</option>
+              <option>Lumen</option>
+              <option>Lux</option>
+              <option>Materia</option>
+              <option>Minty</option>
+              <option>Pulse</option>
+              <option>Sandstone</option>
+              <option>Simplex</option>
+              <option>Sketchy</option>
+              <option>Slate</option>
+              <option>Solar</option>
+              <option>Spacelab</option>
+              <option>Superhero</option>
+              <option>United</option>
+              <option>Yeti</option>
+            </select>
+            <small id="settting-help-text-theme-select" class="form-text text-muted">
+              Themes are from Bootswatch and have not all be tested.
+            </small>
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">
+              Save
+            </button>
+            <button type="submit" class="btn btn-secondary">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="../node_modules/jquery/dist/jquery.min.js"></script>
+  <script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+  <script src="preferences-render.js"></script>
+</body>
+
+</html>
