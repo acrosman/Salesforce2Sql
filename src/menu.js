@@ -3,6 +3,27 @@ const path = require('path');
 
 const appPath = app.getAppPath();
 
+const openPreferences = () => {
+  const htmlPath = `file://${appPath}/app/preferences.html`;
+  const prefWindow = new BrowserWindow({
+    width: 500,
+    height: 300,
+    resizable: false,
+    frame: false,
+    nodeIntegration: false, // Disable nodeIntegration for security.
+    nodeIntegrationInWorker: false,
+    nodeIntegrationInSubFrames: false,
+    disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
+    contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
+    worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
+    enableRemoteModule: false, // Turn off remote to avoid temptation.
+    preload: path.join(appPath, 'app/preferences-preload.js'),
+  });
+  prefWindow.loadURL(htmlPath);
+  prefWindow.setMenuBarVisibility(false);
+  prefWindow.show();
+};
+
 const template = [{
   label: 'Edit',
   submenu: [{
@@ -34,12 +55,7 @@ const template = [{
   }, {
     label: 'Preferences',
     accelerator: 'CmdOrCtrl+,', // shortcut
-    click: () => {
-      const htmlPath = path.join(`file://${appPath}/app/preferences.html`);
-      const prefWindow = new BrowserWindow({ width: 500, height: 300, resizable: false });
-      prefWindow.loadURL(htmlPath);
-      prefWindow.show();
-    },
+    click: openPreferences,
   }],
 }, {
   label: 'View',
@@ -122,18 +138,7 @@ if (process.platform === 'darwin') {
     }, {
       label: 'Preferences',
       accelerator: 'CmdOrCtrl+,', // shortcut
-      click: () => {
-        const htmlPath = path.join(`file://${appPath}/app/preferences.html`);
-        const prefWindow = new BrowserWindow({
-          width: 500,
-          height: 300,
-          resizable: false,
-          frame: false,
-        });
-        prefWindow.loadURL(htmlPath);
-        prefWindow.setMenuBarVisibility(false);
-        prefWindow.show();
-      },
+      click: openPreferences,
     }, {
       type: 'separator',
     }, {
