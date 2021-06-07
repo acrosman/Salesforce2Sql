@@ -6,6 +6,7 @@ const {
   BrowserWindow,
   ipcMain,
   session,
+  Menu,
 } = electron;
 
 // Developer Dependencies.
@@ -19,6 +20,9 @@ const path = require('path');
 
 // Import the functions that we can use in the render processes.
 const ipcFunctions = require('./src/sf_calls');
+
+// Import the menu template
+const { menuTemplate } = require('./src/menu');
 
 // Get rid of the deprecated default.
 app.allowRendererProcessReuse = true;
@@ -70,6 +74,9 @@ function createWindow() {
     .setPermissionRequestHandler((webContents, permission, callback) => {
       callback(false);
     });
+
+  // Add Menu
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 }
 
 // This method will be called when Electron has finished
