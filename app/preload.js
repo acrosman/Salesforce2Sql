@@ -6,7 +6,8 @@ const { handlers } = require('../src/sf_calls');
 // the ipcRenderer without exposing the entire object.
 // Big hat tip: https://stackoverflow.com/a/59814127/24215.
 contextBridge.exposeInMainWorld(
-  'api', {
+  'api',
+  {
     send: (channel, data) => {
       // List channels to allow.
       const validChannels = Object.getOwnPropertyNames(handlers);
