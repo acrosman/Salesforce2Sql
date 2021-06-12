@@ -1,28 +1,5 @@
 const { BrowserWindow, app, Menu } = require('electron');  // eslint-disable-line
-const path = require('path');
-
-const appPath = app.getAppPath();
-
-const openPreferences = () => {
-  const htmlPath = `file://${appPath}/app/preferences.html`;
-  const prefWindow = new BrowserWindow({
-    width: 500,
-    height: 300,
-    resizable: false,
-    frame: false,
-    nodeIntegration: false, // Disable nodeIntegration for security.
-    nodeIntegrationInWorker: false,
-    nodeIntegrationInSubFrames: false,
-    disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
-    contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
-    worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
-    enableRemoteModule: false, // Turn off remote to avoid temptation.
-    preload: path.join(appPath, 'app/preferences-preload.js'),
-  });
-  prefWindow.loadURL(htmlPath);
-  prefWindow.setMenuBarVisibility(false);
-  prefWindow.show();
-};
+const { openPreferences } = require('./preferences');
 
 const template = [{
   label: 'Edit',

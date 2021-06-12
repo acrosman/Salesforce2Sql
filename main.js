@@ -24,6 +24,9 @@ const ipcFunctions = require('./src/sf_calls');
 // Import the menu template
 const { menuTemplate } = require('./src/menu');
 
+// Import save preferences function.
+const { loadPreferences, savePreferences, closePreferences } = require('./src/preferences');
+
 // Get rid of the deprecated default.
 app.allowRendererProcessReuse = true;
 
@@ -133,3 +136,8 @@ const efHandlers = Object.getOwnPropertyNames(ipcFunctions.handlers);
 efHandlers.forEach((value) => {
   ipcMain.on(value, ipcFunctions.handlers[value]);
 });
+
+// Add Preference listeners.
+ipcMain.on('preferences_load', loadPreferences);
+ipcMain.on('preferences_save', savePreferences);
+ipcMain.on('preferences_close', closePreferences);
