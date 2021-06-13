@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Get current preference settings:
+  window.api.send('preferences_load');
+
   // Add save listener for preference window.
   document.getElementById('btn-preferences-save').addEventListener('click', () => {
     window.api.send('preferences_save', {

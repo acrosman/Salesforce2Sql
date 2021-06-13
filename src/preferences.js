@@ -57,26 +57,27 @@ const closePreferences = () => {
 
 const openPreferences = () => {
   const htmlPath = `file://${appPath}/app/preferences.html`;
-  prefWindow = new BrowserWindow({
-    width: 500,
-    height: 300,
-    resizable: false,
-    frame: false,
-    webPreferences: {
-      contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
-      disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
-      enableRemoteModule: false, // Turn off remote to avoid temptation.
-      nodeIntegration: false, // Disable nodeIntegration for security.
-      nodeIntegrationInWorker: false,
-      nodeIntegrationInSubFrames: false,
-      worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
-      preload: path.join(appPath, 'app/preferencesPreload.js'),
-    },
-  });
+  if (!prefWindow || prefWindow.isDestroyed()) {
+    prefWindow = new BrowserWindow({
+      width: 500,
+      height: 300,
+      resizable: false,
+      frame: false,
+      webPreferences: {
+        contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
+        disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
+        enableRemoteModule: false, // Turn off remote to avoid temptation.
+        nodeIntegration: false, // Disable nodeIntegration for security.
+        nodeIntegrationInWorker: false,
+        nodeIntegrationInSubFrames: false,
+        worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
+        preload: path.join(appPath, 'app/preferencesPreload.js'),
+      },
+    });
+  }
   prefWindow.loadURL(htmlPath);
   prefWindow.setMenuBarVisibility(false);
   prefWindow.show();
-  loadPreferences();
 };
 
 exports.openPreferences = openPreferences;
