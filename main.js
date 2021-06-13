@@ -6,6 +6,7 @@ const {
   BrowserWindow,
   ipcMain,
   session,
+  Menu,
 } = electron;
 
 // Developer Dependencies.
@@ -19,6 +20,18 @@ const path = require('path');
 
 // Import the functions that we can use in the render processes.
 const ipcFunctions = require('./src/sf_calls');
+
+// Import the menu template
+const { menuTemplate } = require('./src/menu');
+
+// Import save preferences function.
+const {
+  getCurrentPreferences,
+  closePreferences,
+  loadPreferences,
+  savePreferences,
+  setMainWindow,
+} = require('./src/preferences');
 
 // Get rid of the deprecated default.
 app.allowRendererProcessReuse = true;
@@ -54,6 +67,9 @@ function createWindow() {
   // Attach to IPC handlers
   ipcFunctions.setwindow(mainWindow);
 
+  // Attach to preference system.
+  setMainWindow(mainWindow);
+
   // Emitted when the window is closed.
   mainWindow.on('closed', () => {
     // Dereference the window object, usually you would store windows
@@ -70,6 +86,9 @@ function createWindow() {
     .setPermissionRequestHandler((webContents, permission, callback) => {
       callback(false);
     });
+
+  // Add Menu
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 }
 
 // This method will be called when Electron has finished
@@ -126,3 +145,14 @@ const efHandlers = Object.getOwnPropertyNames(ipcFunctions.handlers);
 efHandlers.forEach((value) => {
   ipcMain.on(value, ipcFunctions.handlers[value]);
 });
+
+// Send Preferences to the main window on request.
+ipcMain.on('get_preferences', () => {
+  const preferences = getCurrentPreferences();
+  mainWindow.webContents.send('current_preferences', preferences);
+});
+
+// Add Preference listeners.
+ipcMain.on('preferences_load', loadPreferences);
+ipcMain.on('preferences_save', savePreferences);
+ipcMain.on('preferences_close', closePreferences);

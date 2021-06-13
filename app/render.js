@@ -21,6 +21,9 @@ $.when($.ready).then(() => {
     $(tab).trigger('click');
   });
 
+  // Get the current application preferences.
+  window.api.send('get_preferences');
+
   // Log a message that the interface is ready to go.
   window.api.send('send_log', {
     channel: 'Info',
@@ -494,4 +497,10 @@ window.api.receive('response_list_objects', (data) => {
 
 window.api.receive('log_message', (data) => {
   logMessage(data.sender, data.channel, data.message);
+});
+
+window.api.receive('current_preferences', (data) => {
+  // Update the theme:
+  const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
+  document.getElementById('css-theme-link').href = cssPath;
 });
