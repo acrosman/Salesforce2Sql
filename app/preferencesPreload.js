@@ -23,7 +23,6 @@ contextBridge.exposeInMainWorld(
         'preferences_data',
         'preferences_confirm',
       ];
-
       if (validChannels.includes(channel)) {
         // Remove the event to avoid information leaks.
         ipcRenderer.on(channel, (event, ...args) => func(...args));

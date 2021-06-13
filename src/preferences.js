@@ -36,10 +36,10 @@ const loadPreferences = () => {
   prefWindow.webContents.send('preferences_data', preferences);
 };
 
-const savePreferences = (settingData) => {
-  const preferences = {
-    theme: 'Cyborg',
-  };
+const savePreferences = (event, settingData) => {
+  fs.ensureFileSync(settingsPath);
+
+  const preferences = getDefaultPreferences();
 
   // Merge in settings that in the file an we know how to use.
   const values = Object.getOwnPropertyNames(preferences);
@@ -52,7 +52,9 @@ const savePreferences = (settingData) => {
 };
 
 const closePreferences = () => {
-  prefWindow.close();
+  if (prefWindow) {
+    prefWindow.close();
+  }
 };
 
 const openPreferences = () => {
