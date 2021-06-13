@@ -6,17 +6,19 @@ const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
 
 let prefWindow;
+let mainWindow;
 
-const getDefaultPreferences = () => ({
-  theme: 'Cyborg',
-});
+const setMainWindow = (win) => {
+  mainWindow = win;
+};
 
-const loadPreferences = () => {
+const getCurrentPreferences = () => {
   // Ensure we have the settings file created.
   fs.ensureFileSync(settingsPath);
 
-  // Get our defaults.
-  const preferences = getDefaultPreferences();
+  const preferences = {
+    theme: 'Cyborg',
+  };
 
   // Load any exisiting values.
   let settingsData = {};
@@ -33,13 +35,17 @@ const loadPreferences = () => {
       preferences[values[i]] = settingsData[values[i]];
     }
   }
+  return preferences;
+};
+
+const loadPreferences = () => {
+  // Get our defaults.
+  const preferences = getCurrentPreferences();
   prefWindow.webContents.send('preferences_data', preferences);
 };
 
 const savePreferences = (event, settingData) => {
-  fs.ensureFileSync(settingsPath);
-
-  const preferences = getDefaultPreferences();
+  const preferences = getCurrentPreferences();
 
   // Merge in settings that in the file an we know how to use.
   const values = Object.getOwnPropertyNames(preferences);
@@ -54,6 +60,9 @@ const savePreferences = (event, settingData) => {
 const closePreferences = () => {
   if (prefWindow) {
     prefWindow.close();
+  }
+  if (mainWindow) {
+    mainWindow.webContents.send('current_preferences', getCurrentPreferences());
   }
 };
 
@@ -82,6 +91,8 @@ const openPreferences = () => {
   prefWindow.show();
 };
 
+exports.setMainWindow = setMainWindow;
+exports.getCurrentPreferences = getCurrentPreferences;
 exports.openPreferences = openPreferences;
 exports.loadPreferences = loadPreferences;
 exports.savePreferences = savePreferences;

@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.api.send('preferences_save', {
       theme: document.getElementById('settting-theme-select').value,
     });
+    window.api.send('preferences_close');
   });
 
   // Add click to close listener for preference window.
@@ -28,5 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.api.receive('preferences_data', (data) => {
+  // Set Window theme:
+  const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
+  document.getElementById('css-theme-link').href = cssPath;
+
+  // Set Values:
   document.getElementById('settting-theme-select').value = data.theme;
 });
