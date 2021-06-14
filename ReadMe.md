@@ -1,10 +1,6 @@
 # Salesforce2Sql
 
-![Lint Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/lint.yml/badge.svg)
-
-![CodeQL Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/codeql-analysis.yml/badge.svg)
-
-![Electronegativity Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/electronegativity.yml/badge.svg)
+![Lint Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/lint.yml/badge.svg) ![CodeQL Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/codeql-analysis.yml/badge.svg) ![Electronegativity Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/electronegativity.yml/badge.svg)
 
 This is a tool to generate a SQL schema to match a Salesforce Org Schema.
 
@@ -15,6 +11,18 @@ Salesforce2Sql will connect to a Salesforce org, allow you to select a collectio
 _No data is replicated just the schema._
 
 If you are looking for help migrating data between Salesforce Orgs you may want check out the [Salesforce Open Source Commons Data Generation Toolkit Project](https://github.com/SFDO-Community-Sprints/DataGenerationToolkit).
+
+## Getting Started
+
+You can either download the [latest release](releases/latest) for your operating system or run from code.
+
+There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the tar file contains the executable).
+
+To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) 14 or later. To make it useful you will also need a Salesforce org you want to mirro, and a MySQL, Mariadb, or Postgres database you can create tables in.
+
+1. Clone this repo (or create your own fork) to your local machine.
+1. Run: `npm install` from the project root directory, and wait for all the packages to load (this takes a few minutes).
+1. Run: `npm start`
 
 ## Salesforce Login
 
