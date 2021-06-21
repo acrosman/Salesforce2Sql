@@ -85,6 +85,44 @@ const extractPicklistValues = (valueList) => {
   return values;
 };
 
+const buildFields = (fieldList, allText = false) => {
+  let fld;
+  const objFields = {};
+
+  for (let f = 0; f < fieldList.length; f += 1) {
+    fld = {};
+    // Values we want for all fields.
+    fld.name = fieldList[f].name;
+    fld.label = fieldList[f].label;
+    fld.type = fieldList[f].type;
+    fld.size = fieldList[f].length;
+
+    // Large text fields go to TEXT.
+    if (fld.type === 'string' && (fld.size > 255 || allText)) {
+      fld.type = 'text';
+    }
+
+    // Type specific values.
+    switch (fld.type) {
+      case 'reference':
+        fld.target = fieldList[f].referenceTo;
+        break;
+      case 'picklist':
+        fld.values = extractPicklistValues(fieldList[f].picklistValues);
+        break;
+      case 'float':
+      case 'double':
+        fld.scale = fieldList[f].scale;
+        fld.precision = fieldList[f].precision;
+        break;
+      default:
+        break;
+    }
+    objFields[fld.name] = fld;
+  }
+  return objFields;
+};
+
 /**
  *
  * @param {Object} objectList Collection of sObject describes to convert to schema.
@@ -95,44 +133,10 @@ const buildSchema = (objectList) => {
 
   // For each object we need to extract the field list, including their types.
   const objects = Object.getOwnPropertyNames(objectList);
-  let objFields;
-  let fld;
   let obj;
   for (let i = 0; i < objects.length; i += 1) {
-    objFields = {};
     obj = objectList[objects[i]];
-    for (let f = 0; f < obj.fields.length; f += 1) {
-      fld = {};
-      // Values we want for all fields.
-      fld.name = obj.fields[f].name;
-      fld.label = obj.fields[f].label;
-      fld.type = obj.fields[f].type;
-      fld.size = obj.fields[f].length;
-
-      // Large text fields go to TEXT.
-      if (fld.type === 'string' && fld.size > 255) {
-        fld.type = 'text';
-      }
-
-      // Type specific values.
-      switch (fld.type) {
-        case 'reference':
-          fld.target = obj.fields[f].referenceTo;
-          break;
-        case 'picklist':
-          fld.values = extractPicklistValues(obj.fields[f].picklistValues);
-          break;
-        case 'float':
-        case 'double':
-          fld.scale = obj.fields[f].scale;
-          fld.precision = obj.fields[f].precision;
-          break;
-        default:
-          break;
-      }
-      objFields[fld.name] = fld;
-    }
-    schema[objects[i]] = objFields;
+    schema[objects[i]] = buildFields(obj.fields);
   }
 
   return schema;
@@ -332,7 +336,24 @@ const buildDatabase = (settings) => {
   // Helper to keep one line of logic for creating the tables.
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
     .catch((err) => {
-      logMessage('Database Create', 'Error', `Error creating table: ${err}`);
+      // If the row is too big, replace all varchar with text and try again.
+      if (err.code === 'ER_TOO_BIG_ROWSIZE') {
+        let changed = false;
+        const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
+        for (let i = 0; i < tableFields.length; i += 1) {
+          if (proposedSchema[table][tableFields[i]].type === 'string') {
+            proposedSchema[table][tableFields[i]].type = 'text';
+            changed = true;
+          }
+        }
+        // If we updated the schema, try again.
+        if (changed) {
+          logMessage('Database Create', 'Warning', `Proposed ${table} schema had too many string fields for your database. All strings will be text fields instead.`);
+          createDbTable(table);
+        }
+      } else {
+        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+      }
       return err;
     });
 
@@ -342,7 +363,7 @@ const buildDatabase = (settings) => {
       db.schema.dropTableIfExists(tables[i])
         .then(() => {
           createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', `Successfully created new table: ${response[0].message}`);
+            logMessage('Database', 'Success', `Successfully created new table. ${response[0].message}`);
             return response[0].message;
           });
         })
