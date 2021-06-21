@@ -16,7 +16,7 @@ If you are looking for help migrating data between Salesforce Orgs you may want 
 
 You can either download the [latest release](releases/latest) for your operating system or run from code.
 
-There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the tar file contains the executable).
+There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the zip file contains the executable and supporting materials). You can also download the source archives if you want to explore the version of the code that went into the release.
 
 To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) 14 or later. To make it useful you will also need a Salesforce org you want to mirro, and a MySQL, Mariadb, or Postgres database you can create tables in.
 
