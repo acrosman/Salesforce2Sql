@@ -49,6 +49,13 @@ const replaceText = (selector, text) => {
   if (element) element.innerText = text;
 };
 
+// Escapes HTML tags that may be headed to the log messages.
+const escapeHTML = (html) => {
+  const escape = document.createElement('textarea');
+  escape.textContent = html;
+  return escape.innerHTML;
+};
+
 /**
  * Displays an object as JSON in the raw response section of the interface.
  * @param {Object} responseObject The JSForce response object.
@@ -101,7 +108,7 @@ function logMessage(context, importance, message, data) {
   // Add Text
   mesContext.innerHTML = context;
   mesImportance.innerHTML = importance;
-  mesText.innerHTML = message;
+  mesText.innerHTML = escapeHTML(message);
 
   // Attach Elements
   row.appendChild(mesImportance);
