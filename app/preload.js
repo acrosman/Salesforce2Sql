@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld(
       const validChannels = [
         'current_preferences',
         'log_message',
+        'start_find',
         'response_db_generated',
         'response_login',
         'response_logout',

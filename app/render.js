@@ -506,12 +506,21 @@ window.api.receive('response_list_objects', (data) => {
   }
 });
 
+// Process a log message.
 window.api.receive('log_message', (data) => {
   logMessage(data.sender, data.channel, data.message);
 });
 
+// Respond to updates to the preferences.
 window.api.receive('current_preferences', (data) => {
   // Update the theme:
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
+});
+
+// Start the find process by activating the controls and scrolling there.
+window.api.receive('start_find', () => {
+  const findbox = document.getElementById('find-in-page-text');
+  findbox.scrollIntoView();
+  findbox.focus();
 });

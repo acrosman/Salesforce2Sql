@@ -1,5 +1,6 @@
 const { BrowserWindow, app, Menu } = require('electron');  // eslint-disable-line
 const { openPreferences } = require('./preferences');
+const { jumpToFind } = require('./find');
 
 const template = [{
   label: 'Edit',
@@ -29,6 +30,16 @@ const template = [{
     label: 'Select All',
     accelerator: 'CmdOrCtrl+A',
     role: 'selectall',
+  }, {
+    type: 'separator',
+  }, {
+    label: 'Find Text',
+    accelerator: 'CmdOrCtrl+F',
+    role: 'find',
+    click: jumpToFind,
+    id: 'find-menu-item',
+  }, {
+    type: 'separator',
   }, {
     label: 'Preferences',
     accelerator: 'CmdOrCtrl+,', // shortcut
