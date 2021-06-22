@@ -21,6 +21,17 @@ $.when($.ready).then(() => {
     $(tab).trigger('click');
   });
 
+  // Setup Find button.
+  $('#btn-find-in-page').on('click', (event) => {
+    event.preventDefault();
+    const searchText = $('#find-in-page-text').val().trim();
+    if (searchText) {
+      window.api.send('find_text', {
+        text: searchText,
+      });
+    }
+  });
+
   // Get the current application preferences.
   window.api.send('get_preferences');
 

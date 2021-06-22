@@ -152,6 +152,11 @@ ipcMain.on('get_preferences', () => {
   mainWindow.webContents.send('current_preferences', preferences);
 });
 
+// Find in Page IPC call.
+ipcMain.on('find_text', (event, searchText) => {
+  mainWindow.webContents.findInPage(searchText.text);
+});
+
 // Add Preference listeners.
 ipcMain.on('preferences_load', loadPreferences);
 ipcMain.on('preferences_save', savePreferences);
