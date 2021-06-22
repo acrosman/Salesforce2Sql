@@ -1,17 +1,15 @@
 const { BrowserWindow } = require('electron');  // eslint-disable-line
 
-let currentSearchReference;
 let currentSearchText;
 let searchEnabled = false;
 
 const enableSearch = (pageContent) => {
   pageContent.on('found-in-page', (event, result) => {
-    pageContent.send('log_message', 'Info', `Found ${result.matches} for ${currentSearchText}`);
-    if (result.finalUpdate) {
-      pageContent.stopFindInPage('keepSelection');
-      currentSearchText = null;
-      currentSearchReference = null;
-    }
+    pageContent.send('log_message', {
+      sender: 'Find',
+      channel: 'Info',
+      message: `Found ${result.matches} for ${currentSearchText}`,
+    });
   });
   searchEnabled = true;
 };
@@ -26,20 +24,20 @@ const executeSearch = (pageContent, searchText) => {
     enableSearch(pageContent);
   }
   // If there is no active search, or this is new text, start a search.
-  if (currentSearchText !== searchText.text || !currentSearchReference) {
-    currentSearchText = searchText.text;
+  if (currentSearchText !== searchText) {
+    currentSearchText = searchText;
     pageContent.send('log_message', {
       sender: 'Find',
       channel: 'Info',
       message: `Starting search for ${currentSearchText}`,
     });
-    currentSearchReference = pageContent.findInPage(currentSearchText, {
+    pageContent.findInPage(currentSearchText, {
       forward: true,
       findNext: false,
       matchCase: true,
     });
   } else {
-    currentSearchReference = pageContent.findInPage(currentSearchText, {
+    pageContent.findInPage(currentSearchText, {
       forward: true,
       findNext: true,
       matchCase: true,

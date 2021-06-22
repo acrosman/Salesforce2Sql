@@ -33,6 +33,9 @@ const {
   setMainWindow,
 } = require('./src/preferences');
 
+// Import Search support.
+const { executeSearch } = require('./src/find');
+
 // Get rid of the deprecated default.
 app.allowRendererProcessReuse = true;
 
@@ -154,7 +157,7 @@ ipcMain.on('get_preferences', () => {
 
 // Find in Page IPC call.
 ipcMain.on('find_text', (event, searchText) => {
-  mainWindow.webContents.findInPage(searchText.text);
+  executeSearch(mainWindow.webContents, searchText.text);
 });
 
 // Add Preference listeners.
