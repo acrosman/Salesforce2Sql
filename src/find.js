@@ -17,12 +17,14 @@ const enableSearch = (pageContent) => {
 /**
  * executeSearch: Searches provided content for requested text.
  * @param {*} pageContent: The content of the window to Search.
- * @param {*} searchText: The text to search for.
+ * @param {String} searchText: The text to search for.
+ * @param {String} searchDirection: The direction to search the text in.
  */
-const executeSearch = (pageContent, searchText) => {
+const executeSearch = (pageContent, searchText, searchDirection) => {
   if (!searchEnabled) {
     enableSearch(pageContent);
   }
+
   // If there is no active search, or this is new text, start a search.
   if (currentSearchText !== searchText) {
     currentSearchText = searchText;
@@ -32,13 +34,13 @@ const executeSearch = (pageContent, searchText) => {
       message: `Starting search for ${currentSearchText}`,
     });
     pageContent.findInPage(currentSearchText, {
-      forward: true,
+      forward: searchDirection === 'forward',
       findNext: false,
       matchCase: true,
     });
   } else {
     pageContent.findInPage(currentSearchText, {
-      forward: true,
+      forward: searchDirection === 'forward',
       findNext: true,
       matchCase: true,
     });

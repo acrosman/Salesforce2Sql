@@ -24,10 +24,21 @@ $.when($.ready).then(() => {
   // Setup Find button.
   $('#btn-find-in-page').on('click', (event) => {
     event.preventDefault();
+    let searchDir;
+    // Get the search
     const searchText = $('#find-in-page-text').val().trim();
+
+    // Trigger the search if text was provided.
     if (searchText) {
+      // Set direction.
+      searchDir = 'forward';
+      if ($('#chk-find-direction').prop('checked')) {
+        searchDir = 'back';
+      }
+
       window.api.send('find_text', {
         text: searchText,
+        direction: searchDir,
       });
     }
   });

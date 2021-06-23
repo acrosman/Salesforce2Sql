@@ -156,8 +156,8 @@ ipcMain.on('get_preferences', () => {
 });
 
 // Find in Page IPC call.
-ipcMain.on('find_text', (event, searchText) => {
-  executeSearch(mainWindow.webContents, searchText.text);
+ipcMain.on('find_text', (event, searchSettings) => {
+  executeSearch(mainWindow.webContents, searchSettings.text, searchSettings.direction);
 });
 
 // Add Preference listeners.
