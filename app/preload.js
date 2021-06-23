@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld(
       // List channels to allow.
       const validChannels = Object.getOwnPropertyNames(handlers);
       validChannels.push('get_preferences');
+      validChannels.push('find_text');
       if (validChannels.includes(channel)) {
         ipcRenderer.send(channel, data);
       }
@@ -20,6 +21,7 @@ contextBridge.exposeInMainWorld(
       const validChannels = [
         'current_preferences',
         'log_message',
+        'start_find',
         'response_db_generated',
         'response_login',
         'response_logout',

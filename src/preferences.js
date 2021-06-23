@@ -1,9 +1,14 @@
-const { app, BrowserWindow } = require('electron');  // eslint-disable-line
+const { app, BrowserWindow, Menu } = require('electron');  // eslint-disable-line
 const fs = require('fs-extra');
 const path = require('path');
 
 const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
+
+// A list of menu item IDs to disable when preference window is open.
+const nonPrefWindowItems = [
+  'find-menu-item',
+];
 
 let prefWindow;
 let mainWindow;
@@ -64,6 +69,12 @@ const closePreferences = () => {
   if (mainWindow) {
     mainWindow.webContents.send('current_preferences', getCurrentPreferences());
   }
+
+  // Enable menu items that don't work in this context:
+  const appMenu = Menu.getApplicationMenu();
+  nonPrefWindowItems.forEach((element) => {
+    appMenu.getMenuItemById(element).enabled = true;
+  });
 };
 
 const openPreferences = () => {
@@ -86,6 +97,14 @@ const openPreferences = () => {
       },
     });
   }
+
+  // Disable menu items that don't work in this context:
+  const appMenu = Menu.getApplicationMenu();
+  nonPrefWindowItems.forEach((element) => {
+    appMenu.getMenuItemById(element).enabled = false;
+  });
+
+  // Display the window.
   prefWindow.loadURL(htmlPath);
   prefWindow.setMenuBarVisibility(false);
   prefWindow.show();

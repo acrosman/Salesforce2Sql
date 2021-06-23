@@ -21,6 +21,28 @@ $.when($.ready).then(() => {
     $(tab).trigger('click');
   });
 
+  // Setup Find button.
+  $('#btn-find-in-page').on('click', (event) => {
+    event.preventDefault();
+    let searchDir;
+    // Get the search
+    const searchText = $('#find-in-page-text').val().trim();
+
+    // Trigger the search if text was provided.
+    if (searchText) {
+      // Set direction.
+      searchDir = 'forward';
+      if ($('#chk-find-direction').prop('checked')) {
+        searchDir = 'back';
+      }
+
+      window.api.send('find_text', {
+        text: searchText,
+        direction: searchDir,
+      });
+    }
+  });
+
   // Get the current application preferences.
   window.api.send('get_preferences');
 
@@ -36,6 +58,13 @@ $.when($.ready).then(() => {
 const replaceText = (selector, text) => {
   const element = document.getElementById(selector);
   if (element) element.innerText = text;
+};
+
+// Escapes HTML tags that may be headed to the log messages.
+const escapeHTML = (html) => {
+  const escape = document.createElement('textarea');
+  escape.textContent = html;
+  return escape.innerHTML;
 };
 
 /**
@@ -90,7 +119,7 @@ function logMessage(context, importance, message, data) {
   // Add Text
   mesContext.innerHTML = context;
   mesImportance.innerHTML = importance;
-  mesText.innerHTML = message;
+  mesText.innerHTML = escapeHTML(message);
 
   // Attach Elements
   row.appendChild(mesImportance);
@@ -495,12 +524,21 @@ window.api.receive('response_list_objects', (data) => {
   }
 });
 
+// Process a log message.
 window.api.receive('log_message', (data) => {
   logMessage(data.sender, data.channel, data.message);
 });
 
+// Respond to updates to the preferences.
 window.api.receive('current_preferences', (data) => {
   // Update the theme:
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
+});
+
+// Start the find process by activating the controls and scrolling there.
+window.api.receive('start_find', () => {
+  const findbox = document.getElementById('find-in-page-text');
+  findbox.scrollIntoView();
+  findbox.focus();
 });
