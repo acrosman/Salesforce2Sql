@@ -390,6 +390,7 @@ const displayDraftSchema = (schema) => {
   });
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
+  $('#nav-schema-tab').tab('show');
 };
 
 // ========= Messages to the main process ===============
