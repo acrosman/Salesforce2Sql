@@ -4,7 +4,7 @@
 
 This is a tool to generate a SQL schema to match a Salesforce Org Schema.
 
-![Main Interface](documentation/Interface%20Screenshots/MainScreen.png?raw=true)
+![Main Interface](documentation/InterfaceScreenshots/MainScreen.png?raw=true)
 
 Salesforce2Sql will connect to a Salesforce org, allow you to select a collection of objects, and have the schema for those objects replicated to a local database. This can be very useful when working on data migration and archiving projects.
 
@@ -26,7 +26,7 @@ To run the project from code you will need a working copy of [NodeJS](https://no
 
 ## Salesforce Login
 
-![Login Screen](documentation/Interface%20Screenshots/Login.PNG?raw=true)
+![Login Screen](documentation/InterfaceScreenshots/Login.PNG?raw=true)
 
 Currently only the username and password login system is supported, not OAuth2, so you likely will need your [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5).
 
