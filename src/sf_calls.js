@@ -110,8 +110,9 @@ const buildFields = (fieldList, allText = false) => {
       case 'picklist':
         fld.values = extractPicklistValues(fieldList[f].picklistValues);
         break;
-      case 'float':
+      case 'currency':
       case 'double':
+      case 'float':
         fld.scale = fieldList[f].scale;
         fld.precision = fieldList[f].precision;
         break;
