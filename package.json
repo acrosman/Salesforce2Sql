@@ -9,7 +9,7 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
-    "test": "mocha"
+    "test": "jest"
   },
   "build": {
     "appId": "com.electron.acrosman.Salesforce2Sql",
@@ -92,6 +92,6 @@
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jsx-a11y": "^6.3.1",
     "eslint-plugin-react": "^7.22.0",
-    "jest": "^27.0.5"
+    "jest": "^27.0.6"
   }
 }
