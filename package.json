@@ -9,7 +9,7 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
-    "test": "jest"
+    "test": "jest --coverage"
   },
   "build": {
     "appId": "com.electron.acrosman.Salesforce2Sql",
