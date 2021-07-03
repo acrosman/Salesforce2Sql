@@ -43,6 +43,15 @@ app.allowRendererProcessReuse = true;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
+// Lock down session permissions.
+// https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
+// https://github.com/doyensec/electronegativity/wiki/PERMISSION_REQUEST_HANDLER_GLOBAL_CHECK
+session
+  .fromPartition('persist: secured-partition')
+  .setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(false);
+  });
+
 // Create the main application window.
 function createWindow() {
   const display = electron.screen.getPrimaryDisplay();
@@ -51,7 +60,7 @@ function createWindow() {
     width: display.workArea.width,
     height: display.workArea.height,
     frame: true,
-    partiion: 'secured-partition',
+    partiion: 'persist: secured-partition',
     webPreferences: {
       devTools: isDev,
       nodeIntegration: false, // Disable nodeIntegration for security.
@@ -81,15 +90,6 @@ function createWindow() {
     // when you should delete the corresponding element.
     mainWindow = null;
   });
-
-  // Lock down session permissions.
-  // https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
-  // https://github.com/doyensec/electronegativity/wiki/PERMISSION_REQUEST_HANDLER_GLOBAL_CHECK
-  session
-    .fromPartition('persist: secured-partition')
-    .setPermissionRequestHandler((webContents, permission, callback) => {
-      callback(false);
-    });
 
   // Add Menu
   Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
