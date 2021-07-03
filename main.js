@@ -51,6 +51,7 @@ function createWindow() {
     width: display.workArea.width,
     height: display.workArea.height,
     frame: true,
+    partiion: 'secured-partition',
     webPreferences: {
       devTools: isDev,
       nodeIntegration: false, // Disable nodeIntegration for security.
@@ -85,7 +86,7 @@ function createWindow() {
   // https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
   // https://github.com/doyensec/electronegativity/wiki/PERMISSION_REQUEST_HANDLER_GLOBAL_CHECK
   session
-    .fromPartition('secured-partition')
+    .fromPartition('persist: secured-partition')
     .setPermissionRequestHandler((webContents, permission, callback) => {
       callback(false);
     });
