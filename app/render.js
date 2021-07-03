@@ -43,6 +43,16 @@ $.when($.ready).then(() => {
     }
   });
 
+  // Setup login radio behaviors.
+  $('#login-password-wrapper').hide();
+  $('input[type=radio][name=sfconnect-radio-selectors]').on('change', (event) => {
+    if ($(event.target, ':checked').val() === 'oauth') {
+      $('#login-password-wrapper').hide();
+    } else {
+      $('#login-password-wrapper').show();
+    }
+  });
+
   // Get the current application preferences.
   window.api.send('get_preferences');
 
