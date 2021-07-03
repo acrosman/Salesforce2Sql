@@ -2,13 +2,11 @@ const electron = require("electron"); // eslint-disable-line
 
 // Extract the needed elements.
 const {
-  app,
   BrowserWindow,
   session,
 } = electron;
 
 // Additional Tooling.
-const path = require('path');
 const jsforce = require('jsforce');
 
 function createAuthWindow() {
