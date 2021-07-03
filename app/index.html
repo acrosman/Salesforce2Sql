@@ -75,29 +75,50 @@
                                 <div class="modal-body">
                                     <form>
                                         <div class="form-group">
-                                            <label for="login-username">User Name</label>
-                                            <input type="text" id="login-username" class="form-control"
-                                                aria-describedby="usernameHelp" placeholder="Enter Salesforce Username">
-                                            <small id="usernameHelp" class="form-text">Your Salesforce username must be
-                                                in the form of an email address.</small>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="login-password">Password</label>
-                                            <input type="password" id="login-password" class="form-control">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="login-token">Security Token</label>
-                                            <input type="password" class="form-control" aria-describedby="tokenHelp"
-                                                id="login-token">
-                                            <small id="tokenHelp" class="form-text">Likely you will need your Saleforce
-                                                Security token. If you do not have it follow <a
-                                                    href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
-                                                    reset instructions.</a></small>
+                                            <label for="sfconnect-radio-selectors">Select Connection Type</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio"
+                                                    name="sfconnect-radio-selectors" id="sfconnect-oauth" value="oauth"
+                                                    checked>
+                                                <label class="form-check-label" for="sfconnect-oauth">OAuth2</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio"
+                                                    name="sfconnect-radio-selectors" id="sfconnect-password"
+                                                    value="password">
+                                                <label class="form-check-label"
+                                                    for="sfconnect-password">Username/Password</label>
+                                            </div>
                                         </div>
                                         <div class="form-group">
                                             <label for="login-url">Login URL</label>
                                             <input type="url" id="login-url" class="form-control"
                                                 value="https://login.salesforce.com">
+                                        </div>
+                                        <div id="login-password-wrapper">
+                                            <div class="form-group">
+                                                <label for="login-username">User Name</label>
+                                                <input type="text" id="login-username" class="form-control"
+                                                    aria-describedby="usernameHelp"
+                                                    placeholder="Enter Salesforce Username">
+                                                <small id="usernameHelp" class="form-text">Your Salesforce username must
+                                                    be
+                                                    in the form of an email address.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="login-password">Password</label>
+                                                <input type="password" id="login-password" class="form-control">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="login-token">Security Token</label>
+                                                <input type="password" class="form-control" aria-describedby="tokenHelp"
+                                                    id="login-token">
+                                                <small id="tokenHelp" class="form-text">Likely you will need your
+                                                    Saleforce
+                                                    Security token. If you do not have it follow <a
+                                                        href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
+                                                        reset instructions.</a></small>
+                                            </div>
                                         </div>
                                     </form>
                                 </div>
