@@ -406,7 +406,9 @@ const displayDraftSchema = (schema) => {
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
+  const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
   window.api.send('sf_login', {
+    mode: modeRadio.value,
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,
