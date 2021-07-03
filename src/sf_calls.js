@@ -3,6 +3,7 @@ const path = require('path');
 const electron = require('electron'); // eslint-disable-line
 const jsforce = require('jsforce');
 const knex = require('knex');
+const oauth = require('./sf_oauth2');
 
 // Get the dialog library from Electron
 const { dialog } = electron;
@@ -11,8 +12,87 @@ const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
 
+/**
+ * Send a log message to the console window.
+ * @param {String} title  Message title or sender
+ * @param {String} channel  Message category
+ * @param {String} message  Message
+ * @returns True (always).
+ */
+const logMessage = (title, channel, message) => {
+  mainWindow.webContents.send('log_message', {
+    sender: title,
+    channel,
+    message,
+  });
+  return true;
+};
+
+/**
+ * Sets the window object to allow direct return messages.
+ * @param {Object} window The Electron window used to pass messages to.
+ */
 const setwindow = (window) => {
   mainWindow = window;
+};
+
+/**
+ * Attempt a traditional Username/Password login.
+ * @param {String} url
+ * @param {String} username
+ * @param {String} password
+ * @param {String} token
+ */
+const passwordLogin = (url, username, password, token) => {
+  const conn = new jsforce.Connection({
+    // you can change loginUrl to connect to sandbox or prerelease env.
+    loginUrl: url,
+  });
+  let pass = password;
+  if (token !== '') {
+    pass = `${password}${token}`;
+  }
+
+  conn.login(username, pass, (err, userInfo) => {
+    if (err) {
+      mainWindow.webContents.send('sfShowOrgId', {
+        status: false,
+        message: 'Login Failed',
+        response: err,
+        limitInfo: conn.limitInfo,
+        request: {
+          url,
+          username,
+          password: '*****',
+          token: '*****',
+        },
+      });
+      return true;
+    }
+    // Now you can get the access token and instance URL information.
+    // Save them to establish connection next time.
+    logMessage('Login', 'Info', `Connected to Org: ${userInfo.organizationId} for User: ${userInfo.id}`);
+
+    // Save the next connection in the global storage.
+    sfConnections[userInfo.organizationId] = {
+      instanceUrl: conn.instanceUrl,
+      accessToken: conn.accessToken,
+    };
+
+    mainWindow.webContents.send('response_login', {
+      status: true,
+      message: 'Login Successful',
+      response: userInfo,
+      limitInfo: conn.limitInfo,
+      request: {
+        url,
+        username,
+        password: '*****',
+        token: '*****',
+      },
+    });
+    return true;
+  });
 };
 
 const resolveFieldType = (sfTypeName) => {
@@ -48,22 +128,6 @@ const resolveFieldType = (sfTypeName) => {
   }
 
   return 'text';
-};
-
-/**
- * Send a log message to the console window.
- * @param {String} title  Message title or sender
- * @param {String} channel  Message category
- * @param {String} message  Message
- * @returns True (always).
- */
-const logMessage = (title, channel, message) => {
-  mainWindow.webContents.send('log_message', {
-    sender: title,
-    channel,
-    message,
-  });
-  return true;
 };
 
 /**
@@ -401,51 +465,12 @@ const buildDatabase = (settings) => {
 const handlers = {
   // Login to an org using password authentication.
   sf_login: (event, args) => {
-    const conn = new jsforce.Connection({
-      // you can change loginUrl to connect to sandbox or prerelease env.
-      loginUrl: args.url,
-    });
-
-    let { password } = args;
-    if (args.token !== '') {
-      password = `${password}${args.token}`;
+    if (args.mode === 'password') {
+      passwordLogin(args.url, args.username, args.password, args.token);
     }
-
-    conn.login(args.username, password, (err, userInfo) => {
-      // Since we send the args back to the interface, it's a good idea
-      // to remove the security information.
-      args.password = '';
-      args.token = '';
-
-      if (err) {
-        mainWindow.webContents.send('sfShowOrgId', {
-          status: false,
-          message: 'Login Failed',
-          response: err,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-        return true;
-      }
-      // Now you can get the access token and instance URL information.
-      // Save them to establish connection next time.
-      logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-      // Save the next connection in the global storage.
-      sfConnections[userInfo.organizationId] = {
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken,
-      };
-
-      mainWindow.webContents.send('response_login', {
-        status: true,
-        message: 'Login Successful',
-        response: userInfo,
-        limitInfo: conn.limitInfo,
-        request: args,
-      });
-      return true;
-    });
+    if (args.mode === 'oauth') {
+      oauth.attemptLogin(args.url);
+    }
   },
   // Logout of a specific Salesforce org.
   sf_logout: (event, args) => {
