@@ -51,7 +51,7 @@ function createWindow() {
     width: display.workArea.width,
     height: display.workArea.height,
     frame: true,
-    partiion: 'secured-partition',
+    partiion: 'persist: secured-partition',
     webPreferences: {
       devTools: isDev,
       nodeIntegration: false, // Disable nodeIntegration for security.
