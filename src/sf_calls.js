@@ -55,7 +55,13 @@ const passwordLogin = (url, username, password, token) => {
 
   conn.login(username, pass, (err, userInfo) => {
     if (err) {
-      mainWindow.webContents.send('sfShowOrgId', {
+      logMessage(
+        'Login',
+        'Error',
+        `Login Failed ${err}`,
+      );
+
+      mainWindow.webContents.send('response_generic', {
         status: false,
         message: 'Login Failed',
         response: err,
