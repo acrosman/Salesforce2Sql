@@ -1,5 +1,3 @@
-const { app } = require('electron');
-const { get } = require('jquery');
 const menu = require('../menu');
 
 test('Validate menu template size', () => {
