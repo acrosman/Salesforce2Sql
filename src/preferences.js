@@ -81,8 +81,8 @@ const openPreferences = () => {
   const htmlPath = `file://${appPath}/app/preferences.html`;
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
-      width: 500,
-      height: 300,
+      width: 550,
+      height: 700,
       resizable: false,
       frame: false,
       webPreferences: {
