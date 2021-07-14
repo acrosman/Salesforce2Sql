@@ -235,6 +235,9 @@ const buildTable = (table) => {
         table.decimal(field.name, field.precision, field.scale);
         break;
       case 'enum':
+        if (preferences.picklists.ensureBlanks && !field.values.contains('')) {
+          field.values.push('');
+        }
         table.enu(field.name, field.values);
         break;
       case 'float':
