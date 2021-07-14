@@ -4,6 +4,9 @@ const electron = require('electron'); // eslint-disable-line
 const jsforce = require('jsforce');
 const knex = require('knex');
 
+// Load the preference system.
+const { getCurrentPreferences } = require('./preferences');
+
 // Get the dialog library from Electron
 const { dialog } = electron;
 
@@ -42,6 +45,16 @@ const resolveFieldType = (sfTypeName) => {
     time: 'time',
     url: 'string',
   };
+
+  // Get the settings to tweak for picklist and references.
+  const prefs = getCurrentPreferences();
+  if (prefs.picklists.type !== 'enum') {
+    typeResolver.picklist = 'string';
+  }
+
+  if (prefs.lookups.type !== 'char(18)') {
+    typeResolver.reference = 'string';
+  }
 
   if (Object.prototype.hasOwnProperty.call(typeResolver, sfTypeName)) {
     return typeResolver[sfTypeName];
