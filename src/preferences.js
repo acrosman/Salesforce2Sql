@@ -23,6 +23,22 @@ const getCurrentPreferences = () => {
 
   const preferences = {
     theme: 'Cyborg',
+    indexes: {
+      picklists: true,
+      lookups: true,
+    },
+    picklists: {
+      type: 'enum',
+      unrestricted: true,
+      ensureBlanks: true,
+    },
+    lookups: {
+      type: 'char(18)',
+    },
+    defaults: {
+      attemptSFValues: false,
+      textEmptyString: false,
+    },
   };
 
   // Load any exisiting values.

@@ -24,13 +24,14 @@
               <h2 class="card-title h5">Picklist Settings</h2>
               <p class="card-text">The following settings change default behavior of all picklists.</p>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="picklist-fieldType" id="picklist-enum">
+                <input class="form-check-input" type="radio" name="picklist-fieldType" id="picklist-enum" value="enum">
                 <label class="form-check-label" for="picklist-enum">
                   Make Picklists Enum
                 </label>
               </div>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="picklist-fieldType" id="picklist-string">
+                <input class="form-check-input" type="radio" name="picklist-fieldType" id="picklist-string"
+                  value="varchar(255)">
                 <label class="form-check-label" for="picklist-string">
                   Make Picklists varchar(255)
                 </label>
@@ -56,13 +57,14 @@
               <h2 class="card-title h5">Other Defaults</h2>
               <p class="card-text">Other various defaults</p>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="lookup-fieldType" id="lookup-char">
+                <input class="form-check-input" type="radio" name="lookup-fieldType" id="lookup-char" value="char(18)">
                 <label class="form-check-label" for="lookup-char">
                   Make Lookups Char(18)
                 </label>
               </div>
               <div class="form-check">
-                <input class="form-check-input" type="radio" name="lookup-fieldType" id="lookup-string">
+                <input class="form-check-input" type="radio" name="lookup-fieldType" id="lookup-string"
+                  value="varchar(255)">
                 <label class="form-check-label" for="lookup-string">
                   Make Lookups Varchar(255)
                 </label>
