@@ -202,14 +202,22 @@ const buildTable = (table) => {
   const fields = proposedSchema[table._tableName];
   let field;
   let fieldType;
+  let addIndex;
   const fieldNames = Object.getOwnPropertyNames(fields);
+  const prefs = getCurrentPreferences();
 
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
+    // Determine if the field should be indexed.
+    addIndex = (prefs.indexes.lookups && field.type === 'reference')
+      || (prefs.indexes.picklists && field.type === 'picklist');
+
+    // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
+    let { size } = field;
     switch (fieldType) {
       case 'binary':
-        table.binary(field.name, field.size);
+        table.binary(field.name, size);
         break;
       case 'boolean':
         table.boolean(field.name);
@@ -245,7 +253,13 @@ const buildTable = (table) => {
         table.time(field.name);
         break;
       default:
-        table.string(field.name, field.size);
+        if (!size) {
+          size = 255;
+        }
+        table.string(field.name, size);
+    }
+    if (addIndex) {
+      table.index([field.name]);
     }
   }
 
