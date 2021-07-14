@@ -4,18 +4,20 @@ const electron = require('electron'); // eslint-disable-line
 const jsforce = require('jsforce');
 const knex = require('knex');
 
-// Load the preference system.
-const { getCurrentPreferences } = require('./preferences');
-
 // Get the dialog library from Electron
 const { dialog } = electron;
 
 const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
+let preferences;
 
 const setwindow = (window) => {
   mainWindow = window;
+};
+
+const setPreferences = (prefs) => {
+  preferences = prefs;
 };
 
 const resolveFieldType = (sfTypeName) => {
@@ -47,12 +49,11 @@ const resolveFieldType = (sfTypeName) => {
   };
 
   // Get the settings to tweak for picklist and references.
-  const prefs = getCurrentPreferences();
-  if (prefs.picklists.type !== 'enum') {
+  if (preferences.picklists.type !== 'enum') {
     typeResolver.picklist = 'string';
   }
 
-  if (prefs.lookups.type !== 'char(18)') {
+  if (preferences.lookups.type !== 'char(18)') {
     typeResolver.reference = 'string';
   }
 
@@ -204,13 +205,12 @@ const buildTable = (table) => {
   let fieldType;
   let addIndex;
   const fieldNames = Object.getOwnPropertyNames(fields);
-  const prefs = getCurrentPreferences();
 
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
     // Determine if the field should be indexed.
-    addIndex = (prefs.indexes.lookups && field.type === 'reference')
-      || (prefs.indexes.picklists && field.type === 'picklist');
+    addIndex = (preferences.indexes.lookups && field.type === 'reference')
+      || (preferences.indexes.picklists && field.type === 'picklist');
 
     // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
@@ -597,3 +597,4 @@ const handlers = {
 
 exports.handlers = handlers;
 exports.setwindow = setwindow;
+exports.setPreferences = setPreferences;
