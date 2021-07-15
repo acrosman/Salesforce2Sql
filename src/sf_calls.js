@@ -423,7 +423,7 @@ const buildDatabase = (settings) => {
       db.schema.dropTableIfExists(tables[i])
         .then(() => {
           createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', `Successfully created new table. ${response[0].message}`);
+            logMessage('Database', 'Success', 'Successfully created new table.');
             return response[0].message;
           });
         })
