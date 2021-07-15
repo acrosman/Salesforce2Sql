@@ -114,6 +114,7 @@ const buildFields = (fieldList, allText = false) => {
     fld.label = fieldList[f].label;
     fld.type = fieldList[f].type;
     fld.size = fieldList[f].length;
+    fld.defaultValue = fieldList[f].defaultValue;
 
     // Large text fields go to TEXT.
     if (fld.type === 'string' && (fld.size > 255 || allText)) {
@@ -221,60 +222,74 @@ const buildTable = (table) => {
     fieldType = resolveFieldType(field.type);
 
     // Extract field size.
-    let { size } = field;
+    let { size, defaultValue } = field;
 
     // If this is an unrestricted picklist.
     if (field.type === 'picklist' && !field.isRestricted && preferences.picklists.unrestricted) {
       fieldType = 'string';
       size = 255;
     }
+
+    // Setup default when suggested.
+    if (preferences.defaults.textEmptyString) {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = '';
+      }
+    }
+
+    let column;
     switch (fieldType) {
       case 'binary':
-        table.binary(field.name, size);
+        column = table.binary(field.name, size);
         break;
       case 'boolean':
-        table.boolean(field.name);
+        column = table.boolean(field.name);
         break;
       case 'biginteger':
-        table.biginteger(field.name);
+        column = table.biginteger(field.name);
         break;
       case 'date':
-        table.date(field.name);
+        column = table.date(field.name);
         break;
       case 'datetime':
-        table.datetime(field.name);
+        column = table.datetime(field.name);
         break;
       case 'decimal':
-        table.decimal(field.name, field.precision, field.scale);
+        column = table.decimal(field.name, field.precision, field.scale);
         break;
       case 'enum':
         // Add a blank if needed.
         if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
           field.values.push('');
         }
-        table.enu(field.name, field.values);
+        column = table.enu(field.name, field.values);
         break;
       case 'float':
-        table.float(field.name, field.precision, field.scale);
+        column = table.float(field.name, field.precision, field.scale);
         break;
       case 'integer':
-        table.integer(field.name);
+        column = table.integer(field.name);
         break;
       case 'reference':
-        table.string(field.name, 18);
+        column = table.string(field.name, 18);
         break;
       case 'text':
-        table.text(field.name);
+        column = table.text(field.name);
         break;
       case 'time':
-        table.time(field.name);
+        column = table.time(field.name);
         break;
       default:
         if (!size) {
           size = 255;
         }
-        table.string(field.name, size);
+        column = table.string(field.name, size);
     }
+
+    if (preferences.defaults.attemptSFValues) {
+      column.defaultTo(defaultValue);
+    }
+
     if (addIndex) {
       table.index([field.name]);
     }
