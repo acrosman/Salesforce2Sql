@@ -12,6 +12,34 @@ let mainWindow = null;
 let proposedSchema = {};
 let preferences;
 
+// Baseline for Type conversions between environments.
+const typeResolverBases = {
+  base64: 'binary',
+  boolean: 'boolean',
+  byte: 'binary',
+  calculated: 'string',
+  comboBox: 'string',
+  currency: 'decimal',
+  date: 'date',
+  datetime: 'datetime',
+  double: 'float',
+  email: 'string',
+  encryptedstring: 'string',
+  id: 'string',
+  int: 'integer',
+  long: 'biginteger',
+  masterrecord: 'string',
+  multipicklist: 'string',
+  percent: 'decimal',
+  phone: 'string',
+  picklist: 'enum',
+  reference: 'reference',
+  string: 'string',
+  textarea: 'text',
+  time: 'time',
+  url: 'string',
+};
+
 const setwindow = (window) => {
   mainWindow = window;
 };
@@ -21,38 +49,14 @@ const setPreferences = (prefs) => {
 };
 
 const resolveFieldType = (sfTypeName) => {
-  const typeResolver = {
-    base64: 'binary',
-    boolean: 'boolean',
-    byte: 'binary',
-    calculated: 'string',
-    comboBox: 'string',
-    currency: 'decimal',
-    date: 'date',
-    datetime: 'datetime',
-    double: 'float',
-    email: 'string',
-    encryptedstring: 'string',
-    id: 'string',
-    int: 'integer',
-    long: 'biginteger',
-    masterrecord: 'string',
-    multipicklist: 'string',
-    percent: 'decimal',
-    phone: 'string',
-    picklist: 'enum',
-    reference: 'reference',
-    string: 'string',
-    textarea: 'text',
-    time: 'time',
-    url: 'string',
-  };
+  const typeResolver = typeResolverBases;
 
-  // Get the settings to tweak for picklist and references.
+  // Tweak for picklists when set to be strings.
   if (preferences.picklists.type !== 'enum') {
     typeResolver.picklist = 'string';
   }
 
+  // Set Ids to be full strings instead of char(18) as needed.
   if (preferences.lookups.type !== 'char(18)') {
     typeResolver.reference = 'string';
   }
@@ -123,6 +127,7 @@ const buildFields = (fieldList, allText = false) => {
         break;
       case 'picklist':
         fld.values = extractPicklistValues(fieldList[f].picklistValues);
+        fld.isRestricted = fieldList[f].restrictedPicklist;
         break;
       case 'currency':
       case 'double':
@@ -214,7 +219,15 @@ const buildTable = (table) => {
 
     // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
+
+    // Extract field size.
     let { size } = field;
+
+    // If this is an unrestricted picklist.
+    if (field.type === 'picklist' && !field.isRestricted && preferences.picklists.unrestricted) {
+      fieldType = 'string';
+      size = 255;
+    }
     switch (fieldType) {
       case 'binary':
         table.binary(field.name, size);
@@ -235,7 +248,8 @@ const buildTable = (table) => {
         table.decimal(field.name, field.precision, field.scale);
         break;
       case 'enum':
-        if (preferences.picklists.ensureBlanks && !field.values.contains('')) {
+        // Add a blank if needed.
+        if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
           field.values.push('');
         }
         table.enu(field.name, field.values);
