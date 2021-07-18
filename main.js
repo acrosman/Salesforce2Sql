@@ -72,6 +72,7 @@ function createWindow() {
 
   // Attach to preference system.
   setMainWindow(mainWindow);
+  ipcFunctions.setPreferences(getCurrentPreferences());
 
   // Emitted when the window is closed.
   mainWindow.on('closed', () => {
