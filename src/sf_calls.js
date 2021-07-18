@@ -10,38 +10,56 @@ const { dialog } = electron;
 const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
+let preferences;
+
+// Baseline for Type conversions between environments.
+const typeResolverBases = {
+  base64: 'binary',
+  boolean: 'boolean',
+  byte: 'binary',
+  calculated: 'string',
+  comboBox: 'string',
+  currency: 'decimal',
+  date: 'date',
+  datetime: 'datetime',
+  double: 'float',
+  email: 'string',
+  encryptedstring: 'string',
+  id: 'string',
+  int: 'integer',
+  long: 'biginteger',
+  masterrecord: 'string',
+  multipicklist: 'string',
+  percent: 'decimal',
+  phone: 'string',
+  picklist: 'enum',
+  reference: 'reference',
+  string: 'string',
+  textarea: 'text',
+  time: 'time',
+  url: 'string',
+};
 
 const setwindow = (window) => {
   mainWindow = window;
 };
 
+const setPreferences = (prefs) => {
+  preferences = prefs;
+};
+
 const resolveFieldType = (sfTypeName) => {
-  const typeResolver = {
-    base64: 'binary',
-    boolean: 'boolean',
-    byte: 'binary',
-    calculated: 'string',
-    comboBox: 'string',
-    currency: 'decimal',
-    date: 'date',
-    datetime: 'datetime',
-    double: 'float',
-    email: 'string',
-    encryptedstring: 'string',
-    id: 'string',
-    int: 'integer',
-    long: 'biginteger',
-    masterrecord: 'string',
-    multipicklist: 'string',
-    percent: 'decimal',
-    phone: 'string',
-    picklist: 'enum',
-    reference: 'reference',
-    string: 'string',
-    textarea: 'text',
-    time: 'time',
-    url: 'string',
-  };
+  const typeResolver = typeResolverBases;
+
+  // Tweak for picklists when set to be strings.
+  if (preferences.picklists.type !== 'enum') {
+    typeResolver.picklist = 'string';
+  }
+
+  // Set Ids to be full strings instead of char(18) as needed.
+  if (preferences.lookups.type !== 'char(18)') {
+    typeResolver.reference = 'string';
+  }
 
   if (Object.prototype.hasOwnProperty.call(typeResolver, sfTypeName)) {
     return typeResolver[sfTypeName];
@@ -96,6 +114,7 @@ const buildFields = (fieldList, allText = false) => {
     fld.label = fieldList[f].label;
     fld.type = fieldList[f].type;
     fld.size = fieldList[f].length;
+    fld.defaultValue = fieldList[f].defaultValue;
 
     // Large text fields go to TEXT.
     if (fld.type === 'string' && (fld.size > 255 || allText)) {
@@ -109,6 +128,7 @@ const buildFields = (fieldList, allText = false) => {
         break;
       case 'picklist':
         fld.values = extractPicklistValues(fieldList[f].picklistValues);
+        fld.isRestricted = fieldList[f].restrictedPicklist;
         break;
       case 'currency':
       case 'double':
@@ -189,50 +209,90 @@ const buildTable = (table) => {
   const fields = proposedSchema[table._tableName];
   let field;
   let fieldType;
+  let addIndex;
   const fieldNames = Object.getOwnPropertyNames(fields);
 
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
+    // Determine if the field should be indexed.
+    addIndex = (preferences.indexes.lookups && field.type === 'reference')
+      || (preferences.indexes.picklists && field.type === 'picklist');
+
+    // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
+
+    // Extract field size.
+    let { size, defaultValue } = field;
+
+    // If this is an unrestricted picklist.
+    if (field.type === 'picklist' && !field.isRestricted && preferences.picklists.unrestricted) {
+      fieldType = 'string';
+      size = 255;
+    }
+
+    // Setup default when suggested.
+    const stringTypes = ['string', 'text'];
+    if (preferences.defaults.textEmptyString && stringTypes.includes(fieldType)) {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = '';
+      }
+    }
+
+    let column;
     switch (fieldType) {
       case 'binary':
-        table.binary(field.name, field.size);
+        column = table.binary(field.name, size);
         break;
       case 'boolean':
-        table.boolean(field.name);
+        column = table.boolean(field.name);
         break;
       case 'biginteger':
-        table.biginteger(field.name);
+        column = table.biginteger(field.name);
         break;
       case 'date':
-        table.date(field.name);
+        column = table.date(field.name);
         break;
       case 'datetime':
-        table.datetime(field.name);
+        column = table.datetime(field.name);
         break;
       case 'decimal':
-        table.decimal(field.name, field.precision, field.scale);
+        column = table.decimal(field.name, field.precision, field.scale);
         break;
       case 'enum':
-        table.enu(field.name, field.values);
+        // Add a blank if needed.
+        if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
+          field.values.push('');
+        }
+        column = table.enu(field.name, field.values);
         break;
       case 'float':
-        table.float(field.name, field.precision, field.scale);
+        column = table.float(field.name, field.precision, field.scale);
         break;
       case 'integer':
-        table.integer(field.name);
+        column = table.integer(field.name);
         break;
       case 'reference':
-        table.string(field.name, 18);
+        column = table.string(field.name, 18);
         break;
       case 'text':
-        table.text(field.name);
+        column = table.text(field.name);
         break;
       case 'time':
-        table.time(field.name);
+        column = table.time(field.name);
         break;
       default:
-        table.string(field.name, field.size);
+        if (!size) {
+          size = 255;
+        }
+        column = table.string(field.name, size);
+    }
+
+    if (preferences.defaults.attemptSFValues) {
+      column.defaultTo(defaultValue);
+    }
+
+    if (addIndex) {
+      table.index([field.name]);
     }
   }
 
@@ -364,7 +424,7 @@ const buildDatabase = (settings) => {
       db.schema.dropTableIfExists(tables[i])
         .then(() => {
           createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', `Successfully created new table. ${response[0].message}`);
+            logMessage('Database', 'Success', 'Successfully created new table.');
             return response[0].message;
           });
         })
@@ -570,3 +630,4 @@ const handlers = {
 
 exports.handlers = handlers;
 exports.setwindow = setwindow;
+exports.setPreferences = setPreferences;
