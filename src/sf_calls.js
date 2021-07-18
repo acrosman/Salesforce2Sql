@@ -231,7 +231,8 @@ const buildTable = (table) => {
     }
 
     // Setup default when suggested.
-    if (preferences.defaults.textEmptyString) {
+    const stringTypes = ['string', 'text'];
+    if (preferences.defaults.textEmptyString && stringTypes.includes(fieldType)) {
       if (defaultValue === 'null' || defaultValue === null) {
         defaultValue = '';
       }
