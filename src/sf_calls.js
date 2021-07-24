@@ -40,14 +40,27 @@ const typeResolverBases = {
   url: 'string',
 };
 
+/**
+ * Sets the window being used for the interface. Responses are sent to this window.
+ * @param {*} window The ElectronJS window in use.
+ */
 const setwindow = (window) => {
   mainWindow = window;
 };
 
+/**
+ * Sets the preferences for use in generating the schema.
+ * @param {*} prefs The current application preference object to use.
+ */
 const setPreferences = (prefs) => {
   preferences = prefs;
 };
 
+/**
+ * Determines to SQL data type to use for a given SF field type.
+ * @param {*} sfTypeName The SF field type.
+ * @returns Returns the name of the sql column type to use.
+ */
 const resolveFieldType = (sfTypeName) => {
   const typeResolver = typeResolverBases;
 
@@ -103,43 +116,56 @@ const extractPicklistValues = (valueList) => {
   return values;
 };
 
+/**
+ * Generates the details of all the fields in the schema.
+ * @param {*} fieldList An array of fields.
+ * @param {*} allText Indicates if all strings should be text instead of varchar.
+ * @returns an object with all of a table's fields and their details.
+ */
 const buildFields = (fieldList, allText = false) => {
   let fld;
   const objFields = {};
 
   for (let f = 0; f < fieldList.length; f += 1) {
-    fld = {};
-    // Values we want for all fields.
-    fld.name = fieldList[f].name;
-    fld.label = fieldList[f].label;
-    fld.type = fieldList[f].type;
-    fld.size = fieldList[f].length;
-    fld.defaultValue = fieldList[f].defaultValue;
+    // If we're skipping readonly fields make sure we do that here.
+    if (
+      !(preferences.defaults.supressReadOnly
+        && (fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable)))
+      || fieldList[f].type === 'id' // Always include Id columns
+    ) {
+      fld = {};
+      // Values we want for all fields.
+      fld.name = fieldList[f].name;
+      fld.label = fieldList[f].label;
+      fld.type = fieldList[f].type;
+      fld.size = fieldList[f].length;
+      fld.defaultValue = fieldList[f].defaultValue;
 
-    // Large text fields go to TEXT.
-    if (fld.type === 'string' && (fld.size > 255 || allText)) {
-      fld.type = 'text';
-    }
+      // Large text fields go to TEXT.
+      if (fld.type === 'string' && (fld.size > 255 || allText)) {
+        fld.type = 'text';
+      }
 
-    // Type specific values.
-    switch (fld.type) {
-      case 'reference':
-        fld.target = fieldList[f].referenceTo;
-        break;
-      case 'picklist':
-        fld.values = extractPicklistValues(fieldList[f].picklistValues);
-        fld.isRestricted = fieldList[f].restrictedPicklist;
-        break;
-      case 'currency':
-      case 'double':
-      case 'float':
-        fld.scale = fieldList[f].scale;
-        fld.precision = fieldList[f].precision;
-        break;
-      default:
-        break;
+      // Type specific values.
+      switch (fld.type) {
+        case 'reference':
+          fld.target = fieldList[f].referenceTo;
+          break;
+        case 'picklist':
+          fld.values = extractPicklistValues(fieldList[f].picklistValues);
+          fld.isRestricted = fieldList[f].restrictedPicklist;
+          break;
+        case 'currency':
+        case 'double':
+        case 'float':
+          fld.scale = fieldList[f].scale;
+          fld.precision = fieldList[f].precision;
+          break;
+        default:
+          break;
+      }
+      objFields[fld.name] = fld;
     }
-    objFields[fld.name] = fld;
   }
   return objFields;
 };
@@ -163,6 +189,9 @@ const buildSchema = (objectList) => {
   return schema;
 };
 
+/**
+ * Opens a dialog and starts the schema load process with the result.
+ */
 const loadSchemaFromFile = () => {
   const dialogOptions = {
     title: 'Load Schema',
@@ -329,6 +358,11 @@ const saveSchemaToFile = () => {
   });
 };
 
+/**
+ * Create a database connection using the knex library.
+ * @param {*} settings An object with database connections settings.
+ * @returns the database connection object.
+ */
 const createKnexConnection = (settings) => {
   // Create database connection.
   const db = knex({
@@ -358,6 +392,10 @@ const createKnexConnection = (settings) => {
   return db;
 };
 
+/**
+ * Save the current database schema to an SQL file.
+ * @param {*} settings Current database connection settings.
+ */
 const saveSchemaToSql = (settings) => {
   const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
@@ -390,6 +428,10 @@ const saveSchemaToSql = (settings) => {
   });
 };
 
+/**
+ * Builds the actual database from generated schema.
+ * @param {*} settings Database connection settings.
+ */
 const buildDatabase = (settings) => {
   const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
@@ -458,8 +500,15 @@ const buildDatabase = (settings) => {
   });
 };
 
+/**
+ * List of remote call handlers for using with IPC.
+ */
 const handlers = {
-  // Login to an org using password authentication.
+  /**
+   * Login to an org using password authentication.
+   * @param {*} event Standard message event.
+   * @param {*} args Login credentials from the interface.
+   */
   sf_login: (event, args) => {
     const conn = new jsforce.Connection({
       // you can change loginUrl to connect to sandbox or prerelease env.
@@ -507,7 +556,11 @@ const handlers = {
       return true;
     });
   },
-  // Logout of a specific Salesforce org.
+  /**
+   * Logout of a specific Salesforce org.
+   * @param {*} event Standard message event.
+   * @param {*} args The connection to disable.
+   */
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.logout((err) => {
@@ -534,7 +587,12 @@ const handlers = {
       return true;
     });
   },
-  // Run a Global Describe.
+  /**
+   * Run a global describe.
+   * @param {*} event Standard message event.
+   * @param {*} args Message args with org to use.
+   * @returns True.
+   */
   sf_describeGlobal: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.describeGlobal((err, result) => {
@@ -563,7 +621,12 @@ const handlers = {
       return true;
     });
   },
-  // Get a list of all fields on a provided list of objects.
+  /**
+   * Get a list of all fields on a provided list of objects.
+   * @param {*} event Standard message event.
+   * @param {*} args Arguments from the interface.
+   * @returns True.
+   */
   sf_getObjectFields: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     const describeCalls = [];
@@ -600,12 +663,21 @@ const handlers = {
     });
     return true;
   },
-  // Connect to a database and set the schema.
+  /**
+   * Connect to a database and set the schema.
+   * @param {*} event Standard message event.
+   * @param {*} args Connection settings.
+   */
   knex_schema: (event, args) => {
     buildDatabase(args);
     logMessage('Database', 'Info', 'Database build started.');
   },
-  // Send a log message to the console window.
+  /**
+   * Send a log message to message console window.
+   * @param {*} event Standard message event.
+   * @param {*} args Log arguments.
+   * @returns true.
+   */
   log_message: (event, args) => {
     mainWindow.webContents.send('log_message', {
       sender: args.sender,
@@ -614,20 +686,27 @@ const handlers = {
     });
     return true;
   },
-  // Load a previously saved Schema from a file.
+  /**
+   * Load a previously saved Schema from a file.
+   */
   load_schema: () => {
     loadSchemaFromFile();
   },
-  // Save the current schema settings to a file.
+  /**
+   * Save the current schema settings to a file.
+   */
   save_schema: () => {
     saveSchemaToFile();
   },
-  // Save the current schema to a SQL file.
+  /**
+   * Save the current schema to a SQL file.
+   */
   save_ddl_sql: (event, args) => {
     saveSchemaToSql(args);
   },
 };
 
+// Export setup.
 exports.handlers = handlers;
 exports.setwindow = setwindow;
 exports.setPreferences = setPreferences;
