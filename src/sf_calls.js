@@ -10,7 +10,7 @@ const { dialog } = electron;
 const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
-let preferences;
+let preferences = null;
 
 // Baseline for Type conversions between environments.
 const typeResolverBases = {

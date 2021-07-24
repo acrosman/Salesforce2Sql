@@ -22,3 +22,42 @@ test('Validate exports', () => {
     expect(sfcalls.handlers).toHaveProperty(handlerList[i]);
   }
 });
+
+test('Check SetWindow', () => {
+  // The set window does no validation, so we cna set it to any object here.
+  const myTestWindow = {
+    'testwindow': 1,
+  };
+  expect(sfcalls.__get__('mainWindow')).toBe(null);
+  sfcalls.setwindow(myTestWindow);
+  expect(sfcalls.__get__('mainWindow')).toHaveProperty('testwindow', 1);
+});
+
+// A sample set of Preferences for use in this test and when testing other functions that need them.
+const samplePrefs = {
+  theme: 'Cyborg',
+  indexes: {
+    picklists: true,
+    lookups: true,
+  },
+  picklists: {
+    type: 'enum',
+    unrestricted: true,
+    ensureBlanks: true,
+  },
+  lookups: {
+    type: 'char(18)',
+  },
+  defaults: {
+    attemptSFValues: false,
+    textEmptyString: false,
+    supressReadOnly: false,
+  },
+};
+
+test('Check SetPreferences', () => {
+  // Send an object with a set of preferences, can use again for other testing.
+  expect(sfcalls.__get__('preferences')).toBe(null);
+  sfcalls.setPreferences(samplePrefs);
+  expect(sfcalls.__get__('preferences')).toHaveProperty('theme');
+});
