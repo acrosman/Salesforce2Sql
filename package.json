@@ -11,6 +11,9 @@
     "postinstall": "electron-builder install-app-deps",
     "test": "jest --coverage"
   },
+  "jest": {
+    "verbose": true
+  },
   "build": {
     "appId": "com.electron.acrosman.Salesforce2Sql",
     "productName": "Salesforce2Sql",
