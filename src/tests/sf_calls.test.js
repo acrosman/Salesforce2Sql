@@ -94,5 +94,30 @@ test('Test resolveFieldType', () => {
   samplePrefs.lookups.type = 'varchar(255)';
   sfcalls.setPreferences(samplePrefs);
   expect(resolveFunction('reference')).toBe('string');
+});
 
+// Test the helper that pulls picklist values.
+test('Test Picklist Value Extraction', () => {
+  const sampleValues = [
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Prospect',
+      validFor: null,
+      value: 'Prospect',
+    },
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Field with \' in it',
+      validFor: null,
+      value: 'Test\'s',
+    },
+  ];
+
+  const extractPicklistValues = sfcalls.__get__('extractPicklistValues');
+  const testResult = extractPicklistValues(sampleValues);
+  expect(testResult).toHaveLength(2);
+  expect(testResult[0]).toBe('Prospect');
+  expect(testResult[1]).toBe('Test\\\'s');
 });
