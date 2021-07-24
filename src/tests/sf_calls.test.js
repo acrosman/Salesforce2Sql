@@ -23,10 +23,22 @@ test('Validate exports', () => {
   }
 });
 
+// There are a series of internal values for the module. Ensure they are there.
+// Several are assumed and leveraged in later tests.
+test('Validate existance of assumed internals', () => {
+  // Checking the existing of the four main variables.
+  expect(sfcalls.__get__('sfConnections')).toStrictEqual({});
+  expect(sfcalls.__get__('proposedSchema')).toStrictEqual({});
+  expect(sfcalls.__get__('mainWindow')).toBe(null);
+  expect(sfcalls.__get__('preferences')).toBe(null);
+  // Make sure the resolver list exists by checking one arbitrarly selected property.
+  expect(sfcalls.__get__('typeResolverBases')).toHaveProperty('reference', 'reference');
+});
+
 test('Check SetWindow', () => {
   // The set window does no validation, so we cna set it to any object here.
   const myTestWindow = {
-    'testwindow': 1,
+    testwindow: 1,
   };
   expect(sfcalls.__get__('mainWindow')).toBe(null);
   sfcalls.setwindow(myTestWindow);
@@ -60,4 +72,27 @@ test('Check SetPreferences', () => {
   expect(sfcalls.__get__('preferences')).toBe(null);
   sfcalls.setPreferences(samplePrefs);
   expect(sfcalls.__get__('preferences')).toHaveProperty('theme');
+});
+
+test('Test resolveFieldType', () => {
+  // Get the current list of mapping default values.
+  const defaultTypeMap = sfcalls.__get__('typeResolverBases');
+
+  // Set with the default values above, then we'll try some variations.
+  sfcalls.setPreferences(samplePrefs);
+  const resolveFunction = sfcalls.__get__('resolveFieldType');
+  Object.entries(defaultTypeMap).forEach((element) => {
+    expect(resolveFunction(element[0])).toBe(element[1]);
+  });
+
+  // Tweak for picklists when set to be strings.
+  samplePrefs.picklists.type = 'string';
+  sfcalls.setPreferences(samplePrefs);
+  expect(resolveFunction('picklist')).toBe('string');
+
+  // Set Ids to be full strings instead of char(18) as needed.
+  samplePrefs.lookups.type = 'varchar(255)';
+  sfcalls.setPreferences(samplePrefs);
+  expect(resolveFunction('reference')).toBe('string');
+
 });
