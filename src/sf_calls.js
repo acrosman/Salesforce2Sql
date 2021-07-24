@@ -108,38 +108,45 @@ const buildFields = (fieldList, allText = false) => {
   const objFields = {};
 
   for (let f = 0; f < fieldList.length; f += 1) {
-    fld = {};
-    // Values we want for all fields.
-    fld.name = fieldList[f].name;
-    fld.label = fieldList[f].label;
-    fld.type = fieldList[f].type;
-    fld.size = fieldList[f].length;
-    fld.defaultValue = fieldList[f].defaultValue;
+    // If we're skipping readonly fields make sure we do that here.
+    if (
+      !(preferences.defaults.supressReadOnly
+        && (fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable)))
+      || fieldList[f].type === 'id' // Always include Id columns
+    ) {
+      fld = {};
+      // Values we want for all fields.
+      fld.name = fieldList[f].name;
+      fld.label = fieldList[f].label;
+      fld.type = fieldList[f].type;
+      fld.size = fieldList[f].length;
+      fld.defaultValue = fieldList[f].defaultValue;
 
-    // Large text fields go to TEXT.
-    if (fld.type === 'string' && (fld.size > 255 || allText)) {
-      fld.type = 'text';
-    }
+      // Large text fields go to TEXT.
+      if (fld.type === 'string' && (fld.size > 255 || allText)) {
+        fld.type = 'text';
+      }
 
-    // Type specific values.
-    switch (fld.type) {
-      case 'reference':
-        fld.target = fieldList[f].referenceTo;
-        break;
-      case 'picklist':
-        fld.values = extractPicklistValues(fieldList[f].picklistValues);
-        fld.isRestricted = fieldList[f].restrictedPicklist;
-        break;
-      case 'currency':
-      case 'double':
-      case 'float':
-        fld.scale = fieldList[f].scale;
-        fld.precision = fieldList[f].precision;
-        break;
-      default:
-        break;
+      // Type specific values.
+      switch (fld.type) {
+        case 'reference':
+          fld.target = fieldList[f].referenceTo;
+          break;
+        case 'picklist':
+          fld.values = extractPicklistValues(fieldList[f].picklistValues);
+          fld.isRestricted = fieldList[f].restrictedPicklist;
+          break;
+        case 'currency':
+        case 'double':
+        case 'float':
+          fld.scale = fieldList[f].scale;
+          fld.precision = fieldList[f].precision;
+          break;
+        default:
+          break;
+      }
+      objFields[fld.name] = fld;
     }
-    objFields[fld.name] = fld;
   }
   return objFields;
 };
