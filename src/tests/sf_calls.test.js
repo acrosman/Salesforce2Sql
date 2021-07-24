@@ -1,5 +1,10 @@
+// FS is used to load samples from file.
+const fs = require('fs');
+
+// The actual module we're testing.
 const sfcalls = require('../sf_calls');
 
+// Provide a basic test of public elements of the module.
 test('Validate exports', () => {
   // Validate the main elements of the library are here.
   expect(sfcalls).toHaveProperty('handlers');
@@ -120,4 +125,40 @@ test('Test Picklist Value Extraction', () => {
   expect(testResult).toHaveLength(2);
   expect(testResult[0]).toBe('Prospect');
   expect(testResult[1]).toBe('Test\\\'s');
+});
+
+test('Test schema construction', (done) => {
+  // Get our test function.
+  const buildSchema = sfcalls.__get__('buildSchema');
+
+  // Load the sample responses.
+  fs.readFile('src/tests/sampleSOjbectDescribes.json', (err, data) => {
+    done();
+    if (err) {
+      throw new Error(`Unable to load sample file: ${err}`);
+    }
+
+    const sampleSchema = JSON.parse(data);
+    sfcalls.setPreferences(samplePrefs);
+    const testResult = buildSchema(sampleSchema);
+    expect(testResult).toHaveProperty('Account');
+    expect(testResult.Account).toHaveProperty('Id');
+    expect(testResult.Account).toHaveProperty('Id.size', 18);
+    expect(testResult.Account).toHaveProperty('Id.type', 'id');
+    expect(testResult.Account).toHaveProperty('Id.name', 'Id');
+    expect(testResult.Account).toHaveProperty('Name');
+    expect(testResult.Account).toHaveProperty('Name.size', 255);
+    expect(testResult.Account).toHaveProperty('Name.type', 'string');
+    expect(testResult.Account).toHaveProperty('Name.name', 'Name');
+
+    expect(testResult).toHaveProperty('Contact');
+    expect(testResult.Contact).toHaveProperty('Id');
+    expect(testResult.Contact).toHaveProperty('Id.size', 18);
+    expect(testResult.Contact).toHaveProperty('Id.type', 'id');
+    expect(testResult.Contact).toHaveProperty('Id.name', 'Id');
+    expect(testResult.Contact).toHaveProperty('Name');
+    expect(testResult.Contact).toHaveProperty('Name.size', 255);
+    expect(testResult.Contact).toHaveProperty('Name.type', 'string');
+    expect(testResult.Contact).toHaveProperty('Name.name', 'Name');
+  });
 });
