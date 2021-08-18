@@ -172,21 +172,25 @@ const buildFields = (fieldList, allText = false) => {
 };
 
 /**
- *
- * @param {Object} objectList Collection of sObject describes to convert to schema.
+ * Build the schema from SF data structures.
+ * @param {Array} fieldList An array of FieldDefinition query results.
  * @returns An object we can convert easily into an SQL schema.
  */
-const buildSchema = (objectList) => {
+const buildSchema = (fieldList) => {
   const schema = {};
+  let resolvedField;
 
-  // For each object we need to extract the field list, including their types.
-  const objects = Object.getOwnPropertyNames(objectList);
-  let obj;
-  for (let i = 0; i < objects.length; i += 1) {
-    obj = objectList[objects[i]];
-    schema[objects[i]] = buildFields(obj.fields);
-  }
-
+  // For each field we need to copy the information into the right places.
+  fieldList.forEach((field) => {
+    if (!Object.prototype.getOwnPropertyNames.call(schema, field.EntityDefinitionId)) {
+      schema[field.EntityDefinitionId] = {
+        name: field.EntityDefinitionId,
+        fields: {},
+      };
+    }
+    resolvedField = processField(field);
+    schema[field.EntityDefinitionId].fields[field.DeveloperName] = resolvedField;
+  });
   return schema;
 };
 
