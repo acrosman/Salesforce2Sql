@@ -630,82 +630,39 @@ const handlers = {
    */
   sf_getObjectFields: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    const whereClause = { 'EntityDefinition.QualifiedApiName': { $in: args.objects } };
-    const countQuery = conn.sobject('FieldDefinition').count(whereClause);
-    let expectedRecords = 0;
-    let recordsFetched = 0;
+    const describeCalls = [];
+    const objectDescribes = {};
 
-    countQuery.execute().then((result) => {
-      const fieldDetails = [];
-      expectedRecords = result;
+    // Create a collection of promises for the various objects.
+    for (let i = 0; i < args.objects.length; i += 1) {
+      describeCalls.push(conn.sobject(args.objects[i]).describe());
+    }
 
-      // Log status.
-      logMessage('Schema', 'Info', `Fetching ${expectedRecords} fields for ${args.objects.length} objects`);
+    // Log status
+    logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
 
-      const query = conn.sobject('FieldDefinition').select([
-        'DeveloperName',
-        'Label',
-        'DataType',
-        'EntityDefinitionId',
-        'ExtraTypeInfo',
-        'IsCalculated',
-        'IsIndexed',
-        'IsNameField',
-        'IsNillable',
-        'Length',
-        'MasterLabel',
-        'NamespacePrefix',
-        'Precision',
-        'QualifiedApiName',
-        'ReferenceTargetField',
-        'Scale',
-        'SecurityClassification']).where(whereClause);
+    // Wait for all of them to resolve, and build a collection.
+    Promise.all(describeCalls).then((responses) => {
+      for (let i = 0; i < responses.length; i += 1) {
+        objectDescribes[responses[i].name] = responses[i];
+      }
 
-      // Use the JSForce streaming interface to get all the data.
-      // @todo determine the upper bound with count query first.
-      query.execute({ autoFetch: true, maxFetch: expectedRecords })
-        .on('record', (record) => {
-          recordsFetched += 1;
-          fieldDetails.push(record);
-        })
-        .on('end', () => {
-          // Build draft schema.
-          proposedSchema = buildSchema(fieldDetails);
+      // Build draft schema.
+      proposedSchema = buildSchema(objectDescribes);
 
-          // Send Schema to interface for review.
-          logMessage('Schema', 'Success', `Loaded ${recordsFetched} fields.`);
-          mainWindow.webContents.send('response_schema', {
-            status: false,
-            message: 'Processed Objects',
-            response: {
-              fieldCount: recordsFetched,
-              fields: fieldDetails,
-              schema: proposedSchema,
-            },
-            limitInfo: conn.limitInfo,
-            request: args,
-          });
-        })
-        .on('error', (err) => {
-          logMessage('Fetch Objects', 'Error', `Eror while fetching fields: ${err}`);
-          mainWindow.webContents.send('response_generic', {
-            status: false,
-            message: 'Field Query Failed',
-            response: `${err}`,
-            limitInfo: conn.limitInfo,
-            request: args,
-          });
-        });
-    }, (err) => {
-      logMessage('Fetch Objects', 'Error', `Eror while counting fields: ${err}`);
-      mainWindow.webContents.send('response_generic', {
+      // Send Schema to interface for review.
+      mainWindow.webContents.send('response_schema', {
         status: false,
-        message: 'Field Count Query Failed',
-        response: `${err}`,
+        message: 'Processed Objects',
+        response: {
+          objects: objectDescribes,
+          schema: proposedSchema,
+        },
         limitInfo: conn.limitInfo,
         request: args,
       });
     });
+    return true;
   },
   /**
    * Connect to a database and set the schema.
