@@ -562,3 +562,8 @@ window.api.receive('start_find', () => {
   findbox.scrollIntoView();
   findbox.focus();
 });
+
+// Update the current loader message.
+window.api.receive('update_loader', (data) => {
+  showLoader(data.message);
+});
