@@ -22,7 +22,7 @@ const typeResolverBases = {
   currency: 'decimal',
   date: 'date',
   datetime: 'datetime',
-  double: 'float',
+  double: 'decimal',
   email: 'string',
   encryptedstring: 'string',
   id: 'string',
