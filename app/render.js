@@ -397,6 +397,7 @@ const displayObjectList = (sObjectData) => {
  * @param {*} schema the built-out schema from main thread.
  */
 const displayDraftSchema = (schema) => {
+  showLoader('All objects loaded, refreshing display');
   refreshObjectDisplay({
     message: 'Proposed Database Schema',
     response: schema,
