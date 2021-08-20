@@ -127,9 +127,9 @@ test('Test Picklist Value Extraction', () => {
   expect(testResult[1]).toBe('Test\\\'s');
 });
 
-test('Test schema construction', (done) => {
+test('Test schema construction for a field', (done) => {
   // Get our test function.
-  const buildSchema = sfcalls.__get__('buildSchema');
+  const buildFields = sfcalls.__get__('buildFields');
 
   // Load the sample responses.
   fs.readFile('src/tests/sampleSOjbectDescribes.json', (err, data) => {
@@ -140,25 +140,24 @@ test('Test schema construction', (done) => {
 
     const sampleSchema = JSON.parse(data);
     sfcalls.setPreferences(samplePrefs);
-    const testResult = buildSchema(sampleSchema);
-    expect(testResult).toHaveProperty('Account');
-    expect(testResult.Account).toHaveProperty('Id');
-    expect(testResult.Account).toHaveProperty('Id.size', 18);
-    expect(testResult.Account).toHaveProperty('Id.type', 'id');
-    expect(testResult.Account).toHaveProperty('Id.name', 'Id');
-    expect(testResult.Account).toHaveProperty('Name');
-    expect(testResult.Account).toHaveProperty('Name.size', 255);
-    expect(testResult.Account).toHaveProperty('Name.type', 'string');
-    expect(testResult.Account).toHaveProperty('Name.name', 'Name');
+    let testResult = buildFields(sampleSchema.Account.fields);
+    expect(testResult).toHaveProperty('Id');
+    expect(testResult).toHaveProperty('Id.size', 18);
+    expect(testResult).toHaveProperty('Id.type', 'id');
+    expect(testResult).toHaveProperty('Id.name', 'Id');
+    expect(testResult).toHaveProperty('Name');
+    expect(testResult).toHaveProperty('Name.size', 255);
+    expect(testResult).toHaveProperty('Name.type', 'string');
+    expect(testResult).toHaveProperty('Name.name', 'Name');
 
-    expect(testResult).toHaveProperty('Contact');
-    expect(testResult.Contact).toHaveProperty('Id');
-    expect(testResult.Contact).toHaveProperty('Id.size', 18);
-    expect(testResult.Contact).toHaveProperty('Id.type', 'id');
-    expect(testResult.Contact).toHaveProperty('Id.name', 'Id');
-    expect(testResult.Contact).toHaveProperty('Name');
-    expect(testResult.Contact).toHaveProperty('Name.size', 255);
-    expect(testResult.Contact).toHaveProperty('Name.type', 'string');
-    expect(testResult.Contact).toHaveProperty('Name.name', 'Name');
+    testResult = buildFields(sampleSchema.Contact.fields);
+    expect(testResult).toHaveProperty('Id');
+    expect(testResult).toHaveProperty('Id.size', 18);
+    expect(testResult).toHaveProperty('Id.type', 'id');
+    expect(testResult).toHaveProperty('Id.name', 'Id');
+    expect(testResult).toHaveProperty('Name');
+    expect(testResult).toHaveProperty('Name.size', 255);
+    expect(testResult).toHaveProperty('Name.type', 'string');
+    expect(testResult).toHaveProperty('Name.name', 'Name');
   });
 });

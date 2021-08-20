@@ -43,6 +43,9 @@ $.when($.ready).then(() => {
     }
   });
 
+  // Hide loader.
+  $('#loader-indicator').hide();
+
   // Get the current application preferences.
   window.api.send('get_preferences');
 
@@ -223,6 +226,15 @@ const refreshObjectDisplay = (data) => {
   });
 };
 
+const showLoader = (message) => {
+  $('#loader-indicator .loader-message').text(message);
+  $('#loader-indicator').show();
+};
+
+const hideLoader = () => {
+  $('#loader-indicator').hide();
+};
+
 // ================ Response Handlers =================
 
 /**
@@ -299,6 +311,7 @@ const displayObjectList = (sObjectData) => {
   };
 
   // Display area.
+  hideLoader();
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
   $('#results-message-wrapper').hide();
@@ -384,10 +397,12 @@ const displayObjectList = (sObjectData) => {
  * @param {*} schema the built-out schema from main thread.
  */
 const displayDraftSchema = (schema) => {
+  showLoader('All objects loaded, refreshing display');
   refreshObjectDisplay({
     message: 'Proposed Database Schema',
     response: schema,
   });
+  hideLoader();
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
   $('#nav-schema-tab').tab('show');
@@ -414,6 +429,7 @@ document.getElementById('logout-trigger').addEventListener('click', () => {
 
 // Fetch Org Objects
 document.getElementById('btn-fetch-objects').addEventListener('click', () => {
+  showLoader('Loading Object List');
   window.api.send('sf_describeGlobal', {
     org: document.getElementById('active-org').value,
   });
@@ -426,6 +442,7 @@ document.getElementById('btn-fetch-details').addEventListener('click', () => {
   for (let i = 0; i < activeCheckboxes.length; i += 1) {
     selectedObjects.push(activeCheckboxes[i].dataset.objectName);
   }
+  showLoader('Loading Object Fields');
   window.api.send('sf_getObjectFields', {
     org: document.getElementById('active-org').value,
     objects: selectedObjects,
@@ -442,6 +459,8 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
       break;
     }
   }
+
+  showLoader('Creating Database Tables');
 
   window.api.send('knex_schema', {
     type: dbType,
@@ -504,6 +523,7 @@ window.api.receive('response_generic', (data) => {
 
 // Response after building database
 window.api.receive('response_db_generated', (data) => {
+  hideLoader();
   logMessage('Database', 'Info', 'Database generation complete.', data);
   $('#btn-save-sql-schema').prop('disabled', false);
 });
@@ -542,4 +562,9 @@ window.api.receive('start_find', () => {
   const findbox = document.getElementById('find-in-page-text');
   findbox.scrollIntoView();
   findbox.focus();
+});
+
+// Update the current loader message.
+window.api.receive('update_loader', (data) => {
+  showLoader(data.message);
 });

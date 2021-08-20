@@ -172,25 +172,6 @@ const buildFields = (fieldList, allText = false) => {
 };
 
 /**
- *
- * @param {Object} objectList Collection of sObject describes to convert to schema.
- * @returns An object we can convert easily into an SQL schema.
- */
-const buildSchema = (objectList) => {
-  const schema = {};
-
-  // For each object we need to extract the field list, including their types.
-  const objects = Object.getOwnPropertyNames(objectList);
-  let obj;
-  for (let i = 0; i < objects.length; i += 1) {
-    obj = objectList[objects[i]];
-    schema[objects[i]] = buildFields(obj.fields);
-  }
-
-  return schema;
-};
-
-/**
  * Opens a dialog and starts the schema load process with the result.
  */
 const loadSchemaFromFile = () => {
@@ -630,39 +611,36 @@ const handlers = {
    */
   sf_getObjectFields: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    const describeCalls = [];
-    const objectDescribes = {};
-
-    // Create a collection of promises for the various objects.
-    for (let i = 0; i < args.objects.length; i += 1) {
-      describeCalls.push(conn.sobject(args.objects[i]).describe());
-    }
+    let completedObjects = 0;
+    const allObjects = {};
 
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
+    mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
 
-    // Wait for all of them to resolve, and build a collection.
-    Promise.all(describeCalls).then((responses) => {
-      for (let i = 0; i < responses.length; i += 1) {
-        objectDescribes[responses[i].name] = responses[i];
-      }
-
-      // Build draft schema.
-      proposedSchema = buildSchema(objectDescribes);
-
-      // Send Schema to interface for review.
-      mainWindow.webContents.send('response_schema', {
-        status: false,
-        message: 'Processed Objects',
-        response: {
-          objects: objectDescribes,
-          schema: proposedSchema,
-        },
-        limitInfo: conn.limitInfo,
-        request: args,
+    args.objects.forEach((obj) => {
+      conn.sobject(obj).describe().then((response) => {
+        completedObjects += 1;
+        proposedSchema[response.name] = buildFields(response.fields);
+        mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+        allObjects[response.name] = response;
+        if (completedObjects === args.objects.length) {
+          // Send Schema to interface for review.
+          mainWindow.webContents.send('response_schema', {
+            status: false,
+            message: 'Processed Objects',
+            response: {
+              objects: allObjects,
+              schema: proposedSchema,
+            },
+            limitInfo: conn.limitInfo,
+            request: args,
+          });
+        }
+      }, (err) => {
+        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err}`);
       });
     });
-    return true;
   },
   /**
    * Connect to a database and set the schema.
