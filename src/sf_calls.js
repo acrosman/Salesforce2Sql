@@ -140,7 +140,11 @@ const buildFields = (fieldList, allText = false) => {
       fld.label = fieldList[f].label;
       fld.type = fieldList[f].type;
       fld.size = fieldList[f].length;
-      fld.defaultValue = fieldList[f].defaultValue;
+      // Defaults can be in defaultValue or defaultValue formula:
+      fld.defaultVal = fieldList[f].defaultValue;
+      if (fieldList[f].defaultValueFormula !== null) {
+        fld.defaultVal = fieldList[f].defaultValueFormula;
+      }
 
       // Large text fields go to TEXT.
       if (fld.type === 'string' && (fld.size > 255 || allText)) {
@@ -233,7 +237,7 @@ const buildTable = (table) => {
     fieldType = resolveFieldType(field.type);
 
     // Extract field size.
-    let { size, defaultValue } = field;
+    let { size, defaultVal } = field;
 
     // If this is an unrestricted picklist.
     if (field.type === 'picklist' && !field.isRestricted && preferences.picklists.unrestricted) {
@@ -244,8 +248,8 @@ const buildTable = (table) => {
     // Setup default when suggested.
     const stringTypes = ['string', 'text'];
     if (preferences.defaults.textEmptyString && stringTypes.includes(fieldType)) {
-      if (defaultValue === 'null' || defaultValue === null) {
-        defaultValue = '';
+      if (defaultVal === 'null' || defaultVal === null) {
+        defaultVal = '';
       }
     }
 
@@ -299,7 +303,7 @@ const buildTable = (table) => {
     }
 
     if (preferences.defaults.attemptSFValues) {
-      column.defaultTo(defaultValue);
+      column.defaultTo(defaultVal);
     }
 
     if (addIndex) {
