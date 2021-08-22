@@ -509,7 +509,7 @@ const handlers = {
       args.token = '';
 
       if (err) {
-        mainWindow.webContents.send('sfShowOrgId', {
+        mainWindow.webContents.send('response_login', {
           status: false,
           message: 'Login Failed',
           response: err,
