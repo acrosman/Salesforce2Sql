@@ -422,9 +422,17 @@ document.getElementById('login-trigger').addEventListener('click', () => {
 
 // Logout
 document.getElementById('logout-trigger').addEventListener('click', () => {
+  const { value } = document.getElementById('active-org');
   window.api.send('sf_logout', {
-    org: document.getElementById('active-org').value,
+    org: value,
   });
+  // Remove from interface:
+  const selectobject = document.getElementById('active-org');
+  for (let i = 0; i < selectobject.length; i += 1) {
+    if (selectobject.options[i].value === value) {
+      selectobject.remove(i);
+    }
+  }
   document.getElementById('org-status').style.display = 'none';
 });
 
