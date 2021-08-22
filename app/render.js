@@ -411,6 +411,7 @@ const displayDraftSchema = (schema) => {
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
+  showLoader('Attemping Login');
   window.api.send('sf_login', {
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
@@ -503,11 +504,13 @@ document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {
+  hideLoader();
   if (data.status) {
     handleLogin(data);
-    logMessage('Salesforce', 'Info', data.message, data.response);
+    logMessage('Salesforce', 'Success', data.message, data.response);
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
+    displayRawResponse(data);
   }
 });
 
