@@ -142,6 +142,84 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
+ * Sort the Object table by column. Hattip: https://codepen.io/Maruk/pen/evgbjx
+ * @param {Integer} columnIndex The Index (starting at 0) of the column to sort by.
+ * @param {*} tableId The selector Id to use, must be the table itself.
+ */
+function sortObjectTable(columnIndex, tableId) {
+  let rows;
+  let switching = true;
+  let x = 0;
+  let y = 0;
+  let xTd;
+  let yTd;
+  let xVal;
+  let yVal;
+  let shouldSwitch;
+  let dir = 'asc'; // Default the sorting direction to ascending:
+  let switchcount = 0;
+  const table = document.getElementById(tableId);
+  const tableBody = table.getElementsByTagName('tbody');
+
+  /* Make a loop that will continue until no switching has been done: */
+  // WARNING THIS IS BUBBLE SORT (feels like it should be animated with hold music).
+  while (switching) {
+    // Assume this is our last try:
+    switching = false;
+
+    rows = tableBody.getElementsByTagName('tr');
+    /* Loop through all table rows to look for needed changes: */
+    for (let i = 0; i < (rows.length - 1); i += 1) {
+      // Assume there should be no switching, cause we're done:
+      shouldSwitch = false;
+      /* Get the two elements you want to compare,one from current row and one from the next: */
+      x = i;
+      y = x + 1;
+      xTd = rows[x].getElementsByTagName('td')[columnIndex];
+      yTd = rows[y].getElementsByTagName('td')[columnIndex];
+
+      /* check if the two rows should switch place, based on the direction, asc or desc: */
+      if (columnIndex === 0) {
+        // First column are the checkboxes, so we are sorting by checked status.
+        xVal = xTd.getElementsByTagName('input').checked;
+        yVal = yTd.getElementsByTagName('input').checked;
+        if (dir === 'asc' && !xVal && yVal) {
+          shouldSwitch = true;
+          break;
+        } else if (dir === 'desc' && xVal && !yVal) {
+          shouldSwitch = true;
+          break;
+        }
+      } else if (dir === 'asc') {
+        // All other columns are text, so sort alphabetically.
+        xVal = xTd.innerHTML.toLowerCase();
+        yVal = yTd.innerHTML.toLowerCase();
+        if (xVal > yVal) {
+          shouldSwitch = true;
+          break;
+        }
+      } else if (dir === 'desc' && xVal < yVal) {
+        shouldSwitch = true;
+        break;
+      }
+    }
+    if (shouldSwitch) {
+      /* If a switch has been marked, make the switch
+      and mark that a switch has been done: */
+      rows[x].parentNode.insertBefore(rows[y], rows[x]);
+      switching = true;
+      // Each time a switch is done, increase this count by 1:
+      switchcount += 1;
+    } else if (switchcount === 0 && dir === 'asc') {
+      /* If no switching has been done AND the direction is "asc",
+      set the direction to "desc" and run the while loop again. */
+      dir = 'desc';
+      switching = true;
+    }
+  }
+}
+
+/**
  * Reviews an org's list of objects to guess the org type
  * @param {Object} sObjectList The list of objects for the org.
  * @returns {String} org type. One of npsp, eda, other.
