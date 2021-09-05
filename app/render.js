@@ -409,12 +409,15 @@ const displayObjectList = (sObjectData) => {
   headRow.setAttribute('class', 'table-primary');
 
   // Add the header
-  generateTableHeader(headRow, 'Select');
   let th;
+  th = generateTableHeader(headRow, 'Select');
+  th.addEventListener('click', () => {
+    sortObjectTable(0, 'results-table');
+  });
   for (let i = 0; i < displayColumns.length; i += 1) {
     th = generateTableHeader(headRow, displayColumns[i]);
     th.addEventListener('click', () => {
-      sortObjectTable(i, 'results-table');
+      sortObjectTable(i + 1, 'results-table');
     });
   }
 
