@@ -201,12 +201,22 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   }
 };
 
+const showLoader = (message) => {
+  $('#loader-indicator .loader-message').text(message);
+  $('#loader-indicator').show();
+};
+
+const hideLoader = () => {
+  $('#loader-indicator').hide();
+};
+
 /**
  * Displays an object in the results-object-viewer section of the interface using JSONViewer.
  *
  * @param {Object} data The object to display, object must contain message and response attributes.
  */
 const refreshObjectDisplay = (data) => {
+  showLoader('Refreshing database schema display');
   $('#results-object-viewer-wrapper .results-summary h3').text(data.message);
 
   // When this is displaying a describe add a little helpful sumamry.
@@ -224,15 +234,7 @@ const refreshObjectDisplay = (data) => {
     withQuotes: true,
     withLinks: true,
   });
-};
-
-const showLoader = (message) => {
-  $('#loader-indicator .loader-message').text(message);
-  $('#loader-indicator').show();
-};
-
-const hideLoader = () => {
-  $('#loader-indicator').hide();
+  hideLoader();
 };
 
 // ================ Response Handlers =================
@@ -402,10 +404,10 @@ const displayDraftSchema = (schema) => {
     message: 'Proposed Database Schema',
     response: schema,
   });
-  hideLoader();
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
   $('#nav-schema-tab').tab('show');
+  hideLoader();
 };
 
 // ========= Messages to the main process ===============
