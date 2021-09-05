@@ -1,6 +1,9 @@
 /* global $ */
 // Initial interface setup using jQuery (since it's around from bootstrap anyway).
 $.when($.ready).then(() => {
+  // Get the current application preferences.
+  window.api.send('get_preferences');
+
   // Hide the places for handling responses until we have some.
   $('#org-status').hide();
   $('#results-table-wrapper').hide();
@@ -45,15 +48,6 @@ $.when($.ready).then(() => {
 
   // Hide loader.
   $('#loader-indicator').hide();
-
-  // Get the current application preferences.
-  window.api.send('get_preferences');
-
-  // Log a message that the interface is ready to go.
-  window.api.send('send_log', {
-    channel: 'Info',
-    message: 'Main window initialized.',
-  });
 });
 
 // ============= Helpers ==============
