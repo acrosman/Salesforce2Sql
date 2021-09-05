@@ -142,29 +142,6 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
- * Reviews an org's list of objects to guess the org type
- * @param {Object} sObjectList The list of objects for the org.
- * @returns {String} org type. One of npsp, eda, other.
- */
-const snifOrgType = (sObjectList) => {
-  const namespaces = {
-    npsp: 'npsp',
-    npe: 'npsp',
-    hed: 'eda',
-  };
-
-  const keys = Object.getOwnPropertyNames(namespaces);
-  for (let i = 0; i < sObjectList.length; i += 1) {
-    for (let j = 0; j < keys.length; j += 1) {
-      if (sObjectList[i].name.startsWith(keys[j])) {
-        return namespaces[keys[j]];
-      }
-    }
-  }
-  return 'other';
-};
-
-/**
  * Attaches the DOM element for a table header element attached an existing table.
  * @param {Object} headerRow The DOM element to attach the new header to.
  * @param {String} labelText The text for the element.
@@ -263,54 +240,14 @@ const handleLogin = (responseData) => {
 /**
  * Displays the list of objects from a Global describe query.
  * @param {Object} sObjectData The results from JSForce to display.
+ * @param {Array} recommended The recommended list of objects to display.
  */
-const displayObjectList = (sObjectData) => {
+const displayObjectList = (sObjectData, recommended) => {
   // Define  columns to display.
   const displayColumns = [
     'label',
     'name',
   ];
-
-  // Different common packages beg for different sets of Standard objects as likely to be used.
-  const selectStandardObjects = {
-    npsp: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Opportunity',
-      'OpportunityContactRole',
-      'Task',
-    ],
-    eda: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Lead',
-      'Task',
-    ],
-    other: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Lead',
-      'Opportunity',
-      'OpportunityContactRole',
-      'Order',
-      'OrderItem',
-      'PriceBook2',
-      'Product2',
-      'Task',
-    ],
-  };
 
   // Display area.
   hideLoader();
@@ -319,14 +256,12 @@ const displayObjectList = (sObjectData) => {
   $('#results-message-wrapper').hide();
   $('#results-summary-count').text(`Your orgs contains ${sObjectData.length} objects (custom and standard)`);
 
-  const orgType = snifOrgType(sObjectData);
-
   // Get the table.
   const resultsTable = document.querySelector('#results-table');
 
   // Clear existing table.
   while (resultsTable.firstChild) {
-    resultsTable.removeChild(resultsTable.firstChild);
+    resultsTable.removeChild(resultsTable.lastChild);
   }
 
   // Create the header row for the table.
@@ -343,51 +278,57 @@ const displayObjectList = (sObjectData) => {
   tHead.appendChild(headRow);
   resultsTable.appendChild(tHead);
 
-  // Add the data in two passes: custom and selected standard objects, then all the others.
+  // Add the data in two passes: recommended objects for selection, then all the others.
+  // Gives us a default sort in O(n).
   let dataRow;
   const tBody = document.createElement('tbody');
-  const orgSelects = selectStandardObjects[orgType];
   const displayed = [];
   let checkCell;
-  // First pass for popular objects
-  for (let i = 0; i < sObjectData.length; i += 1) {
-    if (orgSelects.includes(sObjectData[i].name) || sObjectData[i].name.endsWith('__c')) {
-      displayed.push(sObjectData[i].name);
+  // First pass for recommended objects
+  sObjectData.forEach((sobj) => {
+    const { name } = sobj;
+    if (recommended.includes(name)) {
+      displayed.push(sobj.name);
       dataRow = document.createElement('tr');
 
       // Generate a checkbox
       checkCell = document.createElement('input');
       checkCell.type = 'checkbox';
       checkCell.checked = true;
-      checkCell.dataset.objectName = sObjectData[i].name;
+      checkCell.dataset.objectName = sobj.name;
       generateTableCell(dataRow, checkCell, false);
+
       // Add the details
       for (let j = 0; j < displayColumns.length; j += 1) {
-        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
+        generateTableCell(dataRow, sobj[displayColumns[j]]);
       }
 
+      // Append to the table.
       tBody.appendChild(dataRow);
     }
-  }
-  // Seconds pass for the rare ones.
-  for (let i = 0; i < sObjectData.length; i += 1) {
-    if (!displayed.includes(sObjectData[i].name) && sObjectData[i].createable) {
+  });
+
+  // Seconds pass for all remaining objects.
+  sObjectData.forEach((sobj) => {
+    if (!displayed.includes(sobj.name) && sobj.createable) {
       dataRow = document.createElement('tr');
 
       // Generate a checkbox
       checkCell = document.createElement('input');
       checkCell.type = 'checkbox';
-      checkCell.dataset.objectName = sObjectData[i].name;
+      checkCell.dataset.objectName = sobj.name;
       generateTableCell(dataRow, checkCell, false);
       // Add the details
       for (let j = 0; j < displayColumns.length; j += 1) {
-        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
+        generateTableCell(dataRow, sobj[displayColumns[j]]);
       }
 
+      // Add to the end of the table.
       tBody.appendChild(dataRow);
     }
-  }
+  });
 
+  // Add the whole table body to the table itself.
   resultsTable.appendChild(tBody);
 
   // Enable the button to fetch object list.
@@ -552,7 +493,7 @@ window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
-    displayObjectList(data.response.sobjects);
+    displayObjectList(data.response.sobjects, data.response.recommended);
   } else {
     logMessage('Salesforce', 'Error', 'Error while retreiving object listing.', data);
   }
