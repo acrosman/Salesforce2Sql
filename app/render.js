@@ -153,7 +153,7 @@ function sortObjectTable(columnIndex, tableId) {
   let dir = 'asc'; // Default the sorting direction to ascending:
   let switchcount = 0;
   const table = document.getElementById(tableId);
-  const tableBody = table.getElementsByTagName('tbody');
+  const tableBody = table.getElementsByTagName('tbody')[0];
 
   /* Make a loop that will continue until no switching has been done: */
   // WARNING THIS IS BUBBLE SORT (feels like it should be animated with hold music).
@@ -241,6 +241,7 @@ const snifOrgType = (sObjectList) => {
  * @param {Object} headerRow The DOM element to attach the new header to.
  * @param {String} labelText The text for the element.
  * @param {String} scope The scope attribute to use for the element, defaults to col.
+ * @returns The new header element created.
  */
 const generateTableHeader = (headerRow, labelText, scope = 'col') => {
   const newHeader = document.createElement('th');
@@ -248,6 +249,7 @@ const generateTableHeader = (headerRow, labelText, scope = 'col') => {
   const textNode = document.createTextNode(labelText);
   newHeader.appendChild(textNode);
   headerRow.appendChild(newHeader);
+  return newHeader;
 };
 
 /**
@@ -394,7 +396,7 @@ const displayObjectList = (sObjectData) => {
   const orgType = snifOrgType(sObjectData);
 
   // Get the table.
-  const resultsTable = document.querySelector('#results-table');
+  const resultsTable = document.getElementById('results-table');
 
   // Clear existing table.
   while (resultsTable.firstChild) {
@@ -408,8 +410,12 @@ const displayObjectList = (sObjectData) => {
 
   // Add the header
   generateTableHeader(headRow, 'Select');
+  let th;
   for (let i = 0; i < displayColumns.length; i += 1) {
-    generateTableHeader(headRow, displayColumns[i]);
+    th = generateTableHeader(headRow, displayColumns[i]);
+    th.addEventListener('click', () => {
+      sortObjectTable(i, 'results-table');
+    });
   }
 
   tHead.appendChild(headRow);
