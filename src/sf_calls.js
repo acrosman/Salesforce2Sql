@@ -303,7 +303,11 @@ const buildTable = (table) => {
     }
 
     if (addIndex) {
-      table.index([field.name]);
+      // To avoid prefixing with table name (which can easily violate the length
+      // limit from MySQL and Postgress), use the field name as the column name
+      // which should top out around the same places as the limit (60) unless a
+      // _really_ long package namespace is in play.
+      column.index(field.name);
     }
   }
 
