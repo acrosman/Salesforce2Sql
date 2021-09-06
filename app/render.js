@@ -52,6 +52,12 @@ $.when($.ready).then(() => {
     $('#results-table input[type=checkbox]').prop('checked', true);
   });
 
+  // Setup Object Select All
+  $('#btn-deselect-all-objects').on('click', (event) => {
+    event.preventDefault();
+    $('#results-table input[type=checkbox]').prop('checked', false);
+  });
+
   // Hide loader.
   $('#loader-indicator').hide();
 });
