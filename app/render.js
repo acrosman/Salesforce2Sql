@@ -46,6 +46,12 @@ $.when($.ready).then(() => {
     }
   });
 
+  // Setup Object Select All
+  $('#btn-select-all-objects').on('click', (event) => {
+    event.preventDefault();
+    $('#results-table input[type=checkbox]').prop('checked', true);
+  });
+
   // Hide loader.
   $('#loader-indicator').hide();
 });
