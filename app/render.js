@@ -261,6 +261,8 @@ const generateTableHeader = (headerRow, labelText, scope = 'col') => {
  */
 const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   let contentNode;
+
+  // Create the content of the cell as text or a DOM element.
   if (isText) {
     contentNode = document.createTextNode(content);
   } else {
@@ -268,11 +270,15 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   }
   const cellNode = document.createElement('td');
   cellNode.appendChild(contentNode);
+
+  // Add the new cell to the row using position if given.
   if (position === -1) {
     tableRow.appendChild(cellNode);
   } else {
     tableRow.insertBefore(cellNode, tableRow.children[position]);
   }
+
+  return cellNode;
 };
 
 const showLoader = (message) => {
@@ -430,6 +436,8 @@ const displayObjectList = (sObjectData) => {
   const orgSelects = selectStandardObjects[orgType];
   const displayed = [];
   let checkCell;
+  let selectCell;
+  let rowData;
   // First pass for popular objects
   for (let i = 0; i < sObjectData.length; i += 1) {
     if (orgSelects.includes(sObjectData[i].name) || sObjectData[i].name.endsWith('__c')) {
@@ -441,12 +449,19 @@ const displayObjectList = (sObjectData) => {
       checkCell.type = 'checkbox';
       checkCell.checked = true;
       checkCell.dataset.objectName = sObjectData[i].name;
-      generateTableCell(dataRow, checkCell, false);
+      selectCell = generateTableCell(dataRow, checkCell, false);
+
       // Add the details
+      rowData = {};
       for (let j = 0; j < displayColumns.length; j += 1) {
         generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
+        rowData[displayColumns[j]] = sObjectData[i][displayColumns[j]];
       }
 
+      // Add the data for this row to the select cell for easy access during sorting.
+      selectCell.dataset.rowData = rowData;
+
+      // Add the new row to the table body.
       tBody.appendChild(dataRow);
     }
   }
