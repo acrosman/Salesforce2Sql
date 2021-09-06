@@ -40,6 +40,47 @@ const typeResolverBases = {
   url: 'string',
 };
 
+// Different common packages beg for different sets of Standard objects as likely to be used.
+const standardObjectsByNamespace = {
+  npsp: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Opportunity',
+    'OpportunityContactRole',
+    'Task',
+  ],
+  eda: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Lead',
+    'Task',
+  ],
+  other: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Lead',
+    'Opportunity',
+    'OpportunityContactRole',
+    'Order',
+    'OrderItem',
+    'PriceBook2',
+    'Product2',
+    'Task',
+  ],
+};
+
 /**
  * Sets the window being used for the interface. Responses are sent to this window.
  * @param {*} window The ElectronJS window in use.
@@ -312,6 +353,47 @@ const buildTable = (table) => {
   }
 
   logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
+};
+
+/**
+ * Reviews an org's list of objects to guess the org type
+ * @param {Object} sObjectList The list of objects for the org.
+ * @returns {String} org type. One of npsp, eda, other.
+ */
+const snifOrgType = (sObjectList) => {
+  const namespaces = {
+    npsp: 'npsp',
+    npe: 'npsp',
+    hed: 'eda',
+  };
+
+  const keys = Object.getOwnPropertyNames(namespaces);
+  for (let i = 0; i < sObjectList.length; i += 1) {
+    for (let j = 0; j < keys.length; j += 1) {
+      if (sObjectList[i].name.startsWith(keys[j])) {
+        return namespaces[keys[j]];
+      }
+    }
+  }
+  return 'other';
+};
+
+/**
+ * Review previously loaded object list and send to the Render thread a recommented
+ * list of objects to select.
+ * @param {Array} objectResult The list of objects from a global describe of the org.
+ * @returns an array of object name to default select.
+ */
+const recommendObjects = (objectResult) => {
+  const orgType = snifOrgType(objectResult);
+  const suggestedStandards = standardObjectsByNamespace[orgType];
+  const recommended = [];
+  objectResult.forEach((obj) => {
+    if (suggestedStandards.includes(obj.name) || obj.name.endsWith('__c')) {
+      recommended.push(obj.name);
+    }
+  });
+  return recommended;
 };
 
 /**
@@ -597,6 +679,7 @@ const handlers = {
 
       // Send records back to the interface.
       logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
+      result.recommended = recommendObjects(result.sobjects);
       mainWindow.webContents.send('response_list_objects', {
         status: true,
         message: 'Describe Global Successful',
