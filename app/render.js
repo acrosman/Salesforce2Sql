@@ -320,9 +320,12 @@ const handleLogin = (responseData) => {
 /**
  * Displays the list of objects from a Global describe query.
  * @param {Object} sObjectData The results from JSForce to display.
- * @param {Array} recommended The recommended list of objects to display.
+ * @param {Array} selected The list of objects to set as selected.
+ * @param {boolean} sorted When true, the list will be rendered in the order provided,
+ *  otherwise it will sort selected first.
+ * @param {String} sortedColumn The name of the column the data is sorted by to set label.
  */
-const displayObjectList = (sObjectData, recommended) => {
+const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
   // Define  columns to display.
   const displayColumns = [
     'label',
@@ -330,6 +333,7 @@ const displayObjectList = (sObjectData, recommended) => {
   ];
 
   // Display area.
+  // @todo: remove jquery use.
   hideLoader();
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
@@ -351,15 +355,34 @@ const displayObjectList = (sObjectData, recommended) => {
 
   // Add the header
   let th;
+  // First add the column for the select boxes.
   th = generateTableHeader(headRow, 'Select');
   th.addEventListener('click', () => {
     sortObjectTable(0, 'results-table');
   });
+  if (sortedColumn === 'Select') {
+    if (sortedDirection === 'ASC') {
+      th.classList.add('bi', 'bi-arrow-down');
+      th.ariaLabel = 'Select sorted selected first';
+    } else {
+      th.classList.add('bi', 'bi-arrow-up');
+      th.ariaLabel = 'Select sorted selected last';
+    }
+  }
   for (let i = 0; i < displayColumns.length; i += 1) {
     th = generateTableHeader(headRow, displayColumns[i]);
     th.addEventListener('click', () => {
       sortObjectTable(i + 1, 'results-table');
     });
+    if (sortedColumn === displayColumns[i]) {
+      if (sortedDirection === 'ASC') {
+        th.classList.add('bi', 'bi-arrow-up');
+        th.ariaLabel = `${displayColumns[i]} sorted accending.`;
+      } else {
+        th.classList.add('bi', 'bi-arrow-down');
+        th.ariaLabel = `${displayColumns[i]} sorted deccending.`;
+      }
+    }
   }
 
   tHead.appendChild(headRow);
@@ -374,36 +397,39 @@ const displayObjectList = (sObjectData, recommended) => {
   let selectCell;
   let rowData;
 
-  // First pass for recommended objects
-  sObjectData.forEach((sobj) => {
-    const { name } = sobj;
-    if (recommended.includes(name)) {
-      displayed.push(sobj.name);
-      dataRow = document.createElement('tr');
+  // If not sorted yet, run a pass to rendered selected objects first
+  if (!sorted) {
+    sObjectData.forEach((sobj) => {
+      const { name } = sobj;
+      if (selected.includes(name)) {
+        displayed.push(sobj.name);
+        dataRow = document.createElement('tr');
 
-      // Generate a checkbox
-      checkCell = document.createElement('input');
-      checkCell.type = 'checkbox';
-      checkCell.checked = true;
-      checkCell.dataset.objectName = sobj.name;
-      generateTableCell(dataRow, checkCell, false);
+        // Generate a checkbox
+        checkCell = document.createElement('input');
+        checkCell.type = 'checkbox';
+        checkCell.checked = true;
+        checkCell.dataset.objectName = sobj.name;
+        selectCell = generateTableCell(dataRow, checkCell, false);
 
-      // Add the details
-      rowData = {};
-      for (let j = 0; j < displayColumns.length; j += 1) {
-        generateTableCell(dataRow, sobj[displayColumns[j]]);
-        rowData[displayColumns[j]] = sobj[displayColumns[j]];
+        // Add the details
+        rowData = {};
+        for (let j = 0; j < displayColumns.length; j += 1) {
+          generateTableCell(dataRow, sobj[displayColumns[j]]);
+          rowData[displayColumns[j]] = sobj[displayColumns[j]];
+        }
+
+        // Add the data for this row to the select cell for easy access during sorting.
+        selectCell.dataset.rowData = rowData;
+
+        // Add the new row to the table body.
+        tBody.appendChild(dataRow);
       }
+    });
+  }
 
-      // Add the data for this row to the select cell for easy access during sorting.
-      selectCell.dataset.rowData = rowData;
-
-      // Add the new row to the table body.
-      tBody.appendChild(dataRow);
-    }
-  });
-
-  // Seconds pass for all remaining objects.
+  // Render all objects not already on the list. If the list is sorted this will be
+  // all objects. If the list is unsorted the selected objects were already rendered.
   sObjectData.forEach((sobj) => {
     if (!displayed.includes(sobj.name) && sobj.createable) {
       dataRow = document.createElement('tr');
@@ -412,11 +438,15 @@ const displayObjectList = (sObjectData, recommended) => {
       checkCell = document.createElement('input');
       checkCell.type = 'checkbox';
       checkCell.dataset.objectName = sobj.name;
-      generateTableCell(dataRow, checkCell, false);
+      selectCell = generateTableCell(dataRow, checkCell, false);
       // Add the details
       for (let j = 0; j < displayColumns.length; j += 1) {
         generateTableCell(dataRow, sobj[displayColumns[j]]);
+        rowData[displayColumns[j]] = sobj[displayColumns[j]];
       }
+
+      // Add the data for this row to the select cell for easy access during sorting.
+      selectCell.dataset.rowData = rowData;
 
       // Add to the end of the table.
       tBody.appendChild(dataRow);
