@@ -171,20 +171,53 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   // Build a list to sort keyed by the propery in question.
   column.forEach((cell) => {
     const rowData = JSON.parse(cell.dataset.rowData);
-    sortData.push([rowData[sortProperty], rowData]);
     if (cell.firstChild.checked) {
       selected.push(rowData.name);
     }
+    // For the named properties, we just use those.
+    if (sortProperty !== 'Select') {
+      sortData.push([rowData[sortProperty], rowData]);
+    } else {
+      // For the select we need the checked status, which is now
+      // membership in the selected list.
+      sortData.push([selected.includes(rowData.name), rowData]);
+    }
   });
+
+  // Pre-sort the selected list incase we need it in a sec.
+  selected.sort();
 
   // Sort the list.
   sortData.sort((a, b) => {
+    // Assume everything is equal.
     let order = 0;
-    if (a[0] > b[0]) {
-      order = 1;
-    }
-    if (a[0] < b[0]) {
-      order = -1;
+    // For the non-selects we just sort by the first array element.
+    if (sortProperty !== 'Select') {
+      if (a[0] > b[0]) {
+        order = 1;
+      }
+      if (a[0] < b[0]) {
+        order = -1;
+      }
+    } else {
+      // For the selects, we sort by the first array element, and the name.
+      // When a is checked and b is not, a wins.
+      if (a[0] && !b[0]) {
+        order = 1;
+      }
+      // When a is checked and a is not, b wins.
+      if (!a[0] && b[0]) {
+        order = -1;
+      }
+      // When both are checked or unchecked, name sort.
+      if ((a[0] && b[0]) || (!a[0] && !b[0])) {
+        if (a[1].name < b[1].name) {
+          order = 1;
+        }
+        if (a[1].name > b[1].name) {
+          order = -1;
+        }
+      }
     }
     return order;
   });
@@ -199,6 +232,8 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   });
 
   // Trigger re-render of the table.
+  // This is a circular reference so no lint error for you.
+  // eslint-disable-next-line no-use-before-define
   displayObjectList(renderData, selected, true, sortProperty, dir);
 }
 
@@ -344,33 +379,61 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
   // Add the header
   let th;
+  let nextSort = 'ASC';
+
   // First add the column for the select boxes.
   th = generateTableHeader(headRow, 'Select');
-  th.addEventListener('click', () => {
-    sortObjectTable('Select');
-  });
   if (sortedColumn === 'Select') {
+    th.dataset.sortDirection = sortedDirection;
     if (sortedDirection === 'ASC') {
       th.classList.add('bi', 'bi-arrow-down');
       th.ariaLabel = 'Select sorted selected first';
+      nextSort = 'DESC';
     } else {
       th.classList.add('bi', 'bi-arrow-up');
       th.ariaLabel = 'Select sorted selected last';
     }
   }
-  for (let i = 0; i < displayColumns.length; i += 1) {
-    th = generateTableHeader(headRow, displayColumns[i]);
+
+  // Since we go on to use nextsort in the loop below the reference
+  // that gets passed here would be bad, so switch back to actual string.
+  if (nextSort === 'DESC') {
     th.addEventListener('click', () => {
-      sortObjectTable(displayColumns[i]);
+      sortObjectTable('Select', 'DESC');
     });
+  } else {
+    th.addEventListener('click', () => {
+      sortObjectTable('Select', 'ASC');
+    });
+  }
+
+  // Add all other columns.
+  for (let i = 0; i < displayColumns.length; i += 1) {
+    nextSort = 'ASC';
+    th = generateTableHeader(headRow, displayColumns[i]);
     if (sortedColumn === displayColumns[i]) {
+      th.dataset.sortDirection = sortedDirection;
       if (sortedDirection === 'ASC') {
         th.classList.add('bi', 'bi-arrow-up');
         th.ariaLabel = `${displayColumns[i]} sorted accending.`;
+        nextSort = 'DESC';
       } else {
         th.classList.add('bi', 'bi-arrow-down');
         th.ariaLabel = `${displayColumns[i]} sorted deccending.`;
       }
+    }
+
+    // Yes, this looks odd, but it makes the linter happy. Which is good
+    // cause it's easy to make a confusing error here and pass the last
+    // value instead of the current value.
+    if (nextSort === 'DESC') {
+      th.addEventListener('click', () => {
+        sortObjectTable(displayColumns[i], 'DESC');
+      });
+    } else {
+      th.addEventListener('click', () => {
+        sortObjectTable(displayColumns[i], 'ASC');
+      });
     }
   }
 
@@ -384,7 +447,6 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   const displayed = [];
   let checkCell;
   let selectCell;
-  let rowData;
 
   // If not sorted yet, run a pass to rendered selected objects first
   if (!sorted) {
@@ -402,7 +464,6 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
         selectCell = generateTableCell(dataRow, checkCell, false);
 
         // Add the details
-        rowData = {};
         for (let j = 0; j < displayColumns.length; j += 1) {
           generateTableCell(dataRow, sobj[displayColumns[j]]);
         }
