@@ -136,81 +136,70 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
- * Sort the Object table by column. Hattip: https://codepen.io/Maruk/pen/evgbjx
- * @param {Integer} columnIndex The Index (starting at 0) of the column to sort by.
- * @param {*} tableId The selector Id to use, must be the table itself.
+ * From a DOM element containing table rows to extract a column from.
+ * @param {domElement} ele A dom element containing table rows.
+ * @param {Integer} columnIndex The integer of the column to extract.
+ * @returns An array of table cells (td) from requested column.
  */
-function sortObjectTable(columnIndex, tableId) {
-  let rows;
-  let switching = true;
-  let x = 0;
-  let y = 0;
-  let xTd;
-  let yTd;
-  let xVal;
-  let yVal;
-  let shouldSwitch;
-  let dir = 'asc'; // Default the sorting direction to ascending:
-  let switchcount = 0;
-  const table = document.getElementById(tableId);
-  const tableBody = table.getElementsByTagName('tbody')[0];
+function getTableColumn(ele, columnIndex) {
+  const col = [];
+  const rows = ele.getElementsByTagName('tr');
 
-  /* Make a loop that will continue until no switching has been done: */
-  // WARNING THIS IS BUBBLE SORT (feels like it should be animated with hold music).
-  while (switching) {
-    // Assume this is our last try:
-    switching = false;
-
-    rows = tableBody.getElementsByTagName('tr');
-    /* Loop through all table rows to look for needed changes: */
-    for (let i = 0; i < (rows.length - 1); i += 1) {
-      // Assume there should be no switching, cause we're done:
-      shouldSwitch = false;
-      /* Get the two elements you want to compare,one from current row and one from the next: */
-      x = i;
-      y = x + 1;
-      xTd = rows[x].getElementsByTagName('td')[columnIndex];
-      yTd = rows[y].getElementsByTagName('td')[columnIndex];
-
-      /* check if the two rows should switch place, based on the direction, asc or desc: */
-      if (columnIndex === 0) {
-        // First column are the checkboxes, so we are sorting by checked status.
-        xVal = xTd.getElementsByTagName('input').checked;
-        yVal = yTd.getElementsByTagName('input').checked;
-        if (dir === 'asc' && !xVal && yVal) {
-          shouldSwitch = true;
-          break;
-        } else if (dir === 'desc' && xVal && !yVal) {
-          shouldSwitch = true;
-          break;
-        }
-      } else if (dir === 'asc') {
-        // All other columns are text, so sort alphabetically.
-        xVal = xTd.innerHTML.toLowerCase();
-        yVal = yTd.innerHTML.toLowerCase();
-        if (xVal > yVal) {
-          shouldSwitch = true;
-          break;
-        }
-      } else if (dir === 'desc' && xVal < yVal) {
-        shouldSwitch = true;
-        break;
-      }
-    }
-    if (shouldSwitch) {
-      /* If a switch has been marked, make the switch
-      and mark that a switch has been done: */
-      rows[x].parentNode.insertBefore(rows[y], rows[x]);
-      switching = true;
-      // Each time a switch is done, increase this count by 1:
-      switchcount += 1;
-    } else if (switchcount === 0 && dir === 'asc') {
-      /* If no switching has been done AND the direction is "asc",
-      set the direction to "desc" and run the while loop again. */
-      dir = 'desc';
-      switching = true;
-    }
+  for (let i = 0; i < rows.length; i += 1) {
+    col.push(rows[i].cells[columnIndex]);
   }
+
+  return col;
+}
+
+/**
+ * Sort the Object table by column. Uses a decorate, sort, undecorate approachj.
+ * @param {String} sortProperty The name of the property to sort the data by.
+ * @param {String} direction The sorting direction: ASC or DESC.
+ */
+function sortObjectTable(sortProperty, direction = 'ASC') {
+  const table = document.getElementById('results-table');
+  const tableBody = table.getElementsByTagName('tbody')[0];
+  const dir = direction.toUpperCase();
+  const sortData = [];
+  const renderData = [];
+  const selected = [];
+
+  // Extract the table's Select cells.
+  const column = getTableColumn(tableBody, 0);
+
+  // Build a list to sort keyed by the propery in question.
+  column.forEach((cell) => {
+    const rowData = JSON.parse(cell.dataset.rowData);
+    sortData.push([rowData[sortProperty], rowData]);
+    if (cell.firstChild.checked) {
+      selected.push(rowData.name);
+    }
+  });
+
+  // Sort the list.
+  sortData.sort((a, b) => {
+    let order = 0;
+    if (a[0] > b[0]) {
+      order = 1;
+    }
+    if (a[0] < b[0]) {
+      order = -1;
+    }
+    return order;
+  });
+
+  if (dir === 'DESC') {
+    sortData.reverse();
+  }
+
+  // Undecorate the list for rendering.
+  sortData.forEach((row) => {
+    renderData.push(row[1]);
+  });
+
+  // Trigger re-render of the table.
+  displayObjectList(renderData, selected, true, sortProperty, dir);
 }
 
 /**
@@ -358,7 +347,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   // First add the column for the select boxes.
   th = generateTableHeader(headRow, 'Select');
   th.addEventListener('click', () => {
-    sortObjectTable(0, 'results-table');
+    sortObjectTable('Select');
   });
   if (sortedColumn === 'Select') {
     if (sortedDirection === 'ASC') {
@@ -372,7 +361,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   for (let i = 0; i < displayColumns.length; i += 1) {
     th = generateTableHeader(headRow, displayColumns[i]);
     th.addEventListener('click', () => {
-      sortObjectTable(i + 1, 'results-table');
+      sortObjectTable(displayColumns[i]);
     });
     if (sortedColumn === displayColumns[i]) {
       if (sortedDirection === 'ASC') {
@@ -416,11 +405,10 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
         rowData = {};
         for (let j = 0; j < displayColumns.length; j += 1) {
           generateTableCell(dataRow, sobj[displayColumns[j]]);
-          rowData[displayColumns[j]] = sobj[displayColumns[j]];
         }
 
         // Add the data for this row to the select cell for easy access during sorting.
-        selectCell.dataset.rowData = rowData;
+        selectCell.dataset.rowData = JSON.stringify(sobj);
 
         // Add the new row to the table body.
         tBody.appendChild(dataRow);
@@ -438,15 +426,15 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
       checkCell = document.createElement('input');
       checkCell.type = 'checkbox';
       checkCell.dataset.objectName = sobj.name;
+      checkCell.checked = selected.includes(sobj.name);
       selectCell = generateTableCell(dataRow, checkCell, false);
       // Add the details
       for (let j = 0; j < displayColumns.length; j += 1) {
         generateTableCell(dataRow, sobj[displayColumns[j]]);
-        rowData[displayColumns[j]] = sobj[displayColumns[j]];
       }
 
       // Add the data for this row to the select cell for easy access during sorting.
-      selectCell.dataset.rowData = rowData;
+      selectCell.dataset.rowData = JSON.stringify(sobj);
 
       // Add to the end of the table.
       tBody.appendChild(dataRow);
