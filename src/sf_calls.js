@@ -51,6 +51,7 @@ const standardObjectsByNamespace = {
     'Document',
     'Opportunity',
     'OpportunityContactRole',
+    'RecordType',
     'Task',
   ],
   eda: [
@@ -61,6 +62,7 @@ const standardObjectsByNamespace = {
     'Case',
     'Document',
     'Lead',
+    'RecordType',
     'Task',
   ],
   other: [
@@ -77,6 +79,7 @@ const standardObjectsByNamespace = {
     'OrderItem',
     'PriceBook2',
     'Product2',
+    'RecordType',
     'Task',
   ],
 };
