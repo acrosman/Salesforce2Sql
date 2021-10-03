@@ -374,7 +374,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
   $('#results-message-wrapper').hide();
-  $('#results-summary-count').text(`Your orgs contains ${sObjectData.length} objects (custom and standard)`);
+  $('#results-summary-count').text('Loading objects...');
 
   // Get the table.
   const resultsTable = document.getElementById('results-table');
@@ -459,6 +459,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   const displayed = [];
   let checkCell;
   let selectCell;
+  let objCount = 0;
 
   // If not sorted yet, run a pass to rendered selected objects first
   if (!sorted) {
@@ -485,6 +486,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
         // Add the new row to the table body.
         tBody.appendChild(dataRow);
+        objCount += 1;
       }
     });
   }
@@ -511,11 +513,14 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
       // Add to the end of the table.
       tBody.appendChild(dataRow);
+      objCount += 1;
     }
   });
 
   // Add the whole table body to the table itself.
   resultsTable.appendChild(tBody);
+
+  $('#results-summary-count').text(`Your org contains ${objCount} creatable objects`);
 
   // Enable the button to fetch object list.
   $('#btn-fetch-details').prop('disabled', false);
