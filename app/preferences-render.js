@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         attemptSFValues: document.getElementById('default-value').checked,
         textEmptyString: document.getElementById('default-blank').checked,
         supressReadOnly: document.getElementById('hide-readonly-fields').checked,
+        supressAudit: document.getElementById('hide-audit-fields').checked,
       },
     });
     window.api.send('preferences_close');
@@ -61,4 +62,5 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('default-value').checked = data.defaults.attemptSFValues;
   document.getElementById('default-blank').checked = data.defaults.textEmptyString;
   document.getElementById('hide-readonly-fields').checked = data.defaults.supressReadOnly;
+  document.getElementById('hide-audit-fields').checked = data.defaults.supressAudit;
 });
