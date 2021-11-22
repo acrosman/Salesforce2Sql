@@ -534,21 +534,25 @@ const buildDatabase = (settings) => {
   const createTablePromises = [];
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
-      db.schema.dropTableIfExists(tables[i])
-        .then(() => {
-          createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', 'Successfully created new table.');
-            return response[0].message;
-          });
-        })
-        .catch((err) => {
-          logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
-          return err;
-        });
+      createTablePromises.push(
+        db.schema.dropTableIfExists(tables[i])
+          .then(() => {
+            createDbTable(db.schema, tables[i]).then((response) => {
+              logMessage('Database', 'Success', 'Successfully created new table.');
+              return response[0].message;
+            });
+          })
+          .catch((err) => {
+            logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
+            return err;
+          }),
+      );
     } else {
       createTablePromises.push(createDbTable(db.schema, tables[i]));
     }
   }
+
+  mainWindow.webContents.send('update_loader', { message: `Creating ${createTablePromises.length} tables` });
 
   Promise.all(createTablePromises).then((values) => {
     const tableStatuses = {
