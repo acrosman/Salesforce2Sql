@@ -14,7 +14,7 @@ If you are looking for help migrating data between Salesforce Orgs you may want 
 
 ## Getting Started
 
-You can either download the [latest release](releases/latest) for your operating system or run from code.
+You can either download the [latest release](/Salesforce2Sql/releases/latest) for your operating system or run from code.
 
 There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the zip file contains the executable and supporting materials). You can also download the source archives if you want to explore the version of the code that went into the release.
 
