@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld(
         'response_db_generated',
         'response_login',
         'response_logout',
-        'response_generic',
+        'response_error',
         'response_list_objects',
         'response_schema',
         'start_find',

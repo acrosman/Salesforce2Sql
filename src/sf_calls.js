@@ -686,7 +686,7 @@ const handlers = {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.describeGlobal((err, result) => {
       if (err) {
-        mainWindow.webContents.send('response_generic', {
+        mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
           response: `${err}`,
@@ -694,7 +694,6 @@ const handlers = {
           request: args,
         });
 
-        logMessage('Fetch Objects', 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
