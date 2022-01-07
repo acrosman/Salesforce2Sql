@@ -662,8 +662,9 @@ window.api.receive('response_logout', (data) => {
 });
 
 // Generic Response.
-window.api.receive('response_generic', (data) => {
-  logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
+window.api.receive('response_error', (data) => {
+  hideLoader();
+  logMessage(data.message, 'Error', data.response, data);
 });
 
 // Response after building database

@@ -84,6 +84,17 @@ const standardObjectsByNamespace = {
   ],
 };
 
+const auditFields = [
+  'CreatedDate',
+  'CreatedById',
+  'LastModifiedDate',
+  'LastModifiedById',
+  'SystemModstamp',
+  'LastActivityDate',
+  'LastViewedDate',
+  'LastReferencedDate',
+];
+
 /**
  * Sets the window being used for the interface. Responses are sent to this window.
  * @param {*} window The ElectronJS window in use.
@@ -170,13 +181,20 @@ const extractPicklistValues = (valueList) => {
 const buildFields = (fieldList, allText = false) => {
   let fld;
   const objFields = {};
+  let isReadOnly = false;
+  let isAudit = false;
 
   for (let f = 0; f < fieldList.length; f += 1) {
-    // If we're skipping readonly fields make sure we do that here.
-    if (
-      !(preferences.defaults.supressReadOnly
-        && (fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable)))
-      || fieldList[f].type === 'id' // Always include Id columns
+    // Determine if this is a readonly or audit field.
+    isReadOnly = fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable);
+    isAudit = auditFields.includes(fieldList[f].name);
+
+    // Add field to schema if it's an Id, and allowed by preferences.
+    if (fieldList[f].type === 'id'
+      || (
+        !(preferences.defaults.supressReadOnly && isReadOnly)
+        && !(preferences.defaults.supressAudit && isAudit)
+      )
     ) {
       fld = {};
       // Values we want for all fields.
@@ -668,7 +686,7 @@ const handlers = {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.describeGlobal((err, result) => {
       if (err) {
-        mainWindow.webContents.send('response_generic', {
+        mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
           response: `${err}`,
@@ -676,7 +694,6 @@ const handlers = {
           request: args,
         });
 
-        logMessage('Fetch Objects', 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
