@@ -53,6 +53,7 @@ const standardObjectsByNamespace = {
     'OpportunityContactRole',
     'RecordType',
     'Task',
+    'User',
   ],
   eda: [
     'Account',
@@ -64,6 +65,7 @@ const standardObjectsByNamespace = {
     'Lead',
     'RecordType',
     'Task',
+    'User',
   ],
   other: [
     'Account',
@@ -81,6 +83,7 @@ const standardObjectsByNamespace = {
     'Product2',
     'RecordType',
     'Task',
+    'User',
   ],
 };
 
@@ -518,6 +521,8 @@ const buildDatabase = (settings) => {
           message: 'Database created',
           responses: tableStatuses,
         });
+      } else {
+        mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete` });
       }
     })
     .catch((err) => {
