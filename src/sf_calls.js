@@ -508,7 +508,18 @@ const buildDatabase = (settings) => {
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Helper to keep one line of logic for creating the tables.
+  const tableStatuses = {};
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .then(() => {
+      tableStatuses[table] = true;
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
+      }
+    })
     .catch((err) => {
       // If the row is too big, replace all varchar with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
@@ -527,52 +538,35 @@ const buildDatabase = (settings) => {
         }
       } else {
         logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+        tableStatuses[table] = false;
+        if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
+          mainWindow.webContents.send('response_db_generated', {
+            status: true,
+            message: 'Database created',
+            responses: tableStatuses,
+          });
+        }
       }
       return err;
     });
 
-  const createTablePromises = [];
+  mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables` });
+
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
-      createTablePromises.push(
-        db.schema.dropTableIfExists(tables[i])
-          .then(() => {
-            createDbTable(db.schema, tables[i]).then((response) => {
-              logMessage('Database', 'Success', 'Successfully created new table.');
-              return response[0].message;
-            });
-          })
-          .catch((err) => {
-            logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
-            return err;
-          }),
-      );
+      db.schema.dropTableIfExists(tables[i])
+        .asCallback((err) => {
+          if (err) {
+            logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+            return 'Error';
+          }
+          createDbTable(db.schema, tables[i]);
+          return true;
+        });
     } else {
-      createTablePromises.push(createDbTable(db.schema, tables[i]));
+      createDbTable(db.schema, tables[i]);
     }
   }
-
-  mainWindow.webContents.send('update_loader', { message: `Creating ${createTablePromises.length} tables` });
-
-  Promise.all(createTablePromises).then((values) => {
-    const tableStatuses = {
-      Errors: [],
-      Successes: [],
-    };
-    for (let i = 0; i < values.length; i += 1) {
-      if (Object.prototype.hasOwnProperty.call(values[i], 'message')) {
-        tableStatuses.Errors.push(values[i].message);
-      } else {
-        tableStatuses.Successes.push(values[i]);
-      }
-    }
-
-    mainWindow.webContents.send('response_db_generated', {
-      status: true,
-      message: 'Database created',
-      responses: tableStatuses,
-    });
-  });
 };
 
 /**
