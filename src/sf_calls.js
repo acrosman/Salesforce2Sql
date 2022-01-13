@@ -724,6 +724,9 @@ const handlers = {
     let completedObjects = 0;
     const allObjects = {};
 
+    // Reset the proposed schema back to baseline.
+    proposedSchema = {};
+
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
     mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
