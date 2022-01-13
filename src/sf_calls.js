@@ -288,7 +288,7 @@ const buildTable = (table) => {
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
     // Determine if the field should be indexed.
-    addIndex = (preferences.indexes.lookups && field.type === 'reference')
+    addIndex = (preferences.indexes.lookups && (field.type === 'reference' || field.type === 'id'))
       || (preferences.indexes.picklists && field.type === 'picklist');
 
     // Resolve SF type to DB type.
