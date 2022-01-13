@@ -138,7 +138,7 @@ function logMessage(context, importance, message, data) {
 
   if (data) {
     displayRawResponse(data);
-    $('#consoleMessageTable :last-child td.console-raw-data').jsonViewer(data, {
+    $(mesData).jsonViewer(data, {
       collapsed: true,
       rootCollapsable: false,
       withQuotes: true,
