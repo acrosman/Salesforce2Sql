@@ -14,7 +14,7 @@ let preferences = null;
 
 // Baseline for Type conversions between environments.
 const typeResolverBases = {
-  base64: 'binary',
+  base64: 'text',
   boolean: 'boolean',
   byte: 'binary',
   calculated: 'string',
