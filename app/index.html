@@ -162,7 +162,10 @@
                                             <label for="db-overwrite">Drop and Recreate Tables</label>
                                             <input type="checkbox" id="db-overwrite" class="form-control"
                                                 aria-describedby="dbOverwriteHelp">
-                                            <small id="dbOverwriteHelp" class="form-text">Drop all selected tables and recreate them. <em>Deletes any data in the selected tables.</em> If this box is unchecked, any tables that already exist will not be changed.</small>
+                                            <small id="dbOverwriteHelp" class="form-text">Drop all selected tables and
+                                                recreate them. <em>Deletes any data in the selected tables.</em> If this
+                                                box is unchecked, any tables that already exist will not be
+                                                changed.</small>
                                         </div>
                                     </form>
                                 </div>
@@ -227,7 +230,7 @@
                     <li class="nav-item">
                         <a class="nav-link" id="nav-sql-tab" data-toggle="tab" href="#nav-sql" role="tab"
                             aria-controls="nav-sql" aria-selected="false">Generated
-                            SQL</a>
+                            Database</a>
                     </li>
                 </ul>
                 <div class="tab-content" id="nav-tabContent">
@@ -294,11 +297,11 @@
                                 &larr; Previous</button>
                             <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
                                 data-toggle="modal" data-target="#dbModal" disabled>
-                                Generate SQL
+                                Create Tables
                             </button>
                             <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema"
                                 disabled>
-                                Save SQL
+                                Save SQL to File
                             </button>
                         </div>
                         <div class="col-md-12" id="sql-display"></div>
