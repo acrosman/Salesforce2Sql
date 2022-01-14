@@ -375,8 +375,6 @@ const buildTable = (table) => {
       column.index(field.name);
     }
   }
-
-  logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
 };
 
 /**
@@ -575,17 +573,19 @@ const buildDatabase = (settings) => {
 
   mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables` });
 
+  const dropCallback = (tableName, err) => {
+    if (err) {
+      logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+    } else {
+      mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables: deleted ${tableName}` });
+      createDbTable(db.schema, tableName);
+    }
+  };
+
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
       db.schema.dropTableIfExists(tables[i])
-        .asCallback((err) => {
-          if (err) {
-            logMessage('Database', 'Error', `Error dropping existing table ${err}`);
-            return 'Error';
-          }
-          createDbTable(db.schema, tables[i]);
-          return true;
-        });
+        .asCallback((err) => { dropCallback(tables[i], err); });
     } else {
       createDbTable(db.schema, tables[i]);
     }
