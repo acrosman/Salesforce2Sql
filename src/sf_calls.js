@@ -559,24 +559,21 @@ const buildDatabase = (settings) => {
         } else {
           logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
           tableStatuses[table] = false;
-          if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
-            mainWindow.webContents.send('response_db_generated', {
-              status: true,
-              message: 'Database created',
-              responses: tableStatuses,
-            });
-          }
+        }
+        if (err.code === 'ER_TOO_MANY_KEYS') {
+          logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
+          tableStatuses[table] = true;
         }
       } else {
         logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
         tableStatuses[table] = false;
-        if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
-          mainWindow.webContents.send('response_db_generated', {
-            status: true,
-            message: 'Database created',
-            responses: tableStatuses,
-          });
-        }
+      }
+      if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
       }
       return err;
     });
