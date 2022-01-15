@@ -560,12 +560,11 @@ const buildDatabase = (settings) => {
           logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
           tableStatuses[table] = false;
         }
-        if (err.code === 'ER_TOO_MANY_KEYS') {
-          logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
-          tableStatuses[table] = true;
-        }
+      } else if (err.code === 'ER_TOO_MANY_KEYS') {
+        logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
+        tableStatuses[table] = true;
       } else {
-        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
         tableStatuses[table] = false;
       }
       if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
@@ -667,11 +666,11 @@ const handlers = {
         mainWindow.webContents.send('response_logout', {
           status: false,
           message: 'Logout Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err}`);
+        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
         return true;
       }
       // now the session has been expired.
@@ -699,7 +698,7 @@ const handlers = {
         mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
@@ -758,7 +757,7 @@ const handlers = {
           });
         }
       }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err}`);
+        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
       });
     });
   },
