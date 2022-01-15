@@ -156,6 +156,14 @@ const logMessage = (title, channel, message) => {
 };
 
 /**
+ * Updates the loader message in the interface.
+ * @param {String} message
+ */
+const updateLoader = (message) => {
+  mainWindow.webContents.send('update_loader', { message });
+};
+
+/**
  * Extracts the list of field values from a picklist value set.
  * @param {Array} valueList list of values from a Salesforce describe response.
  * @returns the actual list of values.
@@ -538,7 +546,7 @@ const buildDatabase = (settings) => {
           responses: tableStatuses,
         });
       } else {
-        mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete` });
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       }
     })
     .catch((err) => {
@@ -559,13 +567,16 @@ const buildDatabase = (settings) => {
         } else {
           logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
           tableStatuses[table] = false;
+          updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
         }
       } else if (err.code === 'ER_TOO_MANY_KEYS') {
         logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
         tableStatuses[table] = true;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       } else {
         logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
         tableStatuses[table] = false;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       }
       if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
         mainWindow.webContents.send('response_db_generated', {
@@ -577,13 +588,13 @@ const buildDatabase = (settings) => {
       return err;
     });
 
-  mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables` });
+  updateLoader(`Creating ${tables.length} tables`);
 
   const dropCallback = (tableName, err) => {
     if (err) {
       logMessage('Database', 'Error', `Error dropping existing table ${err}`);
     } else {
-      mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables: deleted ${tableName}` });
+      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
       createDbTable(db.schema, tableName);
     }
   };
@@ -735,13 +746,13 @@ const handlers = {
 
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
-    mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+    updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
       conn.sobject(obj).describe().then((response) => {
         completedObjects += 1;
         proposedSchema[response.name] = buildFields(response.fields);
-        mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
         allObjects[response.name] = response;
         if (completedObjects === args.objects.length) {
           // Send Schema to interface for review.
