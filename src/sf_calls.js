@@ -567,7 +567,7 @@ const buildDatabase = (settings) => {
         logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
         tableStatuses[table] = false;
       }
-      if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
         mainWindow.webContents.send('response_db_generated', {
           status: true,
           message: 'Database created',
