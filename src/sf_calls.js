@@ -542,7 +542,7 @@ const buildDatabase = (settings) => {
       }
     })
     .catch((err) => {
-      // If the row is too big, replace all varchar (except reference fields) with text and try again.
+      // If the row is too big, replace all varchar (except ref fields) with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
         let changed = false;
         const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
