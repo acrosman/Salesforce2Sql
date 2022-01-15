@@ -555,7 +555,17 @@ const buildDatabase = (settings) => {
         // If we updated the schema, try again.
         if (changed) {
           logMessage('Database Create', 'Warning', `Proposed ${table} schema had too many string fields for your database. All strings will be text fields instead.`);
-          createDbTable(table);
+          createDbTable(schema, table);
+        } else {
+          logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+          tableStatuses[table] = false;
+          if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
+            mainWindow.webContents.send('response_db_generated', {
+              status: true,
+              message: 'Database created',
+              responses: tableStatuses,
+            });
+          }
         }
       } else {
         logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
