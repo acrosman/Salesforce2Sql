@@ -25,7 +25,7 @@ const typeResolverBases = {
   double: 'decimal',
   email: 'string',
   encryptedstring: 'string',
-  id: 'string',
+  id: 'reference',
   int: 'integer',
   long: 'biginteger',
   masterrecord: 'string',
@@ -542,12 +542,12 @@ const buildDatabase = (settings) => {
       }
     })
     .catch((err) => {
-      // If the row is too big, replace all varchar with text and try again.
+      // If the row is too big, replace all varchar (except reference fields) with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
         let changed = false;
         const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
         for (let i = 0; i < tableFields.length; i += 1) {
-          if (proposedSchema[table][tableFields[i]].type === 'string') {
+          if (resolveFieldType(proposedSchema[table][tableFields[i]].type) === 'string') {
             proposedSchema[table][tableFields[i]].type = 'text';
             changed = true;
           }
