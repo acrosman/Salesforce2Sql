@@ -25,7 +25,7 @@ const typeResolverBases = {
   double: 'decimal',
   email: 'string',
   encryptedstring: 'string',
-  id: 'string',
+  id: 'reference',
   int: 'integer',
   long: 'biginteger',
   masterrecord: 'string',
@@ -153,6 +153,14 @@ const logMessage = (title, channel, message) => {
     message,
   });
   return true;
+};
+
+/**
+ * Updates the loader message in the interface.
+ * @param {String} message
+ */
+const updateLoader = (message) => {
+  mainWindow.webContents.send('update_loader', { message });
 };
 
 /**
@@ -538,16 +546,16 @@ const buildDatabase = (settings) => {
           responses: tableStatuses,
         });
       } else {
-        mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete` });
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       }
     })
     .catch((err) => {
-      // If the row is too big, replace all varchar with text and try again.
+      // If the row is too big, replace all varchar (except ref fields) with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
         let changed = false;
         const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
         for (let i = 0; i < tableFields.length; i += 1) {
-          if (proposedSchema[table][tableFields[i]].type === 'string') {
+          if (resolveFieldType(proposedSchema[table][tableFields[i]].type) === 'string') {
             proposedSchema[table][tableFields[i]].type = 'text';
             changed = true;
           }
@@ -555,29 +563,38 @@ const buildDatabase = (settings) => {
         // If we updated the schema, try again.
         if (changed) {
           logMessage('Database Create', 'Warning', `Proposed ${table} schema had too many string fields for your database. All strings will be text fields instead.`);
-          createDbTable(table);
+          createDbTable(schema, table);
+        } else {
+          logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+          tableStatuses[table] = false;
+          updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
         }
+      } else if (err.code === 'ER_TOO_MANY_KEYS') {
+        logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
+        tableStatuses[table] = true;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       } else {
-        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
         tableStatuses[table] = false;
-        if (Object.getOwnPropertyNames(proposedSchema).length === tables.length) {
-          mainWindow.webContents.send('response_db_generated', {
-            status: true,
-            message: 'Database created',
-            responses: tableStatuses,
-          });
-        }
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
+      }
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
       }
       return err;
     });
 
-  mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables` });
+  updateLoader(`Creating ${tables.length} tables`);
 
   const dropCallback = (tableName, err) => {
     if (err) {
       logMessage('Database', 'Error', `Error dropping existing table ${err}`);
     } else {
-      mainWindow.webContents.send('update_loader', { message: `Creating ${tables.length} tables: deleted ${tableName}` });
+      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
       createDbTable(db.schema, tableName);
     }
   };
@@ -660,11 +677,11 @@ const handlers = {
         mainWindow.webContents.send('response_logout', {
           status: false,
           message: 'Logout Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err}`);
+        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
         return true;
       }
       // now the session has been expired.
@@ -692,7 +709,7 @@ const handlers = {
         mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
@@ -729,13 +746,13 @@ const handlers = {
 
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
-    mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+    updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
       conn.sobject(obj).describe().then((response) => {
         completedObjects += 1;
         proposedSchema[response.name] = buildFields(response.fields);
-        mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
         allObjects[response.name] = response;
         if (completedObjects === args.objects.length) {
           // Send Schema to interface for review.
@@ -751,7 +768,7 @@ const handlers = {
           });
         }
       }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err}`);
+        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
       });
     });
   },
