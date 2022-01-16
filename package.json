@@ -1,6 +1,6 @@
 {
   "name": "salesforce2sql",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "madge": "madge --warning --circular --extensions js ./"
   },
   "jest": {
     "verbose": true
@@ -98,6 +99,7 @@
     "eslint-plugin-jest": "^24.4.0",
     "eslint-plugin-jsx-a11y": "^6.3.1",
     "eslint-plugin-react": "^7.22.0",
-    "jest": "^27.0.6"
+    "jest": "^27.0.6",
+    "madge": "^5.0.1"
   }
 }
