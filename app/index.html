@@ -69,7 +69,7 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="loginModalLabel">Enter Salesforce Login</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                                         <span aria-hidden="true">&times;</span>
                                     </button>
                                 </div>
@@ -103,9 +103,10 @@
                                     </form>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Close</button>
                                     <button type="button" class="btn btn-primary" id="login-trigger"
-                                        data-dismiss="modal">Connect</button>
+                                        data-bs-dismiss="modal">Connect</button>
                                 </div>
                             </div>
                         </div>
@@ -193,7 +194,7 @@
                     <h2>Last Response:</h2>
                     <pre id="raw-response" class="pre-scrollable"></pre>
                     <button type="button" id="show-console" class="btn btn-info" value="Show Log Console"
-                        data-toggle="modal" data-target="#consoleModal">Show Log Console</button>
+                        data-bs-toggle="modal" data-target="#consoleModal">Show Log Console</button>
                     <div class="text-center alert" id="loader-indicator">
                         <div class="spinner-border" role="status">
                         </div>
