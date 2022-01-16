@@ -9,7 +9,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "madge": "madge --warning --circular --extensions js ./"
   },
   "jest": {
     "verbose": true
@@ -98,6 +99,7 @@
     "eslint-plugin-jest": "^24.7.0",
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-react": "^7.28.0",
-    "jest": "^27.4.7"
+    "jest": "^27.4.7",
+    "madge": "^5.0.1"
   }
 }
