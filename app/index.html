@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; font-src https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; object-src 'none'">
+        content="default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; object-src 'none'">
     <link rel="stylesheet" id="css-theme-link" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
     <link rel="stylesheet" href="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.css">
+    <link rel="stylesheet" href="../node_modules/bootstrap-icons/font/bootstrap-icons.css">
     <link rel="stylesheet" href="dashboard.css">
     <title>Salesforce &#11000; Sql</title>
 </head>
@@ -182,9 +183,10 @@
                                             <label for="db-overwrite">Drop and Recreate Tables</label>
                                             <input type="checkbox" id="db-overwrite" class="form-control"
                                                 aria-describedby="dbOverwriteHelp">
-                                            <small id="dbOverwriteHelp" class="form-text">Drop all tables and recreate
-                                                them. <em>Delete's any data in the
-                                                    tables.</em></small>
+                                            <small id="dbOverwriteHelp" class="form-text">Drop all selected tables and
+                                                recreate them. <em>Deletes any data in the selected tables.</em> If this
+                                                box is unchecked, any tables that already exist will not be
+                                                changed.</small>
                                         </div>
                                     </form>
                                 </div>
@@ -213,6 +215,11 @@
                     <pre id="raw-response" class="pre-scrollable"></pre>
                     <button type="button" id="show-console" class="btn btn-info" value="Show Log Console"
                         data-toggle="modal" data-target="#consoleModal">Show Log Console</button>
+                    <div class="text-center alert" id="loader-indicator">
+                        <div class="spinner-border" role="status">
+                        </div>
+                        <span class="loader-message">Idle</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -244,7 +251,7 @@
                     <li class="nav-item">
                         <a class="nav-link" id="nav-sql-tab" data-toggle="tab" href="#nav-sql" role="tab"
                             aria-controls="nav-sql" aria-selected="false">Generated
-                            SQL</a>
+                            Database</a>
                     </li>
                 </ul>
                 <div class="tab-content" id="nav-tabContent">
@@ -266,9 +273,17 @@
                             <div class="results-summary">
                                 <h3 id="results-summary-count"></h3>
                             </div>
+                            <button type="button" id="btn-deselect-all-objects" class="btn btn-secondary">Clear
+                                Selections</button>
+                            <button type="button" id="btn-select-all-objects" class="btn btn-secondary">Select All
+                                Objects</button>
                             <table id="results-table" class="table table-striped table-bordered table-hover">
-                                <tr class="results-table-header"></tr>
-                                <tr class="results-table-row"></tr>
+                                <thead>
+                                    <tr class="results-table-header"></tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="results-table-row"></tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -303,11 +318,11 @@
                                 &larr; Previous</button>
                             <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
                                 data-toggle="modal" data-target="#dbModal" disabled>
-                                Generate SQL
+                                Create Tables
                             </button>
                             <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema"
                                 disabled>
-                                Save SQL
+                                Save SQL to File
                             </button>
                         </div>
                         <div class="col-md-12" id="sql-display"></div>

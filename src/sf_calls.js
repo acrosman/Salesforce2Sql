@@ -11,6 +11,93 @@ const { dialog } = electron;
 const sfConnections = {};
 let mainWindow = null;
 let proposedSchema = {};
+let preferences = null;
+
+// Baseline for Type conversions between environments.
+const typeResolverBases = {
+  base64: 'text',
+  boolean: 'boolean',
+  byte: 'binary',
+  calculated: 'string',
+  comboBox: 'string',
+  currency: 'decimal',
+  date: 'date',
+  datetime: 'datetime',
+  double: 'decimal',
+  email: 'string',
+  encryptedstring: 'string',
+  id: 'reference',
+  int: 'integer',
+  long: 'biginteger',
+  masterrecord: 'string',
+  multipicklist: 'string',
+  percent: 'decimal',
+  phone: 'string',
+  picklist: 'enum',
+  reference: 'reference',
+  string: 'string',
+  textarea: 'text',
+  time: 'time',
+  url: 'string',
+};
+
+// Different common packages beg for different sets of Standard objects as likely to be used.
+const standardObjectsByNamespace = {
+  npsp: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Opportunity',
+    'OpportunityContactRole',
+    'RecordType',
+    'Task',
+    'User',
+  ],
+  eda: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Lead',
+    'RecordType',
+    'Task',
+    'User',
+  ],
+  other: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'Document',
+    'Lead',
+    'Opportunity',
+    'OpportunityContactRole',
+    'Order',
+    'OrderItem',
+    'PriceBook2',
+    'Product2',
+    'RecordType',
+    'Task',
+    'User',
+  ],
+};
+
+const auditFields = [
+  'CreatedDate',
+  'CreatedById',
+  'LastModifiedDate',
+  'LastModifiedById',
+  'SystemModstamp',
+  'LastActivityDate',
+  'LastViewedDate',
+  'LastReferencedDate',
+];
 
 /**
  * Send a log message to the console window.
@@ -31,6 +118,8 @@ const logMessage = (title, channel, message) => {
 /**
  * Sets the window object to allow direct return messages.
  * @param {Object} window The Electron window used to pass messages to.
+ * Sets the window being used for the interface. Responses are sent to this window.
+ * @param {*} window The ElectronJS window in use.
  */
 const setwindow = (window) => {
   mainWindow = window;
@@ -101,39 +190,45 @@ const passwordLogin = (url, username, password, token) => {
   });
 };
 
+/**
+ * Sets the preferences for use in generating the schema.
+ * @param {*} prefs The current application preference object to use.
+ */
+const setPreferences = (prefs) => {
+  preferences = prefs;
+};
+
+/**
+ * Determines to SQL data type to use for a given SF field type.
+ * @param {*} sfTypeName The SF field type.
+ * @returns Returns the name of the sql column type to use.
+ */
 const resolveFieldType = (sfTypeName) => {
-  const typeResolver = {
-    base64: 'binary',
-    boolean: 'boolean',
-    byte: 'binary',
-    calculated: 'string',
-    comboBox: 'string',
-    currency: 'decimal',
-    date: 'date',
-    datetime: 'datetime',
-    double: 'float',
-    email: 'string',
-    encryptedstring: 'string',
-    id: 'string',
-    int: 'integer',
-    long: 'biginteger',
-    masterrecord: 'string',
-    multipicklist: 'string',
-    percent: 'decimal',
-    phone: 'string',
-    picklist: 'enum',
-    reference: 'reference',
-    string: 'string',
-    textarea: 'text',
-    time: 'time',
-    url: 'string',
-  };
+  const typeResolver = typeResolverBases;
+
+  // Tweak for picklists when set to be strings.
+  if (preferences.picklists.type !== 'enum') {
+    typeResolver.picklist = 'string';
+  }
+
+  // Set Ids to be full strings instead of char(18) as needed.
+  if (preferences.lookups.type !== 'char(18)') {
+    typeResolver.reference = 'string';
+  }
 
   if (Object.prototype.hasOwnProperty.call(typeResolver, sfTypeName)) {
     return typeResolver[sfTypeName];
   }
 
   return 'text';
+};
+
+/**
+ * Updates the loader message in the interface.
+ * @param {String} message
+ */
+const updateLoader = (message) => {
+  mainWindow.webContents.send('update_loader', { message });
 };
 
 /**
@@ -148,71 +243,78 @@ const extractPicklistValues = (valueList) => {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      val = val.replaceAll("'", "\\'");
+      // When Node 14 suppoer drops this can be switched to replaceAll().
+      val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
   }
   return values;
 };
 
+/**
+ * Generates the details of all the fields in the schema.
+ * @param {*} fieldList An array of fields.
+ * @param {*} allText Indicates if all strings should be text instead of varchar.
+ * @returns an object with all of a table's fields and their details.
+ */
 const buildFields = (fieldList, allText = false) => {
   let fld;
   const objFields = {};
+  let isReadOnly = false;
+  let isAudit = false;
 
   for (let f = 0; f < fieldList.length; f += 1) {
-    fld = {};
-    // Values we want for all fields.
-    fld.name = fieldList[f].name;
-    fld.label = fieldList[f].label;
-    fld.type = fieldList[f].type;
-    fld.size = fieldList[f].length;
+    // Determine if this is a readonly or audit field.
+    isReadOnly = fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable);
+    isAudit = auditFields.includes(fieldList[f].name);
 
-    // Large text fields go to TEXT.
-    if (fld.type === 'string' && (fld.size > 255 || allText)) {
-      fld.type = 'text';
-    }
+    // Add field to schema if it's an Id, and allowed by preferences.
+    if (fieldList[f].type === 'id'
+      || (
+        !(preferences.defaults.supressReadOnly && isReadOnly)
+        && !(preferences.defaults.supressAudit && isAudit)
+      )
+    ) {
+      fld = {};
+      // Values we want for all fields.
+      fld.name = fieldList[f].name;
+      fld.label = fieldList[f].label;
+      fld.type = fieldList[f].type;
+      fld.size = fieldList[f].length;
+      fld.defaultValue = fieldList[f].defaultValue;
 
-    // Type specific values.
-    switch (fld.type) {
-      case 'reference':
-        fld.target = fieldList[f].referenceTo;
-        break;
-      case 'picklist':
-        fld.values = extractPicklistValues(fieldList[f].picklistValues);
-        break;
-      case 'currency':
-      case 'double':
-      case 'float':
-        fld.scale = fieldList[f].scale;
-        fld.precision = fieldList[f].precision;
-        break;
-      default:
-        break;
+      // Large text fields go to TEXT.
+      if (fld.type === 'string' && (fld.size > 255 || allText)) {
+        fld.type = 'text';
+      }
+
+      // Type specific values.
+      switch (fld.type) {
+        case 'reference':
+          fld.target = fieldList[f].referenceTo;
+          break;
+        case 'picklist':
+          fld.values = extractPicklistValues(fieldList[f].picklistValues);
+          fld.isRestricted = fieldList[f].restrictedPicklist;
+          break;
+        case 'currency':
+        case 'double':
+        case 'float':
+          fld.scale = fieldList[f].scale;
+          fld.precision = fieldList[f].precision;
+          break;
+        default:
+          break;
+      }
+      objFields[fld.name] = fld;
     }
-    objFields[fld.name] = fld;
   }
   return objFields;
 };
 
 /**
- *
- * @param {Object} objectList Collection of sObject describes to convert to schema.
- * @returns An object we can convert easily into an SQL schema.
+ * Opens a dialog and starts the schema load process with the result.
  */
-const buildSchema = (objectList) => {
-  const schema = {};
-
-  // For each object we need to extract the field list, including their types.
-  const objects = Object.getOwnPropertyNames(objectList);
-  let obj;
-  for (let i = 0; i < objects.length; i += 1) {
-    obj = objectList[objects[i]];
-    schema[objects[i]] = buildFields(obj.fields);
-  }
-
-  return schema;
-};
-
 const loadSchemaFromFile = () => {
   const dialogOptions = {
     title: 'Load Schema',
@@ -259,54 +361,137 @@ const buildTable = (table) => {
   const fields = proposedSchema[table._tableName];
   let field;
   let fieldType;
+  let addIndex;
   const fieldNames = Object.getOwnPropertyNames(fields);
 
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
+    // Determine if the field should be indexed.
+    addIndex = (preferences.indexes.lookups && (field.type === 'reference' || field.type === 'id'))
+      || (preferences.indexes.picklists && field.type === 'picklist');
+
+    // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
+
+    // Extract field size.
+    let { size, defaultValue } = field;
+
+    // If this is an unrestricted picklist.
+    if (field.type === 'picklist' && !field.isRestricted && preferences.picklists.unrestricted) {
+      fieldType = 'string';
+      size = 255;
+    }
+
+    // Setup default when suggested.
+    const stringTypes = ['string', 'text'];
+    if (preferences.defaults.textEmptyString && stringTypes.includes(fieldType)) {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = '';
+      }
+    }
+
+    let column;
     switch (fieldType) {
       case 'binary':
-        table.binary(field.name, field.size);
+        column = table.binary(field.name, size);
         break;
       case 'boolean':
-        table.boolean(field.name);
+        column = table.boolean(field.name);
         break;
       case 'biginteger':
-        table.biginteger(field.name);
+        column = table.biginteger(field.name);
         break;
       case 'date':
-        table.date(field.name);
+        column = table.date(field.name);
         break;
       case 'datetime':
-        table.datetime(field.name);
+        column = table.datetime(field.name);
         break;
       case 'decimal':
-        table.decimal(field.name, field.precision, field.scale);
+        column = table.decimal(field.name, field.precision, field.scale);
         break;
       case 'enum':
-        table.enu(field.name, field.values);
+        // Add a blank if needed.
+        if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
+          field.values.push('');
+        }
+        column = table.enu(field.name, field.values);
         break;
       case 'float':
-        table.float(field.name, field.precision, field.scale);
+        column = table.float(field.name, field.precision, field.scale);
         break;
       case 'integer':
-        table.integer(field.name);
+        column = table.integer(field.name);
         break;
       case 'reference':
-        table.string(field.name, 18);
+        column = table.string(field.name, 18);
         break;
       case 'text':
-        table.text(field.name);
+        column = table.text(field.name);
         break;
       case 'time':
-        table.time(field.name);
+        column = table.time(field.name);
         break;
       default:
-        table.string(field.name, field.size);
+        if (!size) {
+          size = 255;
+        }
+        column = table.string(field.name, size);
+    }
+
+    if (preferences.defaults.attemptSFValues) {
+      column.defaultTo(defaultValue);
+    }
+
+    if (addIndex) {
+      // To avoid prefixing with table name (which can easily violate the length
+      // limit from MySQL and Postgress), use the field name as the column name
+      // which should top out around the same places as the limit (60) unless a
+      // _really_ long package namespace is in play.
+      column.index(field.name);
     }
   }
+};
 
-  logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
+/**
+ * Reviews an org's list of objects to guess the org type
+ * @param {Object} sObjectList The list of objects for the org.
+ * @returns {String} org type. One of npsp, eda, other.
+ */
+const snifOrgType = (sObjectList) => {
+  const namespaces = {
+    npsp: 'npsp',
+    npe: 'npsp',
+    hed: 'eda',
+  };
+
+  const keys = Object.getOwnPropertyNames(namespaces);
+  for (let i = 0; i < sObjectList.length; i += 1) {
+    for (let j = 0; j < keys.length; j += 1) {
+      if (sObjectList[i].name.startsWith(keys[j])) {
+        return namespaces[keys[j]];
+      }
+    }
+  }
+  return 'other';
+};
+
+/**
+ * Review previously loaded object list and send to the Render thread a recommented
+ * list of objects to select.
+ * @param {Array} objectResult The list of objects from a global describe of the org.
+ * @returns an array of object name to default select.
+ */
+const recommendObjects = (objectResult) => {
+  const orgType = snifOrgType(objectResult);
+  const suggestedStandards = standardObjectsByNamespace[orgType];
+  const recommended = [];
+  objectResult.forEach((obj) => {
+    if (suggestedStandards.includes(obj.name) || obj.name.endsWith('__c')) {
+      recommended.push(obj.name);
+    }
+  });
+  return recommended;
 };
 
 /**
@@ -339,6 +524,11 @@ const saveSchemaToFile = () => {
   });
 };
 
+/**
+ * Create a database connection using the knex library.
+ * @param {*} settings An object with database connections settings.
+ * @returns the database connection object.
+ */
 const createKnexConnection = (settings) => {
   // Create database connection.
   const db = knex({
@@ -368,6 +558,10 @@ const createKnexConnection = (settings) => {
   return db;
 };
 
+/**
+ * Save the current database schema to an SQL file.
+ * @param {*} settings Current database connection settings.
+ */
 const saveSchemaToSql = (settings) => {
   const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
@@ -400,19 +594,36 @@ const saveSchemaToSql = (settings) => {
   });
 };
 
+/**
+ * Builds the actual database from generated schema.
+ * @param {*} settings Database connection settings.
+ */
 const buildDatabase = (settings) => {
   const db = createKnexConnection(settings);
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Helper to keep one line of logic for creating the tables.
+  const tableStatuses = {};
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .then(() => {
+      tableStatuses[table] = true;
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
+      } else {
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
+      }
+    })
     .catch((err) => {
-      // If the row is too big, replace all varchar with text and try again.
+      // If the row is too big, replace all varchar (except ref fields) with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
         let changed = false;
         const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
         for (let i = 0; i < tableFields.length; i += 1) {
-          if (proposedSchema[table][tableFields[i]].type === 'string') {
+          if (resolveFieldType(proposedSchema[table][tableFields[i]].type) === 'string') {
             proposedSchema[table][tableFields[i]].type = 'text';
             changed = true;
           }
@@ -420,56 +631,61 @@ const buildDatabase = (settings) => {
         // If we updated the schema, try again.
         if (changed) {
           logMessage('Database Create', 'Warning', `Proposed ${table} schema had too many string fields for your database. All strings will be text fields instead.`);
-          createDbTable(table);
+          createDbTable(schema, table);
+        } else {
+          logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+          tableStatuses[table] = false;
+          updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
         }
+      } else if (err.code === 'ER_TOO_MANY_KEYS') {
+        logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
+        tableStatuses[table] = true;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       } else {
-        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
+        tableStatuses[table] = false;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
+      }
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
       }
       return err;
     });
 
-  const createTablePromises = [];
+  updateLoader(`Creating ${tables.length} tables`);
+
+  const dropCallback = (tableName, err) => {
+    if (err) {
+      logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+    } else {
+      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
+      createDbTable(db.schema, tableName);
+    }
+  };
+
   for (let i = 0; i < tables.length; i += 1) {
     if (settings.overwrite) {
       db.schema.dropTableIfExists(tables[i])
-        .then(() => {
-          createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', `Successfully created new table. ${response[0].message}`);
-            return response[0].message;
-          });
-        })
-        .catch((err) => {
-          logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
-          return err;
-        });
+        .asCallback((err) => { dropCallback(tables[i], err); });
     } else {
-      createTablePromises.push(createDbTable(db.schema, tables[i]));
+      createDbTable(db.schema, tables[i]);
     }
   }
-
-  Promise.all(createTablePromises).then((values) => {
-    const tableStatuses = {
-      Errors: [],
-      Successes: [],
-    };
-    for (let i = 0; i < values.length; i += 1) {
-      if (Object.prototype.hasOwnProperty.call(values[i], 'message')) {
-        tableStatuses.Errors.push(values[i].message);
-      } else {
-        tableStatuses.Successes.push(values[i]);
-      }
-    }
-
-    mainWindow.webContents.send('response_db_generated', {
-      status: true,
-      message: 'Database created',
-      responses: tableStatuses,
-    });
-  });
 };
 
+/**
+ * List of remote call handlers for using with IPC.
+ */
 const handlers = {
-  // Login to an org using password authentication.
+  /**
+   * Login to an org using password authentication.
+   * @param {*} event Standard message event.
+   * @param {*} args Login credentials from the interface.
+   */
   sf_login: (event, args) => {
     if (args.mode === 'password') {
       passwordLogin(args.url, args.username, args.password, args.token);
@@ -478,7 +694,11 @@ const handlers = {
       oauth.attemptLogin(args.url);
     }
   },
-  // Logout of a specific Salesforce org.
+  /**
+   * Logout of a specific Salesforce org.
+   * @param {*} event Standard message event.
+   * @param {*} args The connection to disable.
+   */
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.logout((err) => {
@@ -486,11 +706,11 @@ const handlers = {
         mainWindow.webContents.send('response_logout', {
           status: false,
           message: 'Logout Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err}`);
+        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
         return true;
       }
       // now the session has been expired.
@@ -505,25 +725,30 @@ const handlers = {
       return true;
     });
   },
-  // Run a Global Describe.
+  /**
+   * Run a global describe.
+   * @param {*} event Standard message event.
+   * @param {*} args Message args with org to use.
+   * @returns True.
+   */
   sf_describeGlobal: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.describeGlobal((err, result) => {
       if (err) {
-        mainWindow.webContents.send('response_generic', {
+        mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
 
-        logMessage('Fetch Objects', 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
       // Send records back to the interface.
       logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
+      result.recommended = recommendObjects(result.sobjects);
       mainWindow.webContents.send('response_list_objects', {
         status: true,
         message: 'Describe Global Successful',
@@ -534,49 +759,63 @@ const handlers = {
       return true;
     });
   },
-  // Get a list of all fields on a provided list of objects.
+  /**
+   * Get a list of all fields on a provided list of objects.
+   * @param {*} event Standard message event.
+   * @param {*} args Arguments from the interface.
+   * @returns True.
+   */
   sf_getObjectFields: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    const describeCalls = [];
-    const objectDescribes = {};
+    let completedObjects = 0;
+    const allObjects = {};
 
-    // Create a collection of promises for the various objects.
-    for (let i = 0; i < args.objects.length; i += 1) {
-      describeCalls.push(conn.sobject(args.objects[i]).describe());
-    }
+    // Reset the proposed schema back to baseline.
+    proposedSchema = {};
 
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
+    updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
-    // Wait for all of them to resolve, and build a collection.
-    Promise.all(describeCalls).then((responses) => {
-      for (let i = 0; i < responses.length; i += 1) {
-        objectDescribes[responses[i].name] = responses[i];
-      }
-
-      // Build draft schema.
-      proposedSchema = buildSchema(objectDescribes);
-
-      // Send Schema to interface for review.
-      mainWindow.webContents.send('response_schema', {
-        status: false,
-        message: 'Processed Objects',
-        response: {
-          objects: objectDescribes,
-          schema: proposedSchema,
-        },
-        limitInfo: conn.limitInfo,
-        request: args,
+    args.objects.forEach((obj) => {
+      conn.sobject(obj).describe().then((response) => {
+        completedObjects += 1;
+        proposedSchema[response.name] = buildFields(response.fields);
+        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
+        allObjects[response.name] = response;
+        if (completedObjects === args.objects.length) {
+          // Send Schema to interface for review.
+          mainWindow.webContents.send('response_schema', {
+            status: false,
+            message: 'Processed Objects',
+            response: {
+              objects: allObjects,
+              schema: proposedSchema,
+            },
+            limitInfo: conn.limitInfo,
+            request: args,
+          });
+        }
+      }, (err) => {
+        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
       });
     });
-    return true;
   },
-  // Connect to a database and set the schema.
+  /**
+   * Connect to a database and set the schema.
+   * @param {*} event Standard message event.
+   * @param {*} args Connection settings.
+   */
   knex_schema: (event, args) => {
     buildDatabase(args);
     logMessage('Database', 'Info', 'Database build started.');
   },
-  // Send a log message to the console window.
+  /**
+   * Send a log message to message console window.
+   * @param {*} event Standard message event.
+   * @param {*} args Log arguments.
+   * @returns true.
+   */
   log_message: (event, args) => {
     mainWindow.webContents.send('log_message', {
       sender: args.sender,
@@ -585,19 +824,27 @@ const handlers = {
     });
     return true;
   },
-  // Load a previously saved Schema from a file.
+  /**
+   * Load a previously saved Schema from a file.
+   */
   load_schema: () => {
     loadSchemaFromFile();
   },
-  // Save the current schema settings to a file.
+  /**
+   * Save the current schema settings to a file.
+   */
   save_schema: () => {
     saveSchemaToFile();
   },
-  // Save the current schema to a SQL file.
+  /**
+   * Save the current schema to a SQL file.
+   */
   save_ddl_sql: (event, args) => {
     saveSchemaToSql(args);
   },
 };
 
+// Export setup.
 exports.handlers = handlers;
 exports.setwindow = setwindow;
+exports.setPreferences = setPreferences;

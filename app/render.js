@@ -1,6 +1,9 @@
 /* global $ */
 // Initial interface setup using jQuery (since it's around from bootstrap anyway).
 $.when($.ready).then(() => {
+  // Get the current application preferences.
+  window.api.send('get_preferences');
+
   // Hide the places for handling responses until we have some.
   $('#org-status').hide();
   $('#results-table-wrapper').hide();
@@ -56,11 +59,14 @@ $.when($.ready).then(() => {
   // Get the current application preferences.
   window.api.send('get_preferences');
 
-  // Log a message that the interface is ready to go.
-  window.api.send('send_log', {
-    channel: 'Info',
-    message: 'Main window initialized.',
+  // Setup Object Select All
+  $('#btn-deselect-all-objects').on('click', (event) => {
+    event.preventDefault();
+    $('#results-table input[type=checkbox]').prop('checked', false);
   });
+
+  // Hide loader.
+  $('#loader-indicator').hide();
 });
 
 // ============= Helpers ==============
@@ -139,7 +145,7 @@ function logMessage(context, importance, message, data) {
 
   if (data) {
     displayRawResponse(data);
-    $('#consoleMessageTable :last-child td.console-raw-data').jsonViewer(data, {
+    $(mesData).jsonViewer(data, {
       collapsed: true,
       rootCollapsable: false,
       withQuotes: true,
@@ -149,33 +155,113 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
- * Reviews an org's list of objects to guess the org type
- * @param {Object} sObjectList The list of objects for the org.
- * @returns {String} org type. One of npsp, eda, other.
+ * From a DOM element containing table rows to extract a column from.
+ * @param {domElement} ele A dom element containing table rows.
+ * @param {Integer} columnIndex The integer of the column to extract.
+ * @returns An array of table cells (td) from requested column.
  */
-const snifOrgType = (sObjectList) => {
-  const namespaces = {
-    npsp: 'npsp',
-    npe: 'npsp',
-    hed: 'eda',
-  };
+function getTableColumn(ele, columnIndex) {
+  const col = [];
+  const rows = ele.getElementsByTagName('tr');
 
-  const keys = Object.getOwnPropertyNames(namespaces);
-  for (let i = 0; i < sObjectList.length; i += 1) {
-    for (let j = 0; j < keys.length; j += 1) {
-      if (sObjectList[i].name.startsWith(keys[j])) {
-        return namespaces[keys[j]];
+  for (let i = 0; i < rows.length; i += 1) {
+    col.push(rows[i].cells[columnIndex]);
+  }
+
+  return col;
+}
+
+/**
+ * Sort the Object table by column. Uses a decorate, sort, undecorate approachj.
+ * @param {String} sortProperty The name of the property to sort the data by.
+ * @param {String} direction The sorting direction: ASC or DESC.
+ */
+function sortObjectTable(sortProperty, direction = 'ASC') {
+  const table = document.getElementById('results-table');
+  const tableBody = table.getElementsByTagName('tbody')[0];
+  const dir = direction.toUpperCase();
+  const sortData = [];
+  const renderData = [];
+  const selected = [];
+
+  // Extract the table's Select cells.
+  const column = getTableColumn(tableBody, 0);
+
+  // Build a list to sort keyed by the propery in question.
+  column.forEach((cell) => {
+    const rowData = JSON.parse(cell.dataset.rowData);
+    if (cell.firstChild.checked) {
+      selected.push(rowData.name);
+    }
+    // For the named properties, we just use those.
+    if (sortProperty !== 'Select') {
+      sortData.push([rowData[sortProperty], rowData]);
+    } else {
+      // For the select we need the checked status, which is now
+      // membership in the selected list.
+      sortData.push([selected.includes(rowData.name), rowData]);
+    }
+  });
+
+  // Pre-sort the selected list incase we need it in a sec.
+  selected.sort();
+
+  // Sort the list.
+  sortData.sort((a, b) => {
+    // Assume everything is equal.
+    let order = 0;
+    // For the non-selects we just sort by the first array element.
+    if (sortProperty !== 'Select') {
+      if (a[0] > b[0]) {
+        order = 1;
+      }
+      if (a[0] < b[0]) {
+        order = -1;
+      }
+    } else {
+      // For the selects, we sort by the first array element, and the name.
+      // When a is checked and b is not, a wins.
+      if (a[0] && !b[0]) {
+        order = 1;
+      }
+      // When a is checked and a is not, b wins.
+      if (!a[0] && b[0]) {
+        order = -1;
+      }
+      // When both are checked or unchecked, name sort.
+      if ((a[0] && b[0]) || (!a[0] && !b[0])) {
+        if (a[1].name < b[1].name) {
+          order = 1;
+        }
+        if (a[1].name > b[1].name) {
+          order = -1;
+        }
       }
     }
+    return order;
+  });
+
+  if (dir === 'DESC') {
+    sortData.reverse();
   }
-  return 'other';
-};
+
+  // Undecorate the list for rendering.
+  sortData.forEach((row) => {
+    renderData.push(row[1]);
+  });
+
+  // Trigger re-render of the table.
+  // This is a circular reference so no lint error for you.
+  // eslint-disable-next-line no-use-before-define
+  displayObjectList(renderData, selected, true, sortProperty, dir);
+}
 
 /**
  * Attaches the DOM element for a table header element attached an existing table.
  * @param {Object} headerRow The DOM element to attach the new header to.
  * @param {String} labelText The text for the element.
  * @param {String} scope The scope attribute to use for the element, defaults to col.
+ * @returns The new header element created.
  */
 const generateTableHeader = (headerRow, labelText, scope = 'col') => {
   const newHeader = document.createElement('th');
@@ -183,6 +269,7 @@ const generateTableHeader = (headerRow, labelText, scope = 'col') => {
   const textNode = document.createTextNode(labelText);
   newHeader.appendChild(textNode);
   headerRow.appendChild(newHeader);
+  return newHeader;
 };
 
 /**
@@ -194,6 +281,8 @@ const generateTableHeader = (headerRow, labelText, scope = 'col') => {
  */
 const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   let contentNode;
+
+  // Create the content of the cell as text or a DOM element.
   if (isText) {
     contentNode = document.createTextNode(content);
   } else {
@@ -201,11 +290,24 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
   }
   const cellNode = document.createElement('td');
   cellNode.appendChild(contentNode);
+
+  // Add the new cell to the row using position if given.
   if (position === -1) {
     tableRow.appendChild(cellNode);
   } else {
     tableRow.insertBefore(cellNode, tableRow.children[position]);
   }
+
+  return cellNode;
+};
+
+const showLoader = (message) => {
+  $('#loader-indicator .loader-message').text(message);
+  $('#loader-indicator').show();
+};
+
+const hideLoader = () => {
+  $('#loader-indicator').hide();
 };
 
 /**
@@ -214,6 +316,7 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
  * @param {Object} data The object to display, object must contain message and response attributes.
  */
 const refreshObjectDisplay = (data) => {
+  showLoader('Refreshing database schema display');
   $('#results-object-viewer-wrapper .results-summary h3').text(data.message);
 
   // When this is displaying a describe add a little helpful sumamry.
@@ -231,6 +334,7 @@ const refreshObjectDisplay = (data) => {
     withQuotes: true,
     withLinks: true,
   });
+  hideLoader();
 };
 
 // ================ Response Handlers =================
@@ -259,69 +363,32 @@ const handleLogin = (responseData) => {
 /**
  * Displays the list of objects from a Global describe query.
  * @param {Object} sObjectData The results from JSForce to display.
+ * @param {Array} selected The list of objects to set as selected.
+ * @param {boolean} sorted When true, the list will be rendered in the order provided,
+ *  otherwise it will sort selected first.
+ * @param {String} sortedColumn The name of the column the data is sorted by to set label.
  */
-const displayObjectList = (sObjectData) => {
+const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
   // Define  columns to display.
   const displayColumns = [
     'label',
     'name',
   ];
 
-  // Different common packages beg for different sets of Standard objects as likely to be used.
-  const selectStandardObjects = {
-    npsp: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Opportunity',
-      'OpportunityContactRole',
-      'Task',
-    ],
-    eda: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Lead',
-      'Task',
-    ],
-    other: [
-      'Account',
-      'Contact',
-      'Campaign',
-      'CampaignMember',
-      'Case',
-      'Document',
-      'Lead',
-      'Opportunity',
-      'OpportunityContactRole',
-      'Order',
-      'OrderItem',
-      'PriceBook2',
-      'Product2',
-      'Task',
-    ],
-  };
-
   // Display area.
+  // @todo: remove jquery use.
+  hideLoader();
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
   $('#results-message-wrapper').hide();
-  $('#results-summary-count').text(`Your orgs contains ${sObjectData.length} objects (custom and standard)`);
-
-  const orgType = snifOrgType(sObjectData);
+  $('#results-summary-count').text('Loading objects...');
 
   // Get the table.
-  const resultsTable = document.querySelector('#results-table');
+  const resultsTable = document.getElementById('results-table');
 
   // Clear existing table.
   while (resultsTable.firstChild) {
-    resultsTable.removeChild(resultsTable.firstChild);
+    resultsTable.removeChild(resultsTable.lastChild);
   }
 
   // Create the header row for the table.
@@ -330,60 +397,137 @@ const displayObjectList = (sObjectData) => {
   headRow.setAttribute('class', 'table-primary');
 
   // Add the header
-  generateTableHeader(headRow, 'Select');
+  let th;
+  let nextSort = 'ASC';
+
+  // First add the column for the select boxes.
+  th = generateTableHeader(headRow, 'Select');
+  if (sortedColumn === 'Select') {
+    th.dataset.sortDirection = sortedDirection;
+    if (sortedDirection === 'ASC') {
+      th.classList.add('bi', 'bi-arrow-down');
+      th.ariaLabel = 'Select sorted selected first';
+      nextSort = 'DESC';
+    } else {
+      th.classList.add('bi', 'bi-arrow-up');
+      th.ariaLabel = 'Select sorted selected last';
+    }
+  }
+
+  // Since we go on to use nextsort in the loop below the reference
+  // that gets passed here would be bad, so switch back to actual string.
+  if (nextSort === 'DESC') {
+    th.addEventListener('click', () => {
+      sortObjectTable('Select', 'DESC');
+    });
+  } else {
+    th.addEventListener('click', () => {
+      sortObjectTable('Select', 'ASC');
+    });
+  }
+
+  // Add all other columns.
   for (let i = 0; i < displayColumns.length; i += 1) {
-    generateTableHeader(headRow, displayColumns[i]);
+    nextSort = 'ASC';
+    th = generateTableHeader(headRow, displayColumns[i]);
+    if (sortedColumn === displayColumns[i]) {
+      th.dataset.sortDirection = sortedDirection;
+      if (sortedDirection === 'ASC') {
+        th.classList.add('bi', 'bi-arrow-up');
+        th.ariaLabel = `${displayColumns[i]} sorted accending.`;
+        nextSort = 'DESC';
+      } else {
+        th.classList.add('bi', 'bi-arrow-down');
+        th.ariaLabel = `${displayColumns[i]} sorted deccending.`;
+      }
+    }
+
+    // Yes, this looks odd, but it makes the linter happy. Which is good
+    // cause it's easy to make a confusing error here and pass the last
+    // value instead of the current value.
+    if (nextSort === 'DESC') {
+      th.addEventListener('click', () => {
+        sortObjectTable(displayColumns[i], 'DESC');
+      });
+    } else {
+      th.addEventListener('click', () => {
+        sortObjectTable(displayColumns[i], 'ASC');
+      });
+    }
   }
 
   tHead.appendChild(headRow);
   resultsTable.appendChild(tHead);
 
-  // Add the data in two passes: custom and selected standard objects, then all the others.
+  // Add the data in two passes: recommended objects for selection, then all the others.
+  // Gives us a default sort in O(n).
   let dataRow;
   const tBody = document.createElement('tbody');
-  const orgSelects = selectStandardObjects[orgType];
   const displayed = [];
   let checkCell;
-  // First pass for popular objects
-  for (let i = 0; i < sObjectData.length; i += 1) {
-    if (orgSelects.includes(sObjectData[i].name) || sObjectData[i].name.endsWith('__c')) {
-      displayed.push(sObjectData[i].name);
+  let selectCell;
+  let objCount = 0;
+
+  // If not sorted yet, run a pass to rendered selected objects first
+  if (!sorted) {
+    sObjectData.forEach((sobj) => {
+      const { name } = sobj;
+      if (selected.includes(name)) {
+        displayed.push(sobj.name);
+        dataRow = document.createElement('tr');
+
+        // Generate a checkbox
+        checkCell = document.createElement('input');
+        checkCell.type = 'checkbox';
+        checkCell.checked = true;
+        checkCell.dataset.objectName = sobj.name;
+        selectCell = generateTableCell(dataRow, checkCell, false);
+
+        // Add the details
+        for (let j = 0; j < displayColumns.length; j += 1) {
+          generateTableCell(dataRow, sobj[displayColumns[j]]);
+        }
+
+        // Add the data for this row to the select cell for easy access during sorting.
+        selectCell.dataset.rowData = JSON.stringify(sobj);
+
+        // Add the new row to the table body.
+        tBody.appendChild(dataRow);
+        objCount += 1;
+      }
+    });
+  }
+
+  // Render all objects not already on the list. If the list is sorted this will be
+  // all objects. If the list is unsorted the selected objects were already rendered.
+  sObjectData.forEach((sobj) => {
+    if (!displayed.includes(sobj.name) && sobj.createable) {
       dataRow = document.createElement('tr');
 
       // Generate a checkbox
       checkCell = document.createElement('input');
       checkCell.type = 'checkbox';
-      checkCell.checked = true;
-      checkCell.dataset.objectName = sObjectData[i].name;
-      generateTableCell(dataRow, checkCell, false);
+      checkCell.dataset.objectName = sobj.name;
+      checkCell.checked = selected.includes(sobj.name);
+      selectCell = generateTableCell(dataRow, checkCell, false);
       // Add the details
       for (let j = 0; j < displayColumns.length; j += 1) {
-        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
+        generateTableCell(dataRow, sobj[displayColumns[j]]);
       }
 
+      // Add the data for this row to the select cell for easy access during sorting.
+      selectCell.dataset.rowData = JSON.stringify(sobj);
+
+      // Add to the end of the table.
       tBody.appendChild(dataRow);
+      objCount += 1;
     }
-  }
-  // Seconds pass for the rare ones.
-  for (let i = 0; i < sObjectData.length; i += 1) {
-    if (!displayed.includes(sObjectData[i].name) && sObjectData[i].createable) {
-      dataRow = document.createElement('tr');
+  });
 
-      // Generate a checkbox
-      checkCell = document.createElement('input');
-      checkCell.type = 'checkbox';
-      checkCell.dataset.objectName = sObjectData[i].name;
-      generateTableCell(dataRow, checkCell, false);
-      // Add the details
-      for (let j = 0; j < displayColumns.length; j += 1) {
-        generateTableCell(dataRow, sObjectData[i][displayColumns[j]]);
-      }
-
-      tBody.appendChild(dataRow);
-    }
-  }
-
+  // Add the whole table body to the table itself.
   resultsTable.appendChild(tBody);
+
+  $('#results-summary-count').text(`Your org contains ${objCount} creatable objects`);
 
   // Enable the button to fetch object list.
   $('#btn-fetch-details').prop('disabled', false);
@@ -394,6 +538,7 @@ const displayObjectList = (sObjectData) => {
  * @param {*} schema the built-out schema from main thread.
  */
 const displayDraftSchema = (schema) => {
+  showLoader('All objects loaded, refreshing display');
   refreshObjectDisplay({
     message: 'Proposed Database Schema',
     response: schema,
@@ -401,12 +546,14 @@ const displayDraftSchema = (schema) => {
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
   $('#nav-schema-tab').tab('show');
+  hideLoader();
 };
 
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
   const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  showLoader('Attemping Login');
   window.api.send('sf_login', {
     mode: modeRadio.value,
     username: document.getElementById('login-username').value,
@@ -418,14 +565,23 @@ document.getElementById('login-trigger').addEventListener('click', () => {
 
 // Logout
 document.getElementById('logout-trigger').addEventListener('click', () => {
+  const { value } = document.getElementById('active-org');
   window.api.send('sf_logout', {
-    org: document.getElementById('active-org').value,
+    org: value,
   });
+  // Remove from interface:
+  const selectobject = document.getElementById('active-org');
+  for (let i = 0; i < selectobject.length; i += 1) {
+    if (selectobject.options[i].value === value) {
+      selectobject.remove(i);
+    }
+  }
   document.getElementById('org-status').style.display = 'none';
 });
 
 // Fetch Org Objects
 document.getElementById('btn-fetch-objects').addEventListener('click', () => {
+  showLoader('Loading Object List');
   window.api.send('sf_describeGlobal', {
     org: document.getElementById('active-org').value,
   });
@@ -438,6 +594,7 @@ document.getElementById('btn-fetch-details').addEventListener('click', () => {
   for (let i = 0; i < activeCheckboxes.length; i += 1) {
     selectedObjects.push(activeCheckboxes[i].dataset.objectName);
   }
+  showLoader('Loading Object Fields');
   window.api.send('sf_getObjectFields', {
     org: document.getElementById('active-org').value,
     objects: selectedObjects,
@@ -454,6 +611,8 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
       break;
     }
   }
+
+  showLoader('Creating Database Tables');
 
   window.api.send('knex_schema', {
     type: dbType,
@@ -496,11 +655,13 @@ document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
 // ===== Response handlers from IPC Messages to render context ======
 // Login response.
 window.api.receive('response_login', (data) => {
+  hideLoader();
   if (data.status) {
     handleLogin(data);
-    logMessage('Salesforce', 'Info', data.message, data.response);
+    logMessage('Salesforce', 'Success', data.message, data.response);
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
+    displayRawResponse(data);
   }
 });
 
@@ -510,12 +671,14 @@ window.api.receive('response_logout', (data) => {
 });
 
 // Generic Response.
-window.api.receive('response_generic', (data) => {
-  logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
+window.api.receive('response_error', (data) => {
+  hideLoader();
+  logMessage(data.message, 'Error', data.response, data);
 });
 
 // Response after building database
 window.api.receive('response_db_generated', (data) => {
+  hideLoader();
   logMessage('Database', 'Info', 'Database generation complete.', data);
   $('#btn-save-sql-schema').prop('disabled', false);
 });
@@ -531,7 +694,7 @@ window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
-    displayObjectList(data.response.sobjects);
+    displayObjectList(data.response.sobjects, data.response.recommended);
   } else {
     logMessage('Salesforce', 'Error', 'Error while retreiving object listing.', data);
   }
@@ -554,4 +717,9 @@ window.api.receive('start_find', () => {
   const findbox = document.getElementById('find-in-page-text');
   findbox.scrollIntoView();
   findbox.focus();
+});
+
+// Update the current loader message.
+window.api.receive('update_loader', (data) => {
+  showLoader(data.message);
 });

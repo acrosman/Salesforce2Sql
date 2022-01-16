@@ -1,15 +1,19 @@
 {
   "name": "salesforce2sql",
-  "version": "0.3.0",
+  "version": "0.6.0",
   "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "lint": "eslint --ignore-path .gitignore src",
+    "lint": "eslint --ignore-path .gitignore src app",
     "pack": "electron-builder --dir",
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
-    "test": "mocha"
+    "test": "jest --coverage",
+    "madge": "madge --warning --circular --extensions js ./"
+  },
+  "jest": {
+    "verbose": true
   },
   "build": {
     "appId": "com.electron.acrosman.Salesforce2Sql",
@@ -69,6 +73,7 @@
   },
   "dependencies": {
     "bootstrap": "^4.5.2",
+    "bootstrap-icons": "^1.5.0",
     "bootswatch": "^4.5.2",
     "fs-extra": "^8.1.0",
     "jquery": "^3.5.1",
@@ -81,9 +86,9 @@
     "popper.js": "^1.16.1"
   },
   "devDependencies": {
-    "chai": "^4.2.0",
+    "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
-    "electron": "^12.0.1",
+    "electron": "^16.0",
     "electron-builder": "^22.11.7",
     "electron-debug": "^2.2.0",
     "electron-reloader": "^1.1.0",
@@ -91,8 +96,10 @@
     "eslint-config-airbnb": "^17.1.1",
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jest": "^24.4.0",
     "eslint-plugin-jsx-a11y": "^6.3.1",
     "eslint-plugin-react": "^7.22.0",
-    "mocha": "^7.2.0"
+    "jest": "^27.0.6",
+    "madge": "^5.0.1"
   }
 }

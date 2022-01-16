@@ -23,6 +23,24 @@ const getCurrentPreferences = () => {
 
   const preferences = {
     theme: 'Cyborg',
+    indexes: {
+      picklists: true,
+      lookups: true,
+    },
+    picklists: {
+      type: 'enum',
+      unrestricted: true,
+      ensureBlanks: true,
+    },
+    lookups: {
+      type: 'char(18)',
+    },
+    defaults: {
+      attemptSFValues: false,
+      textEmptyString: false,
+      supressReadOnly: false,
+      supressAudit: false,
+    },
   };
 
   // Load any exisiting values.
@@ -81,8 +99,8 @@ const openPreferences = () => {
   const htmlPath = `file://${appPath}/app/preferences.html`;
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
-      width: 500,
-      height: 300,
+      width: 550,
+      height: 700,
       resizable: false,
       frame: false,
       webPreferences: {
