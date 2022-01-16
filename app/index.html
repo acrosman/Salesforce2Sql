@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; object-src 'none'">
     <link rel="stylesheet" id="css-theme-link" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
@@ -18,7 +19,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="consoleModalLabel">Message Console</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -37,7 +38,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -53,8 +54,8 @@
                         <p class="card-text">
                             Create a SQL-based database from a Salesforce Org's schema.
                         </p>
-                        <button type="button" class="btn btn-info btn-lg" data-toggle="modal"
-                            data-target="#loginModal">Create New Connection</button>
+                        <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#loginModal">Create New Connection</button>
                     </div>
                     <div class="card-footer" id="org-status">
                         <label for="active-org">Active Org for next action.</label>
@@ -69,7 +70,7 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="loginModalLabel">Enter Salesforce Login</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                                         <span aria-hidden="true">&times;</span>
                                     </button>
                                 </div>
@@ -124,9 +125,10 @@
                                     </form>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Close</button>
                                     <button type="button" class="btn btn-primary" id="login-trigger"
-                                        data-dismiss="modal">Connect</button>
+                                        data-bs-dismiss="modal">Connect</button>
                                 </div>
                             </div>
                         </div>
@@ -137,7 +139,7 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="dbModalLabel">Enter Database Information</h5>
-                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                                         <span aria-hidden="true">&times;</span>
                                     </button>
                                 </div>
@@ -180,8 +182,9 @@
                                             <small id="dbNameHelp" class="form-text">Database Name</small>
                                         </div>
                                         <div class="form-group">
-                                            <label for="db-overwrite">Drop and Recreate Tables</label>
-                                            <input type="checkbox" id="db-overwrite" class="form-control"
+                                            <label for="db-overwrite" class="form-check-label">Drop and Recreate
+                                                Tables</label>
+                                            <input type="checkbox" id="db-overwrite" class="form-check-input"
                                                 aria-describedby="dbOverwriteHelp">
                                             <small id="dbOverwriteHelp" class="form-text">Drop all selected tables and
                                                 recreate them. <em>Deletes any data in the selected tables.</em> If this
@@ -191,9 +194,10 @@
                                     </form>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Close</button>
                                     <button type="button" class="btn btn-primary" id="schema-trigger"
-                                        data-dismiss="modal">Connect & Build</button>
+                                        data-bs-dismiss="modal">Connect & Build</button>
                                 </div>
                             </div>
                         </div>
@@ -214,7 +218,7 @@
                     <h2>Last Response:</h2>
                     <pre id="raw-response" class="pre-scrollable"></pre>
                     <button type="button" id="show-console" class="btn btn-info" value="Show Log Console"
-                        data-toggle="modal" data-target="#consoleModal">Show Log Console</button>
+                        data-bs-toggle="modal" data-bs-target="#consoleModal">Show Log Console</button>
                     <div class="text-center alert" id="loader-indicator">
                         <div class="spinner-border" role="status">
                         </div>
@@ -230,26 +234,35 @@
         </div>
         <div class="row" id="controls-wrapper">
             <div class="col-md-12">
-                <form class="form-inline float-right">
-                    <input class="form-control mr-sm-2" id="find-in-page-text" type="search" placeholder="Search"
-                        aria-label="Find Text">
-                    <button class="btn btn-outline-success" id="btn-find-in-page" type="submit">Find</button>
-                    <input type="checkbox" id="chk-find-direction" class="form-control ml-sm-1 mr-sm-1"
-                        aria-describedby="find-direction-desc">
-                    <label id="find-direction-desc" class="form-text">Reverse Search</label>
+                <form class="float-lg-end row ms-auto">
+                    <div class="col mr-sm-2">
+                        <input class="form-control" id="find-in-page-text" type="search" placeholder="Search"
+                            aria-label="Find Text">
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-outline-success form-control" id="btn-find-in-page"
+                            type="submit">Find</button>
+                    </div>
+                    <div class="col form-check">
+                        <input class="form-check-input" type="checkbox" aria-describedby="find-direction-desc" value=""
+                            id="chk-find-direction">
+                        <label class="form-check-label" for="chk-find-direction">
+                            Reverse Search
+                        </label>
+                    </div>
                 </form>
                 <ul class="nav nav-tabs" id="nav-tab" role="navigation">
                     <li class="nav-item">
-                        <a class="nav-link active" id="nav-objects-tab" data-toggle="tab" href="#nav-objects" role="tab"
-                            aria-controls="nav-objects" aria-selected="true">Org Objects</a>
+                        <a class="nav-link active" id="nav-objects-tab" data-bs-toggle="tab" href="#nav-objects"
+                            role="tab" aria-controls="nav-objects" aria-selected="true">Org Objects</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="nav-schema-tab" data-toggle="tab" href="#nav-schema" role="tab"
+                        <a class="nav-link" id="nav-schema-tab" data-bs-toggle="tab" href="#nav-schema" role="tab"
                             aria-controls="nav-schema" aria-selected="false">Proposed
                             Schema</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="nav-sql-tab" data-toggle="tab" href="#nav-sql" role="tab"
+                        <a class="nav-link" id="nav-sql-tab" data-bs-toggle="tab" href="#nav-sql" role="tab"
                             aria-controls="nav-sql" aria-selected="false">Generated
                             Database</a>
                     </li>
@@ -317,7 +330,7 @@
                             <button type="button" id="btn-sql-prev" class="btn btn-prev" data-prev="#nav-schema-tab">
                                 &larr; Previous</button>
                             <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
-                                data-toggle="modal" data-target="#dbModal" disabled>
+                                data-bs-toggle="modal" data-bs-target="#dbModal" disabled>
                                 Create Tables
                             </button>
                             <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema"
@@ -333,7 +346,7 @@
     </div>
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>
-<script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.js"></script>
 <script src="render.js"></script>
 
