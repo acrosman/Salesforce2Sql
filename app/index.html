@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; object-src 'none'">
     <link rel="stylesheet" id="css-theme-link" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
@@ -210,13 +211,22 @@
         </div>
         <div class="row" id="controls-wrapper">
             <div class="col-md-12">
-                <form class="form-inline float-right">
-                    <input class="form-control mr-sm-2" id="find-in-page-text" type="search" placeholder="Search"
-                        aria-label="Find Text">
-                    <button class="btn btn-outline-success" id="btn-find-in-page" type="submit">Find</button>
-                    <input type="checkbox" id="chk-find-direction" class="form-control ml-sm-1 mr-sm-1"
-                        aria-describedby="find-direction-desc">
-                    <label id="find-direction-desc" class="form-text">Reverse Search</label>
+                <form class="float-lg-end row ms-auto">
+                    <div class="col mr-sm-2">
+                        <input class="form-control" id="find-in-page-text" type="search" placeholder="Search"
+                            aria-label="Find Text">
+                    </div>
+                    <div class="col">
+                        <button class="btn btn-outline-success form-control" id="btn-find-in-page"
+                            type="submit">Find</button>
+                    </div>
+                    <div class="col form-check">
+                        <input class="form-check-input" type="checkbox" aria-describedby="find-direction-desc" value=""
+                            id="chk-find-direction">
+                        <label class="form-check-label" for="chk-find-direction">
+                            Reverse Search
+                        </label>
+                    </div>
                 </form>
                 <ul class="nav nav-tabs" id="nav-tab" role="navigation">
                     <li class="nav-item">
