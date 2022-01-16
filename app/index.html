@@ -18,7 +18,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="consoleModalLabel">Message Console</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -37,7 +37,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -53,8 +53,8 @@
                         <p class="card-text">
                             Create a SQL-based database from a Salesforce Org's schema.
                         </p>
-                        <button type="button" class="btn btn-info btn-lg" data-toggle="modal"
-                            data-target="#loginModal">Create New Connection</button>
+                        <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#loginModal">Create New Connection</button>
                     </div>
                     <div class="card-footer" id="org-status">
                         <label for="active-org">Active Org for next action.</label>
@@ -219,16 +219,16 @@
                 </form>
                 <ul class="nav nav-tabs" id="nav-tab" role="navigation">
                     <li class="nav-item">
-                        <a class="nav-link active" id="nav-objects-tab" data-toggle="tab" href="#nav-objects" role="tab"
-                            aria-controls="nav-objects" aria-selected="true">Org Objects</a>
+                        <a class="nav-link active" id="nav-objects-tab" data-bs-toggle="tab" href="#nav-objects"
+                            role="tab" aria-controls="nav-objects" aria-selected="true">Org Objects</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="nav-schema-tab" data-toggle="tab" href="#nav-schema" role="tab"
+                        <a class="nav-link" id="nav-schema-tab" data-bs-toggle="tab" href="#nav-schema" role="tab"
                             aria-controls="nav-schema" aria-selected="false">Proposed
                             Schema</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="nav-sql-tab" data-toggle="tab" href="#nav-sql" role="tab"
+                        <a class="nav-link" id="nav-sql-tab" data-bs-toggle="tab" href="#nav-sql" role="tab"
                             aria-controls="nav-sql" aria-selected="false">Generated
                             Database</a>
                     </li>
@@ -296,7 +296,7 @@
                             <button type="button" id="btn-sql-prev" class="btn btn-prev" data-prev="#nav-schema-tab">
                                 &larr; Previous</button>
                             <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
-                                data-toggle="modal" data-target="#dbModal" disabled>
+                                data-bs-toggle="modal" data-bs-target="#dbModal" disabled>
                                 Create Tables
                             </button>
                             <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema"
@@ -312,7 +312,7 @@
     </div>
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>
-<script src="../node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.js"></script>
 <script src="render.js"></script>
 
