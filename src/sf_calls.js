@@ -169,7 +169,7 @@ const updateLoader = (message) => {
  * @returns the actual list of values.
  */
 const extractPicklistValues = (valueList) => {
-  const values = [];
+  let values = [];
   let val;
   for (let i = 0; i < valueList.length; i += 1) {
     val = valueList[i].value;
@@ -180,6 +180,7 @@ const extractPicklistValues = (valueList) => {
     }
     values.push(val);
   }
+  values = [...new Set(values)];
   return values;
 };
 
