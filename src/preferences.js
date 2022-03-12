@@ -101,7 +101,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 720,
+      height: 730,
       resizable: false,
       frame: false,
       webPreferences: {
