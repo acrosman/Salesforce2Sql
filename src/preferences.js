@@ -24,8 +24,9 @@ const getCurrentPreferences = () => {
   const preferences = {
     theme: 'Cyborg',
     indexes: {
-      picklists: true,
+      externalIds: true,
       lookups: true,
+      picklists: true,
     },
     picklists: {
       type: 'enum',
@@ -43,7 +44,7 @@ const getCurrentPreferences = () => {
     },
   };
 
-  // Load any exisiting values.
+  // Load any existing values.
   let settingsData = {};
   try {
     settingsData = JSON.parse(fs.readFileSync(settingsPath));
