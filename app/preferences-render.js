@@ -5,10 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add save listener for preference window.
   document.getElementById('btn-preferences-save').addEventListener('click', () => {
     window.api.send('preferences_save', {
-      theme: document.getElementById('settting-theme-select').value,
+      theme: document.getElementById('setting-theme-select').value,
       indexes: {
-        picklists: document.getElementById('index-picklsits').checked,
+        externalIds: document.getElementById('index-externalIds').checked,
         lookups: document.getElementById('index-lookups').checked,
+        picklists: document.getElementById('index-picklists').checked,
       },
       picklists: {
         type: document.querySelector('input[name="picklist-fieldType"]:checked').value,
