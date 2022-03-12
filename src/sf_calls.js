@@ -214,6 +214,7 @@ const buildFields = (fieldList, allText = false) => {
       fld.type = fieldList[f].type;
       fld.size = fieldList[f].length;
       fld.defaultValue = fieldList[f].defaultValue;
+      fld.externalId = fieldList[f].externalId;
 
       // Large text fields go to TEXT.
       if (fld.type === 'string' && (fld.size > 255 || allText)) {
@@ -300,7 +301,8 @@ const buildTable = (table) => {
     field = fields[fieldNames[i]];
     // Determine if the field should be indexed.
     addIndex = (preferences.indexes.lookups && (field.type === 'reference' || field.type === 'id'))
-      || (preferences.indexes.picklists && field.type === 'picklist');
+      || (preferences.indexes.picklists && field.type === 'picklist')
+      || (preferences.indexes.externalIds && field.externalId);
 
     // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
