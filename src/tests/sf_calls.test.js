@@ -68,7 +68,7 @@ const samplePrefs = {
   defaults: {
     attemptSFValues: false,
     textEmptyString: false,
-    supressReadOnly: false,
+    suppressReadOnly: false,
   },
 };
 

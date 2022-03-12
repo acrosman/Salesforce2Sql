@@ -38,8 +38,8 @@ const getCurrentPreferences = () => {
     defaults: {
       attemptSFValues: false,
       textEmptyString: false,
-      supressReadOnly: false,
-      supressAudit: false,
+      suppressReadOnly: false,
+      suppressAudit: false,
     },
   };
 

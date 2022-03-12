@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
       defaults: {
         attemptSFValues: document.getElementById('default-value').checked,
         textEmptyString: document.getElementById('default-blank').checked,
-        supressReadOnly: document.getElementById('hide-readonly-fields').checked,
-        supressAudit: document.getElementById('hide-audit-fields').checked,
+        suppressReadOnly: document.getElementById('hide-readonly-fields').checked,
+        suppressAudit: document.getElementById('hide-audit-fields').checked,
       },
     });
     window.api.send('preferences_close');
@@ -61,6 +61,6 @@ window.api.receive('preferences_data', (data) => {
   document.querySelector(`input[name="lookup-fieldType"][value="${data.lookups.type}"]`).checked = true;
   document.getElementById('default-value').checked = data.defaults.attemptSFValues;
   document.getElementById('default-blank').checked = data.defaults.textEmptyString;
-  document.getElementById('hide-readonly-fields').checked = data.defaults.supressReadOnly;
-  document.getElementById('hide-audit-fields').checked = data.defaults.supressAudit;
+  document.getElementById('hide-readonly-fields').checked = data.defaults.suppressReadOnly;
+  document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
 });

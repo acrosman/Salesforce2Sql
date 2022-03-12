@@ -203,8 +203,8 @@ const buildFields = (fieldList, allText = false) => {
     // Add field to schema if it's an Id, and allowed by preferences.
     if (fieldList[f].type === 'id'
       || (
-        !(preferences.defaults.supressReadOnly && isReadOnly)
-        && !(preferences.defaults.supressAudit && isAudit)
+        !(preferences.defaults.suppressReadOnly && isReadOnly)
+        && !(preferences.defaults.suppressAudit && isAudit)
       )
     ) {
       fld = {};
