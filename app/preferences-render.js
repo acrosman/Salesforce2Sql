@@ -52,9 +52,10 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('css-theme-link').href = cssPath;
 
   // Set Values:
-  document.getElementById('settting-theme-select').value = data.theme;
-  document.getElementById('index-picklsits').checked = data.indexes.picklists;
+  document.getElementById('setting-theme-select').value = data.theme;
+  document.getElementById('index-picklists').checked = data.indexes.picklists;
   document.getElementById('index-lookups').checked = data.indexes.lookups;
+  document.getElementById('index-externalIds').checked = data.indexes.externalIds;
   document.querySelector(`input[name="picklist-fieldType"][value="${data.picklists.type}"]`).checked = true;
   document.getElementById('picklist-restricted').checked = data.picklists.unrestricted;
   document.getElementById('picklist-blank').checked = data.picklists.ensureBlanks;
