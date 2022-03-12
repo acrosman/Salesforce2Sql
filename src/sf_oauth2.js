@@ -45,6 +45,10 @@ function createAuthWindow() {
     authWindow = null;
   });
 
+  authWindow.webContents.on('did-fail-load', () => {
+    console.log('did-fail-load');
+  });
+
   return authWindow;
 }
 
@@ -81,7 +85,7 @@ function attemptLogin(authDomain) {
   // 'will-navigate' is an event emitted when the window.location changes
   // newUrl should contain the tokens you need
   authWindow.webContents.on('will-navigate', (event, newUrl) => {
-    console.log(newUrl);
+    console.log(`Redirected to: ${newUrl}`);
     // More complex code to handle tokens goes here.
   });
 
@@ -91,9 +95,7 @@ function attemptLogin(authDomain) {
 
   // Load the authUrl from Salesforce.
   const authUrl = jsfOauth.getAuthorizationUrl({ scope: 'api id web refresh_token' });
-  authWindow.loadURL(authUrl).catch((err) => {
-    console.log(err);
-  });
+  authWindow.loadURL(authUrl);
 }
 
 exports.attemptLogin = attemptLogin;
