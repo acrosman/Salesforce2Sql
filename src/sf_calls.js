@@ -175,7 +175,7 @@ const extractPicklistValues = (valueList) => {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      // When Node 14 suppoer drops this can be switched to replaceAll().
+      // When Node 14 supper drops this can be switched to replaceAll().
       val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
@@ -253,7 +253,7 @@ const loadSchemaFromFile = () => {
     title: 'Load Schema',
     message: 'Load schema from JSON previously saved by Salesforce2Sql',
     filters: [
-      { name: JSON, extenions: ['json'] },
+      { name: JSON, extensions: ['json'] },
     ],
     properties: ['openFile'],
   };
@@ -379,7 +379,7 @@ const buildTable = (table) => {
 
     if (addIndex) {
       // To avoid prefixing with table name (which can easily violate the length
-      // limit from MySQL and Postgress), use the field name as the column name
+      // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
       // _really_ long package namespace is in play.
       column.index(field.name);
@@ -392,7 +392,7 @@ const buildTable = (table) => {
  * @param {Object} sObjectList The list of objects for the org.
  * @returns {String} org type. One of npsp, eda, other.
  */
-const snifOrgType = (sObjectList) => {
+const sniffOrgType = (sObjectList) => {
   const namespaces = {
     npsp: 'npsp',
     npe: 'npsp',
@@ -411,13 +411,13 @@ const snifOrgType = (sObjectList) => {
 };
 
 /**
- * Review previously loaded object list and send to the Render thread a recommented
+ * Review previously loaded object list and send to the Render thread a recommended
  * list of objects to select.
  * @param {Array} objectResult The list of objects from a global describe of the org.
  * @returns an array of object name to default select.
  */
 const recommendObjects = (objectResult) => {
-  const orgType = snifOrgType(objectResult);
+  const orgType = sniffOrgType(objectResult);
   const suggestedStandards = standardObjectsByNamespace[orgType];
   const recommended = [];
   objectResult.forEach((obj) => {
