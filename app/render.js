@@ -46,11 +46,18 @@ $.when($.ready).then(() => {
     }
   });
 
-  // Setup Object Select All
-  $('#btn-select-all-objects').on('click', (event) => {
-    event.preventDefault();
-    $('#results-table input[type=checkbox]').prop('checked', true);
+  // Setup login radio behaviors.
+  $('#login-password-wrapper').hide();
+  $('input[type=radio][name=sfconnect-radio-selectors]').on('change', (event) => {
+    if ($(event.target, ':checked').val() === 'oauth') {
+      $('#login-password-wrapper').hide();
+    } else {
+      $('#login-password-wrapper').show();
+    }
   });
+
+  // Get the current application preferences.
+  window.api.send('get_preferences');
 
   // Setup Object Select All
   $('#btn-deselect-all-objects').on('click', (event) => {
@@ -545,8 +552,10 @@ const displayDraftSchema = (schema) => {
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
+  const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
   showLoader('Attemping Login');
   window.api.send('sf_login', {
+    mode: modeRadio.value,
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,
