@@ -54,8 +54,9 @@ test('Check SetWindow', () => {
 const samplePrefs = {
   theme: 'Cyborg',
   indexes: {
-    picklists: true,
+    externalIds: true,
     lookups: true,
+    picklists: true,
   },
   picklists: {
     type: 'enum',
