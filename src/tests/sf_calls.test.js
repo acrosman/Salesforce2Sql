@@ -119,13 +119,28 @@ test('Test Picklist Value Extraction', () => {
       validFor: null,
       value: 'Test\'s',
     },
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Duplicate',
+      validFor: null,
+      value: 'Duplicate',
+    },
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Duplicate',
+      validFor: null,
+      value: 'Duplicate',
+    },
   ];
 
   const extractPicklistValues = sfcalls.__get__('extractPicklistValues');
   const testResult = extractPicklistValues(sampleValues);
-  expect(testResult).toHaveLength(2);
+  expect(testResult).toHaveLength(3);
   expect(testResult[0]).toBe('Prospect');
   expect(testResult[1]).toBe('Test\\\'s');
+  expect(testResult[2]).toBe('Duplicate');
 });
 
 test('Test schema construction for a field', (done) => {
