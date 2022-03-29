@@ -80,7 +80,7 @@
     "jquery.json-viewer": "^1.4.0",
     "jsforce": "^1.10.1",
     "knex": "^0.95.2",
-    "minimist": "^1.2.5",
+    "minimist": "^1.2.6",
     "mysql": "^2.18.1",
     "pg": "^8.5.1"
   },
