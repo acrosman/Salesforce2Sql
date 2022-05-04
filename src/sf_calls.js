@@ -360,6 +360,8 @@ const buildTable = (table) => {
         break;
       case 'reference':
         column = table.string(field.name, 18);
+        // Only impacts MySQL makes the collation case sensitive.
+        column.collate('utf8mb4_bin');
         break;
       case 'text':
         column = table.text(field.name);
