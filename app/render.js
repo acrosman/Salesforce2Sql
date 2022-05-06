@@ -165,7 +165,7 @@ function getTableColumn(ele, columnIndex) {
 }
 
 /**
- * Sort the Object table by column. Uses a decorate, sort, undecorate approachj.
+ * Sort the Object table by column. Uses a decorate, sort, un-decorate approach.
  * @param {String} sortProperty The name of the property to sort the data by.
  * @param {String} direction The sorting direction: ASC or DESC.
  */
@@ -180,7 +180,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   // Extract the table's Select cells.
   const column = getTableColumn(tableBody, 0);
 
-  // Build a list to sort keyed by the propery in question.
+  // Build a list to sort keyed by the property in question.
   column.forEach((cell) => {
     const rowData = JSON.parse(cell.dataset.rowData);
     if (cell.firstChild.checked) {
@@ -238,7 +238,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
     sortData.reverse();
   }
 
-  // Undecorate the list for rendering.
+  // Un-decorate the list for rendering.
   sortData.forEach((row) => {
     renderData.push(row[1]);
   });
@@ -312,7 +312,7 @@ const refreshObjectDisplay = (data) => {
   showLoader('Refreshing database schema display');
   $('#results-object-viewer-wrapper .results-summary h3').text(data.message);
 
-  // When this is displaying a describe add a little helpful sumamry.
+  // When this is displaying a describe add a little helpful summary.
   if (Object.prototype.hasOwnProperty.call(data, 'response.fields')) {
     $('#results-object-viewer-wrapper .results-summary p').text(
       `Found ${data.response.fields.length} fields and ${data.response.recordTypeInfos.length} record types.`,
@@ -407,7 +407,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     }
   }
 
-  // Since we go on to use nextsort in the loop below the reference
+  // Since we go on to use nextSort in the loop below the reference
   // that gets passed here would be bad, so switch back to actual string.
   if (nextSort === 'DESC') {
     th.addEventListener('click', () => {
@@ -427,11 +427,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
       th.dataset.sortDirection = sortedDirection;
       if (sortedDirection === 'ASC') {
         th.classList.add('bi', 'bi-arrow-up');
-        th.ariaLabel = `${displayColumns[i]} sorted accending.`;
+        th.ariaLabel = `${displayColumns[i]} sorted ascending.`;
         nextSort = 'DESC';
       } else {
         th.classList.add('bi', 'bi-arrow-down');
-        th.ariaLabel = `${displayColumns[i]} sorted deccending.`;
+        th.ariaLabel = `${displayColumns[i]} sorted descending.`;
       }
     }
 
@@ -545,7 +545,7 @@ const displayDraftSchema = (schema) => {
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
-  showLoader('Attemping Login');
+  showLoader('Attempting Login');
   window.api.send('sf_login', {
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
@@ -561,10 +561,10 @@ document.getElementById('logout-trigger').addEventListener('click', () => {
     org: value,
   });
   // Remove from interface:
-  const selectobject = document.getElementById('active-org');
-  for (let i = 0; i < selectobject.length; i += 1) {
-    if (selectobject.options[i].value === value) {
-      selectobject.remove(i);
+  const selectObject = document.getElementById('active-org');
+  for (let i = 0; i < selectObject.length; i += 1) {
+    if (selectObject.options[i].value === value) {
+      selectObject.remove(i);
     }
   }
   document.getElementById('org-status').style.display = 'none';
@@ -687,7 +687,7 @@ window.api.receive('response_list_objects', (data) => {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
     displayObjectList(data.response.sobjects, data.response.recommended);
   } else {
-    logMessage('Salesforce', 'Error', 'Error while retreiving object listing.', data);
+    logMessage('Salesforce', 'Error', 'Error while retrieving object listing.', data);
   }
 });
 
@@ -705,9 +705,9 @@ window.api.receive('current_preferences', (data) => {
 
 // Start the find process by activating the controls and scrolling there.
 window.api.receive('start_find', () => {
-  const findbox = document.getElementById('find-in-page-text');
-  findbox.scrollIntoView();
-  findbox.focus();
+  const findBox = document.getElementById('find-in-page-text');
+  findBox.scrollIntoView();
+  findBox.focus();
 });
 
 // Update the current loader message.
