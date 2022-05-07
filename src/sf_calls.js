@@ -175,7 +175,7 @@ const extractPicklistValues = (valueList) => {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      // When Node 14 supper drops this can be switched to replaceAll().
+      // When Node 14 support is dropped this can be switched to replaceAll().
       val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
