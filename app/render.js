@@ -649,12 +649,12 @@ document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
 window.api.receive('response_login', (data) => {
   hideLoader();
   if (data.status) {
-    handleLogin(data);
     logMessage('Salesforce', 'Success', data.message, data.response);
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
     displayRawResponse(data);
   }
+  handleLogin(data, data.status);
 });
 
 // Logout Response.
