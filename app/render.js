@@ -21,7 +21,7 @@ $.when($.ready).then(() => {
   $('button.btn-prev').on('click', (event) => {
     event.preventDefault();
     const tab = $(event.target).data('prev');
-    $(tab).trigger('click');
+    $(tab).tab('show');
   });
 
   // Setup Find button.
