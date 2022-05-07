@@ -59,9 +59,6 @@ $.when($.ready).then(() => {
 
   // Hide loader.
   $('#loader-indicator').hide();
-
-  // Add Welcome message
-  updateMessage('Welcome to Sf2Sql');
 });
 
 // ============= Helpers ==============
@@ -309,9 +306,9 @@ const hideLoader = () => {
 
 const updateMessage = (message) => {
   $('#message-wrapper').show();
-  messageArea = document.getElementById('results-message-only');
+  const messageArea = document.getElementById('results-message-only');
   messageArea.innerText = message;
-}
+};
 
 /**
  * Displays an object in the results-object-viewer section of the interface using JSONViewer.
@@ -537,7 +534,6 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
   // Interface update complete, hide the loader.
   hideLoader();
-
 };
 
 /**

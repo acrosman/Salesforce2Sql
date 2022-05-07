@@ -506,9 +506,7 @@ const createKnexConnection = (settings) => {
  * @returns boolean
  * @throws Exception if connection fails.
  */
-const validateConnection = (knexDb) => {
-  return knexDb.raw("SELECT 1 AS isUp");
-}
+const validateConnection = (knexDb) => knexDb.raw('SELECT 1 AS isUp');
 
 /**
  * Save the current database schema to an SQL file.
@@ -614,8 +612,7 @@ const buildDatabase = (settings) => {
     });
 
   // If we have a valid connection, let's give this a try
-  validateConnection(db).then((result) => {
-
+  validateConnection(db).then(() => {
     updateLoader(`Creating ${tables.length} tables`);
 
     const dropCallback = (tableName, err) => {
@@ -641,9 +638,8 @@ const buildDatabase = (settings) => {
       status: false,
       message: `Database creation failed: ${err}`,
       responses: {},
-    })
+    });
   });
-
 };
 
 /**
