@@ -501,6 +501,16 @@ const createKnexConnection = (settings) => {
 };
 
 /**
+ * Tests if we have a valid connection to the database.
+ * @param {*} knexDb connection to test.
+ * @returns boolean
+ * @throws Exception if connection fails.
+ */
+const validateConnection = (knexDb) => {
+  return knexDb.raw("SELECT 1 AS isUp");
+}
+
+/**
  * Save the current database schema to an SQL file.
  * @param {*} settings Current database connection settings.
  */
@@ -603,25 +613,37 @@ const buildDatabase = (settings) => {
       return err;
     });
 
-  updateLoader(`Creating ${tables.length} tables`);
+  // If we have a valid connection, let's give this a try
+  validateConnection(db).then((result) => {
 
-  const dropCallback = (tableName, err) => {
-    if (err) {
-      logMessage('Database', 'Error', `Error dropping existing table ${err}`);
-    } else {
-      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
-      createDbTable(db.schema, tableName);
-    }
-  };
+    updateLoader(`Creating ${tables.length} tables`);
 
-  for (let i = 0; i < tables.length; i += 1) {
-    if (settings.overwrite) {
-      db.schema.dropTableIfExists(tables[i])
-        .asCallback((err) => { dropCallback(tables[i], err); });
-    } else {
-      createDbTable(db.schema, tables[i]);
+    const dropCallback = (tableName, err) => {
+      if (err) {
+        logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+      } else {
+        updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
+        createDbTable(db.schema, tableName);
+      }
+    };
+
+    for (let i = 0; i < tables.length; i += 1) {
+      if (settings.overwrite) {
+        db.schema.dropTableIfExists(tables[i])
+          .asCallback((err) => { dropCallback(tables[i], err); });
+      } else {
+        createDbTable(db.schema, tables[i]);
+      }
     }
-  }
+  }).catch((err) => {
+    logMessage('Database', 'Error', `Error connecting to database: ${err}`);
+    mainWindow.webContents.send('response_db_generated', {
+      status: false,
+      message: `Database creation failed: ${err}`,
+      responses: {},
+    })
+  });
+
 };
 
 /**
