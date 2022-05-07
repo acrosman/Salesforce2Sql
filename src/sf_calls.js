@@ -477,6 +477,10 @@ const createKnexConnection = (settings) => {
       database: settings.dbname,
       port: settings.port,
     },
+    pool: {
+      min: 0,
+      max: settings.pool,
+    },
     log: {
       warn(message) {
         logMessage('Knex', 'Warn', message);
@@ -537,8 +541,13 @@ const saveSchemaToSql = (settings) => {
  * @param {*} settings Database connection settings.
  */
 const buildDatabase = (settings) => {
-  const db = createKnexConnection(settings);
+  // Get the collection of tables we're about to create.
   const tables = Object.getOwnPropertyNames(proposedSchema);
+
+  // Set the connection pool size to be as large as number of tables.
+  settings.pool = tables.length;
+  // Setup Database Connection
+  const db = createKnexConnection(settings);
 
   // Helper to keep one line of logic for creating the tables.
   const tableStatuses = {};
