@@ -608,6 +608,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
   window.api.send('knex_schema', {
     type: dbType,
     host: document.getElementById('db-host').value,
+    port: document.getElementById('db-port').value,
     username: document.getElementById('db-username').value,
     password: document.getElementById('db-password').value,
     dbname: document.getElementById('db-name').value,

@@ -475,6 +475,7 @@ const createKnexConnection = (settings) => {
       user: settings.username,
       password: settings.password,
       database: settings.dbname,
+      port: settings.port,
     },
     log: {
       warn(message) {
