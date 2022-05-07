@@ -175,7 +175,7 @@ const extractPicklistValues = (valueList) => {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      // When Node 14 supper drops this can be switched to replaceAll().
+      // When Node 14 support is dropped this can be switched to replaceAll().
       val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
@@ -501,6 +501,14 @@ const createKnexConnection = (settings) => {
 };
 
 /**
+ * Tests if we have a valid connection to the database.
+ * @param {*} knexDb connection to test.
+ * @returns boolean
+ * @throws Exception if connection fails.
+ */
+const validateConnection = (knexDb) => knexDb.raw('SELECT 1 AS isUp');
+
+/**
  * Save the current database schema to an SQL file.
  * @param {*} settings Current database connection settings.
  */
@@ -603,25 +611,35 @@ const buildDatabase = (settings) => {
       return err;
     });
 
-  updateLoader(`Creating ${tables.length} tables`);
+  // If we have a valid connection, let's give this a try
+  validateConnection(db).then(() => {
+    updateLoader(`Creating ${tables.length} tables`);
 
-  const dropCallback = (tableName, err) => {
-    if (err) {
-      logMessage('Database', 'Error', `Error dropping existing table ${err}`);
-    } else {
-      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
-      createDbTable(db.schema, tableName);
-    }
-  };
+    const dropCallback = (tableName, err) => {
+      if (err) {
+        logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+      } else {
+        updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
+        createDbTable(db.schema, tableName);
+      }
+    };
 
-  for (let i = 0; i < tables.length; i += 1) {
-    if (settings.overwrite) {
-      db.schema.dropTableIfExists(tables[i])
-        .asCallback((err) => { dropCallback(tables[i], err); });
-    } else {
-      createDbTable(db.schema, tables[i]);
+    for (let i = 0; i < tables.length; i += 1) {
+      if (settings.overwrite) {
+        db.schema.dropTableIfExists(tables[i])
+          .asCallback((err) => { dropCallback(tables[i], err); });
+      } else {
+        createDbTable(db.schema, tables[i]);
+      }
     }
-  }
+  }).catch((err) => {
+    logMessage('Database', 'Error', `Error connecting to database: ${err}`);
+    mainWindow.webContents.send('response_db_generated', {
+      status: false,
+      message: `Database creation failed: ${err}`,
+      responses: {},
+    });
+  });
 };
 
 /**

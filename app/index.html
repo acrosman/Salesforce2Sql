@@ -164,8 +164,9 @@
                                         <div class="form-group">
                                             <label for="db-name">Database Name</label>
                                             <input type="text" id="db-name" class="form-control"
-                                                aria-describedby="dbNameHelp" placeholder="Enter Database Name">
-                                            <small id="dbNameHelp" class="form-text">Database Name</small>
+                                                aria-describedby="dbNameHelp" placeholder="Enter Database Name"
+                                                required="required">
+                                            <small id="dbNameHelp" class="form-text">Database Name is required.</small>
                                         </div>
                                         <div class="form-group">
                                             <label for="db-overwrite" class="form-check-label">Drop and Recreate
@@ -210,12 +211,11 @@
                         </div>
                         <span class="loader-message">Idle</span>
                     </div>
+                    <div class="text-center" id="message-wrapper">
+                        <div id="results-message-only" class="results-message alert alert-primary" role="alert">Welcome
+                            to Sf2Sql</div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="row" id="message-wrapper">
-            <div class="col-md-12" id="results-message-wrapper">
-                <div id="results-message-only" class="results-message alert alert-primary" role="alert"></div>
             </div>
         </div>
         <div class="row" id="controls-wrapper">
