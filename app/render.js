@@ -7,7 +7,6 @@ $.when($.ready).then(() => {
   // Hide the places for handling responses until we have some.
   $('#org-status').hide();
   $('#results-table-wrapper').hide();
-  $('#results-message-wrapper').hide();
   $('#results-object-viewer-wrapper').hide();
 
   // Setup next buttons.
@@ -21,7 +20,7 @@ $.when($.ready).then(() => {
   $('button.btn-prev').on('click', (event) => {
     event.preventDefault();
     const tab = $(event.target).data('prev');
-    $(tab).trigger('click');
+    $(tab).tab('show');
   });
 
   // Setup Find button.
@@ -138,7 +137,7 @@ function logMessage(context, importance, message, data) {
 
   if (data) {
     displayRawResponse(data);
-    $('#consoleMessageTable :last-child td.console-raw-data').jsonViewer(data, {
+    $(mesData).jsonViewer(data, {
       collapsed: true,
       rootCollapsable: false,
       withQuotes: true,
@@ -165,7 +164,7 @@ function getTableColumn(ele, columnIndex) {
 }
 
 /**
- * Sort the Object table by column. Uses a decorate, sort, undecorate approachj.
+ * Sort the Object table by column. Uses a decorate, sort, un-decorate approach.
  * @param {String} sortProperty The name of the property to sort the data by.
  * @param {String} direction The sorting direction: ASC or DESC.
  */
@@ -180,7 +179,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   // Extract the table's Select cells.
   const column = getTableColumn(tableBody, 0);
 
-  // Build a list to sort keyed by the propery in question.
+  // Build a list to sort keyed by the property in question.
   column.forEach((cell) => {
     const rowData = JSON.parse(cell.dataset.rowData);
     if (cell.firstChild.checked) {
@@ -238,7 +237,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
     sortData.reverse();
   }
 
-  // Undecorate the list for rendering.
+  // Un-decorate the list for rendering.
   sortData.forEach((row) => {
     renderData.push(row[1]);
   });
@@ -297,10 +296,18 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
 const showLoader = (message) => {
   $('#loader-indicator .loader-message').text(message);
   $('#loader-indicator').show();
+  $('#message-wrapper').hide();
 };
 
 const hideLoader = () => {
   $('#loader-indicator').hide();
+  $('#message-wrapper').show();
+};
+
+const updateMessage = (message) => {
+  $('#message-wrapper').show();
+  const messageArea = document.getElementById('results-message-only');
+  messageArea.innerText = message;
 };
 
 /**
@@ -312,7 +319,7 @@ const refreshObjectDisplay = (data) => {
   showLoader('Refreshing database schema display');
   $('#results-object-viewer-wrapper .results-summary h3').text(data.message);
 
-  // When this is displaying a describe add a little helpful sumamry.
+  // When this is displaying a describe add a little helpful summary.
   if (Object.prototype.hasOwnProperty.call(data, 'response.fields')) {
     $('#results-object-viewer-wrapper .results-summary p').text(
       `Found ${data.response.fields.length} fields and ${data.response.recordTypeInfos.length} record types.`,
@@ -368,12 +375,12 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     'name',
   ];
 
+  updateMessage('Object List Retrieved');
+
   // Display area.
   // @todo: remove jquery use.
-  hideLoader();
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
-  $('#results-message-wrapper').hide();
   $('#results-summary-count').text('Loading objects...');
 
   // Get the table.
@@ -407,7 +414,7 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     }
   }
 
-  // Since we go on to use nextsort in the loop below the reference
+  // Since we go on to use nextSort in the loop below the reference
   // that gets passed here would be bad, so switch back to actual string.
   if (nextSort === 'DESC') {
     th.addEventListener('click', () => {
@@ -427,11 +434,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
       th.dataset.sortDirection = sortedDirection;
       if (sortedDirection === 'ASC') {
         th.classList.add('bi', 'bi-arrow-up');
-        th.ariaLabel = `${displayColumns[i]} sorted accending.`;
+        th.ariaLabel = `${displayColumns[i]} sorted ascending.`;
         nextSort = 'DESC';
       } else {
         th.classList.add('bi', 'bi-arrow-down');
-        th.ariaLabel = `${displayColumns[i]} sorted deccending.`;
+        th.ariaLabel = `${displayColumns[i]} sorted descending.`;
       }
     }
 
@@ -524,6 +531,9 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
   // Enable the button to fetch object list.
   $('#btn-fetch-details').prop('disabled', false);
+
+  // Interface update complete, hide the loader.
+  hideLoader();
 };
 
 /**
@@ -532,20 +542,55 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
  */
 const displayDraftSchema = (schema) => {
   showLoader('All objects loaded, refreshing display');
+
   refreshObjectDisplay({
     message: 'Proposed Database Schema',
     response: schema,
   });
+
+  updateMessage('Proposed schema ready for review.');
+
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
   $('#nav-schema-tab').tab('show');
   hideLoader();
 };
 
+/**
+ * Handles follow up when database creation process completes.
+ * @param {*} data The result details.
+ */
+const handleDatabaseFinish = (data) => {
+  // Check each table to see if it succeeded
+  const hasResponses = Object.prototype.hasOwnProperty.call(data, 'response');
+  let fullSuccess = data.status;
+  let fullFailure = !hasResponses;
+  const tables = Object.getOwnPropertyNames(data.responses);
+  tables.forEach((table) => {
+    fullSuccess = data.responses[table] && fullSuccess;
+    fullFailure = !data.responses[table] || fullFailure;
+  });
+
+  logMessage('Database', 'Info', 'Database generation complete.', data);
+
+  if (fullSuccess) {
+    updateMessage('Database creation complete, all tables created');
+  } else if (fullFailure) {
+    updateMessage('Error creating database tables, all tables failed');
+  } else {
+    updateMessage('Database creation process complete, some tables had error. Review logs for more details');
+  }
+
+  // @todo remove jquery.
+  $('#btn-save-sql-schema').prop('disabled', false);
+
+  hideLoader();
+};
+
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
-  showLoader('Attemping Login');
+  showLoader('Attempting Login');
   window.api.send('sf_login', {
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
@@ -561,10 +606,10 @@ document.getElementById('logout-trigger').addEventListener('click', () => {
     org: value,
   });
   // Remove from interface:
-  const selectobject = document.getElementById('active-org');
-  for (let i = 0; i < selectobject.length; i += 1) {
-    if (selectobject.options[i].value === value) {
-      selectobject.remove(i);
+  const selectObject = document.getElementById('active-org');
+  for (let i = 0; i < selectObject.length; i += 1) {
+    if (selectObject.options[i].value === value) {
+      selectObject.remove(i);
     }
   }
   document.getElementById('org-status').style.display = 'none';
@@ -603,16 +648,21 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
     }
   }
 
-  showLoader('Creating Database Tables');
+  if (document.getElementById('db-name').value === '') {
+    updateMessage('Database name is required to attempt creation.');
+  } else {
+    showLoader('Creating Database Tables');
 
-  window.api.send('knex_schema', {
-    type: dbType,
-    host: document.getElementById('db-host').value,
-    username: document.getElementById('db-username').value,
-    password: document.getElementById('db-password').value,
-    dbname: document.getElementById('db-name').value,
-    overwrite: document.getElementById('db-overwrite').checked,
-  });
+    window.api.send('knex_schema', {
+      type: dbType,
+      host: document.getElementById('db-host').value,
+      port: document.getElementById('db-port').value,
+      username: document.getElementById('db-username').value,
+      password: document.getElementById('db-password').value,
+      dbname: document.getElementById('db-name').value,
+      overwrite: document.getElementById('db-overwrite').checked,
+    });
+  }
 });
 
 // Save the database create statement to a file.
@@ -648,29 +698,31 @@ document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
 window.api.receive('response_login', (data) => {
   hideLoader();
   if (data.status) {
-    handleLogin(data);
     logMessage('Salesforce', 'Success', data.message, data.response);
+    updateMessage('Login Successful');
+    handleLogin(data, data.status);
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
     displayRawResponse(data);
+    updateMessage('Login Error');
   }
 });
 
 // Logout Response.
 window.api.receive('response_logout', (data) => {
   logMessage('Salesforce', 'Info', 'Log out complete', data);
+  updateMessage('Salesforce connection removed.');
 });
 
 // Generic Response.
-window.api.receive('response_generic', (data) => {
-  logMessage('Generic Handler', 'Info', 'Generic Response Handler Triggered.', data);
+window.api.receive('response_error', (data) => {
+  hideLoader();
+  logMessage(data.message, 'Error', data.response, data);
 });
 
 // Response after building database
 window.api.receive('response_db_generated', (data) => {
-  hideLoader();
-  logMessage('Database', 'Info', 'Database generation complete.', data);
-  $('#btn-save-sql-schema').prop('disabled', false);
+  handleDatabaseFinish(data);
 });
 
 window.api.receive('response_schema', (data) => {
@@ -686,7 +738,7 @@ window.api.receive('response_list_objects', (data) => {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
     displayObjectList(data.response.sobjects, data.response.recommended);
   } else {
-    logMessage('Salesforce', 'Error', 'Error while retreiving object listing.', data);
+    logMessage('Salesforce', 'Error', 'Error while retrieving object listing.', data);
   }
 });
 
@@ -704,9 +756,9 @@ window.api.receive('current_preferences', (data) => {
 
 // Start the find process by activating the controls and scrolling there.
 window.api.receive('start_find', () => {
-  const findbox = document.getElementById('find-in-page-text');
-  findbox.scrollIntoView();
-  findbox.focus();
+  const findBox = document.getElementById('find-in-page-text');
+  findBox.scrollIntoView();
+  findBox.focus();
 });
 
 // Update the current loader message.

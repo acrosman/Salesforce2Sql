@@ -24,8 +24,9 @@ const getCurrentPreferences = () => {
   const preferences = {
     theme: 'Cyborg',
     indexes: {
-      picklists: true,
+      externalIds: true,
       lookups: true,
+      picklists: true,
     },
     picklists: {
       type: 'enum',
@@ -38,11 +39,12 @@ const getCurrentPreferences = () => {
     defaults: {
       attemptSFValues: false,
       textEmptyString: false,
-      supressReadOnly: false,
+      suppressReadOnly: false,
+      suppressAudit: false,
     },
   };
 
-  // Load any exisiting values.
+  // Load any existing values.
   let settingsData = {};
   try {
     settingsData = JSON.parse(fs.readFileSync(settingsPath));
@@ -99,7 +101,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 700,
+      height: 730,
       resizable: false,
       frame: false,
       webPreferences: {

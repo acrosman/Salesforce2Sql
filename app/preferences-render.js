@@ -5,10 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add save listener for preference window.
   document.getElementById('btn-preferences-save').addEventListener('click', () => {
     window.api.send('preferences_save', {
-      theme: document.getElementById('settting-theme-select').value,
+      theme: document.getElementById('setting-theme-select').value,
       indexes: {
-        picklists: document.getElementById('index-picklsits').checked,
+        externalIds: document.getElementById('index-externalIds').checked,
         lookups: document.getElementById('index-lookups').checked,
+        picklists: document.getElementById('index-picklists').checked,
       },
       picklists: {
         type: document.querySelector('input[name="picklist-fieldType"]:checked').value,
@@ -21,7 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
       defaults: {
         attemptSFValues: document.getElementById('default-value').checked,
         textEmptyString: document.getElementById('default-blank').checked,
-        supressReadOnly: document.getElementById('hide-readonly-fields').checked,
+        suppressReadOnly: document.getElementById('hide-readonly-fields').checked,
+        suppressAudit: document.getElementById('hide-audit-fields').checked,
       },
     });
     window.api.send('preferences_close');
@@ -51,14 +53,16 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('css-theme-link').href = cssPath;
 
   // Set Values:
-  document.getElementById('settting-theme-select').value = data.theme;
-  document.getElementById('index-picklsits').checked = data.indexes.picklists;
+  document.getElementById('setting-theme-select').value = data.theme;
+  document.getElementById('index-picklists').checked = data.indexes.picklists;
   document.getElementById('index-lookups').checked = data.indexes.lookups;
+  document.getElementById('index-externalIds').checked = data.indexes.externalIds;
   document.querySelector(`input[name="picklist-fieldType"][value="${data.picklists.type}"]`).checked = true;
   document.getElementById('picklist-restricted').checked = data.picklists.unrestricted;
   document.getElementById('picklist-blank').checked = data.picklists.ensureBlanks;
   document.querySelector(`input[name="lookup-fieldType"][value="${data.lookups.type}"]`).checked = true;
   document.getElementById('default-value').checked = data.defaults.attemptSFValues;
   document.getElementById('default-blank').checked = data.defaults.textEmptyString;
-  document.getElementById('hide-readonly-fields').checked = data.defaults.supressReadOnly;
+  document.getElementById('hide-readonly-fields').checked = data.defaults.suppressReadOnly;
+  document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
 });

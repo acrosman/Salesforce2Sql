@@ -14,7 +14,7 @@ let preferences = null;
 
 // Baseline for Type conversions between environments.
 const typeResolverBases = {
-  base64: 'binary',
+  base64: 'text',
   boolean: 'boolean',
   byte: 'binary',
   calculated: 'string',
@@ -25,7 +25,7 @@ const typeResolverBases = {
   double: 'decimal',
   email: 'string',
   encryptedstring: 'string',
-  id: 'string',
+  id: 'reference',
   int: 'integer',
   long: 'biginteger',
   masterrecord: 'string',
@@ -53,6 +53,7 @@ const standardObjectsByNamespace = {
     'OpportunityContactRole',
     'RecordType',
     'Task',
+    'User',
   ],
   eda: [
     'Account',
@@ -64,6 +65,7 @@ const standardObjectsByNamespace = {
     'Lead',
     'RecordType',
     'Task',
+    'User',
   ],
   other: [
     'Account',
@@ -81,8 +83,20 @@ const standardObjectsByNamespace = {
     'Product2',
     'RecordType',
     'Task',
+    'User',
   ],
 };
+
+const auditFields = [
+  'CreatedDate',
+  'CreatedById',
+  'LastModifiedDate',
+  'LastModifiedById',
+  'SystemModstamp',
+  'LastActivityDate',
+  'LastViewedDate',
+  'LastReferencedDate',
+];
 
 /**
  * Sets the window being used for the interface. Responses are sent to this window.
@@ -142,22 +156,31 @@ const logMessage = (title, channel, message) => {
 };
 
 /**
+ * Updates the loader message in the interface.
+ * @param {String} message
+ */
+const updateLoader = (message) => {
+  mainWindow.webContents.send('update_loader', { message });
+};
+
+/**
  * Extracts the list of field values from a picklist value set.
  * @param {Array} valueList list of values from a Salesforce describe response.
  * @returns the actual list of values.
  */
 const extractPicklistValues = (valueList) => {
-  const values = [];
+  let values = [];
   let val;
   for (let i = 0; i < valueList.length; i += 1) {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      // When Node 14 suppoer drops this can be switched to replaceAll().
+      // When Node 14 support is dropped this can be switched to replaceAll().
       val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
   }
+  values = [...new Set(values)];
   return values;
 };
 
@@ -170,13 +193,20 @@ const extractPicklistValues = (valueList) => {
 const buildFields = (fieldList, allText = false) => {
   let fld;
   const objFields = {};
+  let isReadOnly = false;
+  let isAudit = false;
 
   for (let f = 0; f < fieldList.length; f += 1) {
-    // If we're skipping readonly fields make sure we do that here.
-    if (
-      !(preferences.defaults.supressReadOnly
-        && (fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable)))
-      || fieldList[f].type === 'id' // Always include Id columns
+    // Determine if this is a readonly or audit field.
+    isReadOnly = fieldList[f].calculated || (!fieldList[f].updateable && !fieldList[f].createable);
+    isAudit = auditFields.includes(fieldList[f].name);
+
+    // Add field to schema if it's an Id, and allowed by preferences.
+    if (fieldList[f].type === 'id'
+      || (
+        !(preferences.defaults.suppressReadOnly && isReadOnly)
+        && !(preferences.defaults.suppressAudit && isAudit)
+      )
     ) {
       fld = {};
       // Values we want for all fields.
@@ -185,6 +215,7 @@ const buildFields = (fieldList, allText = false) => {
       fld.type = fieldList[f].type;
       fld.size = fieldList[f].length;
       fld.defaultValue = fieldList[f].defaultValue;
+      fld.externalId = fieldList[f].externalId;
 
       // Large text fields go to TEXT.
       if (fld.type === 'string' && (fld.size > 255 || allText)) {
@@ -223,7 +254,7 @@ const loadSchemaFromFile = () => {
     title: 'Load Schema',
     message: 'Load schema from JSON previously saved by Salesforce2Sql',
     filters: [
-      { name: JSON, extenions: ['json'] },
+      { name: JSON, extensions: ['json'] },
     ],
     properties: ['openFile'],
   };
@@ -270,8 +301,9 @@ const buildTable = (table) => {
   for (let i = 0; i < fieldNames.length; i += 1) {
     field = fields[fieldNames[i]];
     // Determine if the field should be indexed.
-    addIndex = (preferences.indexes.lookups && field.type === 'reference')
-      || (preferences.indexes.picklists && field.type === 'picklist');
+    addIndex = (preferences.indexes.lookups && (field.type === 'reference' || field.type === 'id'))
+      || (preferences.indexes.picklists && field.type === 'picklist')
+      || (preferences.indexes.externalIds && field.externalId);
 
     // Resolve SF type to DB type.
     fieldType = resolveFieldType(field.type);
@@ -328,6 +360,8 @@ const buildTable = (table) => {
         break;
       case 'reference':
         column = table.string(field.name, 18);
+        // Only impacts MySQL makes the collation case sensitive.
+        column.collate('utf8mb4_bin');
         break;
       case 'text':
         column = table.text(field.name);
@@ -348,14 +382,12 @@ const buildTable = (table) => {
 
     if (addIndex) {
       // To avoid prefixing with table name (which can easily violate the length
-      // limit from MySQL and Postgress), use the field name as the column name
+      // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
       // _really_ long package namespace is in play.
       column.index(field.name);
     }
   }
-
-  logMessage('Database', 'Info', `Details of ${table._tableName} complete`);
 };
 
 /**
@@ -363,7 +395,7 @@ const buildTable = (table) => {
  * @param {Object} sObjectList The list of objects for the org.
  * @returns {String} org type. One of npsp, eda, other.
  */
-const snifOrgType = (sObjectList) => {
+const sniffOrgType = (sObjectList) => {
   const namespaces = {
     npsp: 'npsp',
     npe: 'npsp',
@@ -382,13 +414,13 @@ const snifOrgType = (sObjectList) => {
 };
 
 /**
- * Review previously loaded object list and send to the Render thread a recommented
+ * Review previously loaded object list and send to the Render thread a recommended
  * list of objects to select.
  * @param {Array} objectResult The list of objects from a global describe of the org.
  * @returns an array of object name to default select.
  */
 const recommendObjects = (objectResult) => {
-  const orgType = snifOrgType(objectResult);
+  const orgType = sniffOrgType(objectResult);
   const suggestedStandards = standardObjectsByNamespace[orgType];
   const recommended = [];
   objectResult.forEach((obj) => {
@@ -443,6 +475,11 @@ const createKnexConnection = (settings) => {
       user: settings.username,
       password: settings.password,
       database: settings.dbname,
+      port: settings.port,
+    },
+    pool: {
+      min: 0,
+      max: settings.pool,
     },
     log: {
       warn(message) {
@@ -462,6 +499,14 @@ const createKnexConnection = (settings) => {
 
   return db;
 };
+
+/**
+ * Tests if we have a valid connection to the database.
+ * @param {*} knexDb connection to test.
+ * @returns boolean
+ * @throws Exception if connection fails.
+ */
+const validateConnection = (knexDb) => knexDb.raw('SELECT 1 AS isUp');
 
 /**
  * Save the current database schema to an SQL file.
@@ -504,18 +549,36 @@ const saveSchemaToSql = (settings) => {
  * @param {*} settings Database connection settings.
  */
 const buildDatabase = (settings) => {
-  const db = createKnexConnection(settings);
+  // Get the collection of tables we're about to create.
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
+  // Set the connection pool size to be as large as number of tables.
+  settings.pool = tables.length;
+  // Setup Database Connection
+  const db = createKnexConnection(settings);
+
   // Helper to keep one line of logic for creating the tables.
+  const tableStatuses = {};
   const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+    .then(() => {
+      tableStatuses[table] = true;
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
+      } else {
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
+      }
+    })
     .catch((err) => {
-      // If the row is too big, replace all varchar with text and try again.
+      // If the row is too big, replace all varchar (except ref fields) with text and try again.
       if (err.code === 'ER_TOO_BIG_ROWSIZE') {
         let changed = false;
         const tableFields = Object.getOwnPropertyNames(proposedSchema[table]);
         for (let i = 0; i < tableFields.length; i += 1) {
-          if (proposedSchema[table][tableFields[i]].type === 'string') {
+          if (resolveFieldType(proposedSchema[table][tableFields[i]].type) === 'string') {
             proposedSchema[table][tableFields[i]].type = 'text';
             changed = true;
           }
@@ -523,50 +586,58 @@ const buildDatabase = (settings) => {
         // If we updated the schema, try again.
         if (changed) {
           logMessage('Database Create', 'Warning', `Proposed ${table} schema had too many string fields for your database. All strings will be text fields instead.`);
-          createDbTable(table);
+          createDbTable(schema, table);
+        } else {
+          logMessage('Database Create', 'Error', `Unable to create table: ${table}. There are too many columns for the database engine even after converting all text fields to use text storage. \nError ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+          tableStatuses[table] = false;
+          updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
         }
+      } else if (err.code === 'ER_TOO_MANY_KEYS') {
+        logMessage('Database Create', 'Warning', `Error ${err.errno}(${err.code}) adding keys to ${table}. Table was created but some desired indexes may be missing.`);
+        tableStatuses[table] = true;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
       } else {
-        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}. Full statement:\n ${err.sql}`);
+        logMessage('Database Create', 'Error', `Error ${err.errno}(${err.code}) creating table: ${err.message}.Full statement: \n ${err.sql}`);
+        tableStatuses[table] = false;
+        updateLoader(`Creating ${tables.length} tables, ${Object.getOwnPropertyNames(tableStatuses).length} complete`);
+      }
+      if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
+        mainWindow.webContents.send('response_db_generated', {
+          status: true,
+          message: 'Database created',
+          responses: tableStatuses,
+        });
       }
       return err;
     });
 
-  const createTablePromises = [];
-  for (let i = 0; i < tables.length; i += 1) {
-    if (settings.overwrite) {
-      db.schema.dropTableIfExists(tables[i])
-        .then(() => {
-          createDbTable(db.schema, tables[i]).then((response) => {
-            logMessage('Database', 'Success', 'Successfully created new table.');
-            return response[0].message;
-          });
-        })
-        .catch((err) => {
-          logMessage('Database Create', 'Error', `Failed to drop existing table ${tables[i]}: ${err}`);
-          return err;
-        });
-    } else {
-      createTablePromises.push(createDbTable(db.schema, tables[i]));
-    }
-  }
+  // If we have a valid connection, let's give this a try
+  validateConnection(db).then(() => {
+    updateLoader(`Creating ${tables.length} tables`);
 
-  Promise.all(createTablePromises).then((values) => {
-    const tableStatuses = {
-      Errors: [],
-      Successes: [],
-    };
-    for (let i = 0; i < values.length; i += 1) {
-      if (Object.prototype.hasOwnProperty.call(values[i], 'message')) {
-        tableStatuses.Errors.push(values[i].message);
+    const dropCallback = (tableName, err) => {
+      if (err) {
+        logMessage('Database', 'Error', `Error dropping existing table ${err}`);
       } else {
-        tableStatuses.Successes.push(values[i]);
+        updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
+        createDbTable(db.schema, tableName);
+      }
+    };
+
+    for (let i = 0; i < tables.length; i += 1) {
+      if (settings.overwrite) {
+        db.schema.dropTableIfExists(tables[i])
+          .asCallback((err) => { dropCallback(tables[i], err); });
+      } else {
+        createDbTable(db.schema, tables[i]);
       }
     }
-
+  }).catch((err) => {
+    logMessage('Database', 'Error', `Error connecting to database: ${err}`);
     mainWindow.webContents.send('response_db_generated', {
-      status: true,
-      message: 'Database created',
-      responses: tableStatuses,
+      status: false,
+      message: `Database creation failed: ${err}`,
+      responses: {},
     });
   });
 };
@@ -639,11 +710,11 @@ const handlers = {
         mainWindow.webContents.send('response_logout', {
           status: false,
           message: 'Logout Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err}`);
+        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
         return true;
       }
       // now the session has been expired.
@@ -668,15 +739,14 @@ const handlers = {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     conn.describeGlobal((err, result) => {
       if (err) {
-        mainWindow.webContents.send('response_generic', {
+        mainWindow.webContents.send('response_error', {
           status: false,
           message: 'Describe Global Failed',
-          response: `${err}`,
+          response: `${err} `,
           limitInfo: conn.limitInfo,
           request: args,
         });
 
-        logMessage('Fetch Objects', 'Error', `Describe Global Failed ${err}`);
         return true;
       }
 
@@ -704,15 +774,18 @@ const handlers = {
     let completedObjects = 0;
     const allObjects = {};
 
+    // Reset the proposed schema back to baseline.
+    proposedSchema = {};
+
     // Log status
     logMessage('Schema', 'Info', `Fetching schema for ${args.objects.length} objects`);
-    mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+    updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
       conn.sobject(obj).describe().then((response) => {
         completedObjects += 1;
         proposedSchema[response.name] = buildFields(response.fields);
-        mainWindow.webContents.send('update_loader', { message: `Loaded ${completedObjects} of ${args.objects.length} Object Describes` });
+        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
         allObjects[response.name] = response;
         if (completedObjects === args.objects.length) {
           // Send Schema to interface for review.
@@ -728,7 +801,7 @@ const handlers = {
           });
         }
       }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err}`);
+        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
       });
     });
   },

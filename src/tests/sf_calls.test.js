@@ -30,13 +30,13 @@ test('Validate exports', () => {
 
 // There are a series of internal values for the module. Ensure they are there.
 // Several are assumed and leveraged in later tests.
-test('Validate existance of assumed internals', () => {
+test('Validate existence of assumed internals', () => {
   // Checking the existing of the four main variables.
   expect(sfcalls.__get__('sfConnections')).toStrictEqual({});
   expect(sfcalls.__get__('proposedSchema')).toStrictEqual({});
   expect(sfcalls.__get__('mainWindow')).toBe(null);
   expect(sfcalls.__get__('preferences')).toBe(null);
-  // Make sure the resolver list exists by checking one arbitrarly selected property.
+  // Make sure the resolver list exists by checking one arbitrarily selected property.
   expect(sfcalls.__get__('typeResolverBases')).toHaveProperty('reference', 'reference');
 });
 
@@ -54,8 +54,9 @@ test('Check SetWindow', () => {
 const samplePrefs = {
   theme: 'Cyborg',
   indexes: {
-    picklists: true,
+    externalIds: true,
     lookups: true,
+    picklists: true,
   },
   picklists: {
     type: 'enum',
@@ -68,7 +69,7 @@ const samplePrefs = {
   defaults: {
     attemptSFValues: false,
     textEmptyString: false,
-    supressReadOnly: false,
+    suppressReadOnly: false,
   },
 };
 
@@ -118,13 +119,28 @@ test('Test Picklist Value Extraction', () => {
       validFor: null,
       value: 'Test\'s',
     },
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Duplicate',
+      validFor: null,
+      value: 'Duplicate',
+    },
+    {
+      active: true,
+      defaultValue: false,
+      label: 'Duplicate',
+      validFor: null,
+      value: 'Duplicate',
+    },
   ];
 
   const extractPicklistValues = sfcalls.__get__('extractPicklistValues');
   const testResult = extractPicklistValues(sampleValues);
-  expect(testResult).toHaveLength(2);
+  expect(testResult).toHaveLength(3);
   expect(testResult[0]).toBe('Prospect');
   expect(testResult[1]).toBe('Test\\\'s');
+  expect(testResult[2]).toBe('Duplicate');
 });
 
 test('Test schema construction for a field', (done) => {
@@ -132,7 +148,7 @@ test('Test schema construction for a field', (done) => {
   const buildFields = sfcalls.__get__('buildFields');
 
   // Load the sample responses.
-  fs.readFile('src/tests/sampleSOjbectDescribes.json', (err, data) => {
+  fs.readFile('src/tests/sampleSObjectDescribes.json', (err, data) => {
     done();
     if (err) {
       throw new Error(`Unable to load sample file: ${err}`);
