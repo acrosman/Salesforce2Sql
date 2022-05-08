@@ -87,12 +87,19 @@ test('Test generateTableCell', () => {
   const generateTableCell = render.__get__('generateTableCell');
   const tableRow = document.createElement('tr');
   const content = 'Hello';
-  const isText = true;
 
-  const newCell = generateTableCell(tableRow, content, isText);
+  let newCell = generateTableCell(tableRow, content, true);
 
   expect(tableRow.cells).toHaveLength(1);
   expect(newCell.firstChild.data).toEqual(content);
+
+  const htmlContent = '<p>tagged content</p>';
+  const template = document.createElement('template');
+  template.innerHTML = htmlContent;
+  newCell = generateTableCell(tableRow, template.content.firstChild, false, 1);
+
+  expect(tableRow.cells).toHaveLength(2);
+  expect(newCell.innerHTML).toEqual(htmlContent);
 });
 
 test('Test showLoader', () => {
