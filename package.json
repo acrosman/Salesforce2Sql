@@ -10,7 +10,8 @@
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
     "test": "jest --coverage",
-    "madge": "madge --warning --circular --extensions js ./"
+    "madge": "madge --warning --circular --extensions js ./",
+    "prepare": "husky install"
   },
   "jest": {
     "verbose": true
@@ -100,6 +101,7 @@
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-react": "^7.29.3",
     "eslint-plugin-react-hooks": "^4.3.0",
+    "husky": "^8.0.0",
     "jest": "^27.0.6",
     "madge": "^5.0.1"
   }
