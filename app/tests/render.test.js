@@ -104,20 +104,30 @@ test('Test generateTableCell', () => {
 
 test('Test showLoader', () => {
   const showLoader = render.__get__('showLoader');
-  showLoader();
-  expect('Test Stub').toEqual('Test Stub');
+  const message = 'Loader message';
+  showLoader(message);
+
+  const loaderElement = document.getElementById('loader-indicator');
+  const displayValue = window.getComputedStyle(loaderElement, null).display;
+  expect(displayValue).toEqual('block');
+  const messageElement = loaderElement.querySelector('.loader-message');
+  expect(messageElement.innerHTML).toEqual(message);
 });
 
 test('Test hideLoader', () => {
   const hideLoader = render.__get__('hideLoader');
   hideLoader();
-  expect('Test Stub').toEqual('Test Stub');
+  const loaderElement = document.getElementById('loader-indicator');
+  const displayValue = window.getComputedStyle(loaderElement, null).display;
+  expect(displayValue).toEqual('none');
 });
 
 test('Test updateMessage', () => {
   const updateMessage = render.__get__('updateMessage');
-  updateMessage();
-  expect('Test Stub').toEqual('Test Stub');
+  const message = 'Test message';
+  updateMessage(message);
+  const messageElement = document.getElementById('results-message-only');
+  expect(messageElement.innerText).toEqual(message);
 });
 
 test('Test refreshObjectDisplay', () => {
