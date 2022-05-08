@@ -10,6 +10,7 @@
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
     "test": "jest --coverage",
+    "test-on-commit": "jest",
     "madge": "madge --warning --circular --extensions js ./",
     "prepare": "husky install"
   },
