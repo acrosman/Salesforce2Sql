@@ -53,8 +53,14 @@ test('Test Message Logging', () => {
 
 test('Test getTableColumn', () => {
   const getTableColumn = render.__get__('getTableColumn');
-  getTableColumn();
-  expect('Test Stub').toEqual('Test Stub');
+
+  const tableHtml = '<table id="testTable"><tr><td>one</td><td>two</td></tr></table>';
+  const template = document.createElement('template');
+  template.innerHTML = tableHtml;
+  const col = getTableColumn(template.content.firstChild, 0);
+  expect(col[0].innerHTML).toEqual('one');
+  const col2 = getTableColumn(template.content.firstChild, 1);
+  expect(col2[0].innerHTML).toEqual('two');
 });
 test('Test sortObjectTable', () => {
   const sortObjectTable = render.__get__('sortObjectTable');
@@ -63,8 +69,16 @@ test('Test sortObjectTable', () => {
 });
 test('Test generateTableHeader', () => {
   const generateTableHeader = render.__get__('generateTableHeader');
-  generateTableHeader();
-  expect('Test Stub').toEqual('Test Stub');
+  const row = document.createElement('tr');
+
+  const colTh = generateTableHeader(row, 'Hello', 'col');
+  const rowTh = generateTableHeader(row, 'GoodBye', 'row');
+
+  expect(row.childNodes).toHaveLength(2);
+  expect(colTh.innerHTML).toEqual('Hello');
+  expect(rowTh.innerHTML).toEqual('GoodBye');
+  expect(colTh.scope).toEqual('col');
+  expect(rowTh.scope).toEqual('row');
 });
 test('Test generateTableCell', () => {
   const generateTableCell = render.__get__('generateTableCell');
