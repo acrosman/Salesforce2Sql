@@ -82,8 +82,14 @@ test('Test generateTableHeader', () => {
 });
 test('Test generateTableCell', () => {
   const generateTableCell = render.__get__('generateTableCell');
-  generateTableCell();
-  expect('Test Stub').toEqual('Test Stub');
+  const tableRow = document.createElement('tr');
+  const content = 'Hello';
+  const isText = true;
+
+  const newCell = generateTableCell(tableRow, content, isText);
+
+  expect(tableRow.cells).toHaveLength(1);
+  expect(newCell.firstChild.data).toEqual(content);
 });
 test('Test showLoader', () => {
   const showLoader = render.__get__('showLoader');
