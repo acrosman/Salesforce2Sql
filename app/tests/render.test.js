@@ -50,3 +50,44 @@ test('Test Message Logging', () => {
   expect(afterCount).toEqual(beforeCount + 1);
   expect(logTable.innerHTML.indexOf('TestWordForSearch')).toBeGreaterThan(-1);
 });
+
+test('Test getTableColumn', () => {
+  const getTableColumn = render.__get__('getTableColumn');
+  getTableColumn();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test sortObjectTable', () => {
+  const sortObjectTable = render.__get__('sortObjectTable');
+  sortObjectTable();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test generateTableHeader', () => {
+  const generateTableHeader = render.__get__('generateTableHeader');
+  generateTableHeader();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test generateTableCell', () => {
+  const generateTableCell = render.__get__('generateTableCell');
+  generateTableCell();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test showLoader', () => {
+  const showLoader = render.__get__('showLoader');
+  showLoader();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test hideLoader', () => {
+  const hideLoader = render.__get__('hideLoader');
+  hideLoader();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test updateMessage', () => {
+  const updateMessage = render.__get__('updateMessage');
+  updateMessage();
+  expect('Test Stub').toEqual('Test Stub');
+});
+test('Test refreshObjectDisplay', () => {
+  const refreshObjectDisplay = render.__get__('refreshObjectDisplay');
+  refreshObjectDisplay();
+  expect('Test Stub').toEqual('Test Stub');
+});
