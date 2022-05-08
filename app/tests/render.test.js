@@ -62,11 +62,13 @@ test('Test getTableColumn', () => {
   const col2 = getTableColumn(template.content.firstChild, 1);
   expect(col2[0].innerHTML).toEqual('two');
 });
+
 test('Test sortObjectTable', () => {
   const sortObjectTable = render.__get__('sortObjectTable');
   sortObjectTable();
   expect('Test Stub').toEqual('Test Stub');
 });
+
 test('Test generateTableHeader', () => {
   const generateTableHeader = render.__get__('generateTableHeader');
   const row = document.createElement('tr');
@@ -80,6 +82,7 @@ test('Test generateTableHeader', () => {
   expect(colTh.scope).toEqual('col');
   expect(rowTh.scope).toEqual('row');
 });
+
 test('Test generateTableCell', () => {
   const generateTableCell = render.__get__('generateTableCell');
   const tableRow = document.createElement('tr');
@@ -91,21 +94,25 @@ test('Test generateTableCell', () => {
   expect(tableRow.cells).toHaveLength(1);
   expect(newCell.firstChild.data).toEqual(content);
 });
+
 test('Test showLoader', () => {
   const showLoader = render.__get__('showLoader');
   showLoader();
   expect('Test Stub').toEqual('Test Stub');
 });
+
 test('Test hideLoader', () => {
   const hideLoader = render.__get__('hideLoader');
   hideLoader();
   expect('Test Stub').toEqual('Test Stub');
 });
+
 test('Test updateMessage', () => {
   const updateMessage = render.__get__('updateMessage');
   updateMessage();
   expect('Test Stub').toEqual('Test Stub');
 });
+
 test('Test refreshObjectDisplay', () => {
   const refreshObjectDisplay = render.__get__('refreshObjectDisplay');
   refreshObjectDisplay();
