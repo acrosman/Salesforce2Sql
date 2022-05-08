@@ -63,11 +63,11 @@ test('Test getTableColumn', () => {
   expect(col2[0].innerHTML).toEqual('two');
 });
 
-test('Test sortObjectTable', () => {
-  const sortObjectTable = render.__get__('sortObjectTable');
-  sortObjectTable();
-  expect('Test Stub').toEqual('Test Stub');
-});
+// test('Test sortObjectTable', () => {
+//   const sortObjectTable = render.__get__('sortObjectTable');
+//   sortObjectTable();
+//   expect('Test Stub').toEqual('Test Stub');
+// });
 
 test('Test generateTableHeader', () => {
   const generateTableHeader = render.__get__('generateTableHeader');
@@ -130,8 +130,8 @@ test('Test updateMessage', () => {
   expect(messageElement.innerText).toEqual(message);
 });
 
-test('Test refreshObjectDisplay', () => {
-  const refreshObjectDisplay = render.__get__('refreshObjectDisplay');
-  refreshObjectDisplay();
-  expect('Test Stub').toEqual('Test Stub');
-});
+// test('Test refreshObjectDisplay', () => {
+//   const refreshObjectDisplay = render.__get__('refreshObjectDisplay');
+//   refreshObjectDisplay();
+//   expect('Test Stub').toEqual('Test Stub');
+// });
