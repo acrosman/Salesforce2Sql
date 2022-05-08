@@ -1,0 +1,303 @@
+<!-- This is meant to be a minimal HTML snippet to support testing of render.js-->
+<div class="modal fade" id="consoleModal" tabindex="-1" aria-labelledby="consoleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="consoleModalLabel">Message Console</h5>
+        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="container-fluid">
+          <div class="row">
+            <table class="table table-hover" id="consoleMessageTable">
+              <tr>
+                <th scope="col">Importance</th>
+                <th scope="col">Context</th>
+                <th scope="col">Message</th>
+                <th scope="col">Data</th>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card bg-default">
+        <h1 class="header">
+          Salesforce2Sql
+        </h1>
+        <div class="card-body">
+          <p class="card-text">
+            Create a SQL-based database from a Salesforce Org's schema.
+          </p>
+          <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal" data-bs-target="#loginModal">Create
+            New Connection</button>
+        </div>
+        <div class="card-footer" id="org-status">
+          <label for="active-org">Active Org for next action.</label>
+          <select id="active-org" class="custom-select"></select>
+          <p>Message: <span id="login-response-message"></span><br>
+            Org Id: <span id="active-org-id"></span></p>
+          <button type="button" id="logout-trigger" class="btn btn-warning" value="Logout">Logout</button>
+        </div>
+        <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModalLabel"
+          aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="loginModalLabel">Enter Salesforce Login</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <form>
+                  <div class="form-group">
+                    <label for="login-username">User Name</label>
+                    <input type="text" id="login-username" class="form-control" aria-describedby="usernameHelp"
+                      placeholder="Enter Salesforce Username">
+                    <small id="usernameHelp" class="form-text">Your Salesforce username must be
+                      in the form of an email address.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" class="form-control">
+                  </div>
+                  <div class="form-group">
+                    <label for="login-token">Security Token</label>
+                    <input type="password" class="form-control" aria-describedby="tokenHelp" id="login-token">
+                    <small id="tokenHelp" class="form-text">Likely you will need your Salesforce
+                      Security token. If you do not have it follow <a
+                        href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
+                        reset instructions.</a></small>
+                  </div>
+                  <div class="form-group">
+                    <label for="login-url">Login URL</label>
+                    <input type="url" id="login-url" class="form-control" value="https://login.salesforce.com">
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="login-trigger"
+                  data-bs-dismiss="modal">Connect</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal fade" id="dbModal" tabindex="-1" role="dialog" aria-labelledby="dbModalLabel"
+          aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="dbModalLabel">Enter Database Information</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <form>
+                  <div class="form-group">
+                    <label for="db-radio-selectors">Select Database Type</label>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-MySQL" value="mysql"
+                        checked>
+                      <label class="form-check-label" for="db-MySQL">MySQL</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="db-radio-selectors" id="db-Postgres"
+                        value="postgres">
+                      <label class="form-check-label" for="db-Postgres">Postgres</label>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="db-host">Host</label>
+                    <input type="text" id="db-host" class="form-control" aria-describedby="hostHelp"
+                      placeholder="127.0.0.1">
+                    <small id="hostHelp" class="form-text">The host address for your
+                      database.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="db-port">Port</label>
+                    <input type="text" id="db-port" class="form-control" aria-describedby="portHelp" value="3306">
+                    <small id="portHelp" class="form-text">Standard port is 3306, if unsure
+                      that's probably what you want.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="db-username">User Name</label>
+                    <input type="text" id="db-username" class="form-control" aria-describedby="dbUsernameHelp"
+                      placeholder="Enter Database Username">
+                    <small id="dbUsernameHelp" class="form-text">Database username</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="db-password">Password</label>
+                    <input type="password" id="db-password" class="form-control">
+                  </div>
+                  <div class="form-group">
+                    <label for="db-name">Database Name</label>
+                    <input type="text" id="db-name" class="form-control" aria-describedby="dbNameHelp"
+                      placeholder="Enter Database Name" required="required">
+                    <small id="dbNameHelp" class="form-text">Database Name is required.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="db-overwrite" class="form-check-label">Drop and Recreate
+                      Tables</label>
+                    <input type="checkbox" id="db-overwrite" class="form-check-input"
+                      aria-describedby="dbOverwriteHelp">
+                    <small id="dbOverwriteHelp" class="form-text">Drop all selected tables and
+                      recreate them. <em>Deletes any data in the selected tables.</em> If this
+                      box is unchecked, any tables that already exist will not be
+                      changed.</small>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="schema-trigger" data-bs-dismiss="modal">Connect &
+                  Build</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="instruction-panel" class="card">
+        <div class="card-body">
+          <h5 class="card-title">Instructions</h5>
+          <p class="card-text">Fetch the objects from your Salesforce org, then select the ones you want
+            in your database
+            (we'll try to help you
+            make good choices). Finally generate the database schema.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="card bg-default" id=raw-response-wrapper>
+        <h2>Last Response:</h2>
+        <pre id="raw-response" class="pre-scrollable"></pre>
+        <button type="button" id="show-console" class="btn btn-info" value="Show Log Console" data-bs-toggle="modal"
+          data-bs-target="#consoleModal">Show Log Console</button>
+        <div class="text-center alert" id="loader-indicator">
+          <div class="spinner-border" role="status">
+          </div>
+          <span class="loader-message">Idle</span>
+        </div>
+        <div class="text-center" id="message-wrapper">
+          <div id="results-message-only" class="results-message alert alert-primary" role="alert">Welcome
+            to Sf2Sql</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row" id="controls-wrapper">
+    <div class="col-md-12">
+      <form class="float-lg-end row ms-auto">
+        <div class="col mr-sm-2">
+          <input class="form-control" id="find-in-page-text" type="search" placeholder="Search "
+            aria-label="Find text on page, search case sensitive">
+        </div>
+        <div class="col">
+          <button class="btn btn-outline-success form-control" id="btn-find-in-page" type="submit">Find</button>
+        </div>
+        <div class="col form-check">
+          <input class="form-check-input" type="checkbox" aria-describedby="find-direction-desc" value=""
+            id="chk-find-direction">
+          <label class="form-check-label" for="chk-find-direction">
+            Reverse Search
+          </label>
+        </div>
+        <small id="findHelp" class="form-text">Search is Case Sensitive</small>
+      </form>
+      <ul class="nav nav-tabs" id="nav-tab" role="navigation">
+        <li class="nav-item">
+          <a class="nav-link active" id="nav-objects-tab" data-bs-toggle="tab" href="#nav-objects" role="tab"
+            aria-controls="nav-objects" aria-selected="true">Org Objects</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="nav-schema-tab" data-bs-toggle="tab" href="#nav-schema" role="tab"
+            aria-controls="nav-schema" aria-selected="false">Proposed
+            Schema</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="nav-sql-tab" data-bs-toggle="tab" href="#nav-sql" role="tab" aria-controls="nav-sql"
+            aria-selected="false">Generated
+            Database</a>
+        </li>
+      </ul>
+      <div class="tab-content" id="nav-tabContent">
+        <div class="tab-pane fade show active" id="nav-objects" role="tabpanel" aria-labelledby="nav-objects-tab">
+          <div class="">
+            <button type="button" id="btn-fetch-objects" class="sf-api-trigger-button btn btn-primary" disabled>
+              Fetch Objects
+            </button>
+            <button type="button" id="btn-load-sf-schema" class="sf-api-trigger-button btn btn-secondary">
+              Load Objects
+            </button>
+            <button type="button" id="btn-objects-next" class="btn btn-next" data-next="#nav-schema-tab">Next
+              &rarr;</button>
+          </div>
+          <div class=" col-md-12" id="results-table-wrapper">
+            <div class="results-summary">
+              <h3 id="results-summary-count"></h3>
+            </div>
+            <button type="button" id="btn-deselect-all-objects" class="btn btn-secondary">Clear
+              Selections</button>
+            <button type="button" id="btn-select-all-objects" class="btn btn-secondary">Select All
+              Objects</button>
+            <table id="results-table" class="table table-striped table-bordered table-hover">
+              <thead>
+                <tr class="results-table-header"></tr>
+              </thead>
+              <tbody>
+                <tr class="results-table-row"></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="nav-schema" role="tabpanel" aria-labelledby="nav-schema-tab">
+          <div class="">
+            <button type="button" id="btn-schema-prev" class="btn btn-prev" data-prev="#nav-objects-tab">
+              &larr; Previous</button>
+            <button type="button" id="btn-fetch-details" class="sf-api-trigger-button btn btn-secondary" disabled>
+              Fetch Details
+            </button>
+            <button type="button" class="btn btn-info sf-api-trigger-button" id="btn-save-sf-schema" disabled>
+              Save Schema
+            </button>
+            <button type="button" id="btn-schema-next" class="btn btn-next" data-next="#nav-sql-tab">Next
+              &rarr;</button>
+          </div>
+          <div class="col-md-12" id="results-object-viewer-wrapper">
+            <div class="results-summary">
+              <h3></h3>
+              <p></p>
+            </div>
+            <div id="results-object-viewer"></div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="nav-sql" role="tabpanel" aria-labelledby="nav-sql-tab">
+          <div class="">
+            <button type="button" id="btn-sql-prev" class="btn btn-prev" data-prev="#nav-schema-tab">
+              &larr; Previous</button>
+            <button type="button" id="btn-generate-schema" class="sf-api-trigger-button btn btn-success"
+              data-bs-toggle="modal" data-bs-target="#dbModal" disabled>
+              Create Tables
+            </button>
+            <button type="button" class="btn btn-warning sf-api-trigger-button" id="btn-save-sql-schema" disabled>
+              Save SQL to File
+            </button>
+          </div>
+          <div class="col-md-12" id="sql-display"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
