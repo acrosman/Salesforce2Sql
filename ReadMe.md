@@ -14,6 +14,8 @@ If you are looking for help migrating data between Salesforce Orgs you may want 
 
 ## Getting Started
 
+_There is a [longer getting started guide](https://spinningcode.org/2022/05/getting-started-with-salesforce2sql/) on SpinningCode.org._
+
 You can either download the [latest release](https://github.com/acrosman/Salesforce2Sql/releases/latest) for your operating system or run from code.
 
 There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the zip file contains the executable and supporting materials). You can also download the source archives if you want to explore the version of the code that went into the release.
