@@ -90,7 +90,7 @@
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
-    "electron": "^16.0",
+    "electron": "^16.2",
     "electron-builder": "^22.11.7",
     "electron-debug": "^2.2.0",
     "electron-reloader": "^1.1.0",
