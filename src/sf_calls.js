@@ -467,9 +467,12 @@ const saveSchemaToFile = () => {
  * @returns the database connection object.
  */
 const createKnexConnection = (settings) => {
-  let encrypt = false;
+  const options = {
+    encrypt: false,
+  };
   if (settings.type === 'mssql') {
-    encrypt = true;
+    options.encrypt = true;
+    options.port = settings.port;
   }
   // Create database connection.
   const db = knex({
@@ -481,9 +484,7 @@ const createKnexConnection = (settings) => {
       database: settings.dbname,
       port: settings.port,
     },
-    options: {
-      encrypt,
-    },
+    options,
     pool: {
       min: 0,
       max: settings.pool,
