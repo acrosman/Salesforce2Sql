@@ -462,6 +462,36 @@ const saveSchemaToFile = () => {
 };
 
 /**
+ * Open a save dialogue and select file target for Sqlite3 file.
+ */
+const saveSqlite3File = () => {
+  const dialogOptions = {
+    title: 'Select Sqlite3 Database Location',
+    message: 'Create File',
+  };
+
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    let fileName = response.filePath;
+    const extension = path.extname(fileName).toLowerCase();
+    if (extension !== 'sqlite' || extension !== 'db' || extension !== 'sqlite3') {
+      fileName = `${fileName}.sqlite`;
+    }
+
+    mainWindow.webContents.send('response_sqlite3_file', {
+      status: false,
+      message: 'Sqlite3 File Selected',
+      response: {
+        filePath: fileName,
+      },
+    });
+  }).catch((err) => {
+    logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+  });
+};
+
+/**
  * Create a database connection using the knex library.
  * @param {*} settings An object with database connections settings.
  * @returns the database connection object.
@@ -845,6 +875,12 @@ const handlers = {
    */
   save_ddl_sql: (event, args) => {
     saveSchemaToSql(args);
+  },
+  /**
+   * Select Sqlite3 file location.
+   */
+  select_sqlite3_location: () => {
+    saveSqlite3File();
   },
 };
 

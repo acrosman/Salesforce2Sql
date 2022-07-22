@@ -140,38 +140,38 @@
                                                 id="db-sqlite" value="sqlite3">
                                             <label class="form-check-label" for="db-sqlite">Sqlite3</label>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-host">Host</label>
                                             <input type="text" id="db-host" class="form-control"
                                                 aria-describedby="hostHelp" placeholder="127.0.0.1">
                                             <small id="hostHelp" class="form-text">The host address for your
                                                 database.</small>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-port">Port</label>
                                             <input type="text" id="db-port" class="form-control"
                                                 aria-describedby="portHelp" value="3306">
                                             <small id="portHelp" class="form-text">Standard port is 3306, if unsure
                                                 that's probably what you want.</small>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-username">User Name</label>
                                             <input type="text" id="db-username" class="form-control"
                                                 aria-describedby="dbUsernameHelp" placeholder="Enter Database Username">
                                             <small id="dbUsernameHelp" class="form-text">Database username</small>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-password">Password</label>
                                             <input type="password" id="db-password" class="form-control">
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-name">Database Name</label>
                                             <input type="text" id="db-name" class="form-control"
                                                 aria-describedby="dbNameHelp" placeholder="Enter Database Name"
                                                 required="required">
                                             <small id="dbNameHelp" class="form-text">Database Name is required.</small>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-overwrite" class="form-check-label">Drop and Recreate
                                                 Tables</label>
                                             <input type="checkbox" id="db-overwrite" class="form-check-input"
@@ -180,6 +180,16 @@
                                                 recreate them. <em>Deletes any data in the selected tables.</em> If this
                                                 box is unchecked, any tables that already exist will not be
                                                 changed.</small>
+                                        </div>
+                                        <div class="form-group sqlite3-wrapper">
+                                            <label for="db-name">Sqlite3 File Path</label>
+                                            <button type="button" class="btn btn-primary" id="btn-sqlite3-file">Select
+                                                File</button><br>
+                                            <input type="text" id="db-sqlite3-path" class="form-control"
+                                                aria-describedby="dbSqliteFileHelp" placeholder="Click Select File"
+                                                readonly>
+                                            <small id="dbSqliteFileHelp" class="form-text">For Sqlite you need to
+                                                specify where the database file will reside.</small>
                                         </div>
                                     </form>
                                 </div>

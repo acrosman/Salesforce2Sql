@@ -337,6 +337,35 @@ const refreshObjectDisplay = (data) => {
   hideLoader();
 };
 
+// =============== Interface Setup ===================
+// This section should steadily replace the Jquery at the top of the page.
+
+Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+  btn.style.display = 'none';
+});
+/**
+ * Setup the handlers for the server select radios.
+ */
+document.getElementsByName('db-radio-selectors').forEach((el) => {
+  el.addEventListener('change', (event) => {
+    if (event.target.id === 'db-sqlite') {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+    } else {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+    }
+  });
+});
+
 // ================ Response Handlers =================
 
 /**
@@ -587,6 +616,14 @@ const handleDatabaseFinish = (data) => {
   hideLoader();
 };
 
+/**
+ * Handles response from sqlite3 file path.
+ * @param {string} filePath The path selected.
+ */
+const updateSqlite3Path = (filePath) => {
+  document.getElementById('db-sqlite3-path').value = filePath;
+};
+
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
@@ -685,12 +722,19 @@ document.getElementById('btn-save-sql-schema').addEventListener('click', () => {
   });
 });
 
+// Add Trigger schema save process.
 document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
 
+// Add trigger for load schema process.
 document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
   window.api.send('load_schema');
+});
+
+// Add trigger for setting sqlite3 file path.
+document.getElementById('btn-sqlite3-file').addEventListener('click', () => {
+  window.api.send('select_sqlite3_location');
 });
 
 // ===== Response handlers from IPC Messages to render context ======
@@ -725,10 +769,17 @@ window.api.receive('response_db_generated', (data) => {
   handleDatabaseFinish(data);
 });
 
+// Response after saving Schema
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
+});
+
+// Response after selecting Sqlite3 file
+window.api.receive('response_sqlite3_file', (data) => {
+  logMessage('Schema', 'Success', 'Selected file location', data);
+  updateSqlite3Path(data.response.filePath);
 });
 
 // List Objects From Global Describe.
