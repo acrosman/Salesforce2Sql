@@ -698,6 +698,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
       password: document.getElementById('db-password').value,
       dbname: document.getElementById('db-name').value,
       overwrite: document.getElementById('db-overwrite').checked,
+      fileName: document.getElementById('db-sqlite3-path').value,
     });
   }
 });

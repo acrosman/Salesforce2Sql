@@ -506,6 +506,7 @@ const createKnexConnection = (settings) => {
       password: settings.password,
       database: settings.dbname,
       port: settings.port,
+      fileName: settings.fileName,
     },
     pool: {
       min: 0,
