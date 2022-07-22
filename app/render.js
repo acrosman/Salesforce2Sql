@@ -685,7 +685,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
     }
   }
 
-  if (document.getElementById('db-name').value === '') {
+  if (document.getElementById('db-name').value === '' && dbType !== 'sqlite3') {
     updateMessage('Database name is required to attempt creation.');
   } else {
     showLoader('Creating Database Tables');
