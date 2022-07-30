@@ -84,7 +84,8 @@
     "knex": "^2.0.0",
     "minimist": "^1.2.6",
     "mysql": "^2.18.1",
-    "pg": "^8.5.1"
+    "pg": "^8.5.1",
+    "sqlite3": "^5.0.9"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.14.0",

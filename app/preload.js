@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld(
         'response_error',
         'response_list_objects',
         'response_schema',
+        'response_sqlite3_file',
         'start_find',
         'update_loader',
       ];
