@@ -384,8 +384,14 @@ const buildTable = (table) => {
       // To avoid prefixing with table name (which can easily violate the length
       // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
-      // _really_ long package namespace is in play.
-      column.index(field.name);
+      // _really_ long package namespace is in play. However, on Sqlite you need
+      // a totally unique name (which is what knex does by default but assumes
+      // unlimited length).
+      let name = `${table._tableName}_${field.name}`;
+      if (name.length > 60) {
+        name = field.name + Math.round((Math.random() * 99999) + 10000);
+      }
+      column.index(name);
     }
   }
 };
@@ -445,7 +451,7 @@ const saveSchemaToFile = () => {
 
     let fileName = response.filePath;
 
-    if (path.extname(fileName).toLowerCase() !== 'json') {
+    if (path.extname(fileName).toLowerCase() !== '.json') {
       fileName = `${fileName}.json`;
     }
 
@@ -475,7 +481,7 @@ const saveSqlite3File = () => {
 
     let fileName = response.filePath;
     const extension = path.extname(fileName).toLowerCase();
-    if (extension !== 'sqlite' || extension !== 'db' || extension !== 'sqlite3') {
+    if (extension !== '.sqlite' && extension !== '.db' && extension !== '.sqlite3') {
       fileName = `${fileName}.sqlite`;
     }
 
