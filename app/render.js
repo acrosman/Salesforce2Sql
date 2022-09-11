@@ -7,7 +7,6 @@ $.when($.ready).then(() => {
   // Hide the places for handling responses until we have some.
   $('#org-status').hide();
   $('#results-table-wrapper').hide();
-  $('#results-message-wrapper').hide();
   $('#results-object-viewer-wrapper').hide();
 
   // Setup next buttons.
@@ -21,7 +20,7 @@ $.when($.ready).then(() => {
   $('button.btn-prev').on('click', (event) => {
     event.preventDefault();
     const tab = $(event.target).data('prev');
-    $(tab).trigger('click');
+    $(tab).tab('show');
   });
 
   // Setup Find button.
@@ -297,10 +296,18 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
 const showLoader = (message) => {
   $('#loader-indicator .loader-message').text(message);
   $('#loader-indicator').show();
+  $('#message-wrapper').hide();
 };
 
 const hideLoader = () => {
   $('#loader-indicator').hide();
+  $('#message-wrapper').show();
+};
+
+const updateMessage = (message) => {
+  $('#message-wrapper').show();
+  const messageArea = document.getElementById('results-message-only');
+  messageArea.innerText = message;
 };
 
 /**
@@ -329,6 +336,35 @@ const refreshObjectDisplay = (data) => {
   });
   hideLoader();
 };
+
+// =============== Interface Setup ===================
+// This section should steadily replace the Jquery at the top of the page.
+
+Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+  btn.style.display = 'none';
+});
+/**
+ * Setup the handlers for the server select radios.
+ */
+document.getElementsByName('db-radio-selectors').forEach((el) => {
+  el.addEventListener('change', (event) => {
+    if (event.target.id === 'db-sqlite') {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+    } else {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+    }
+  });
+});
 
 // ================ Response Handlers =================
 
@@ -368,12 +404,12 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     'name',
   ];
 
+  updateMessage('Object List Retrieved');
+
   // Display area.
   // @todo: remove jquery use.
-  hideLoader();
   $('#results-table-wrapper').show();
   $('#results-object-viewer-wrapper').hide();
-  $('#results-message-wrapper').hide();
   $('#results-summary-count').text('Loading objects...');
 
   // Get the table.
@@ -524,6 +560,9 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
   // Enable the button to fetch object list.
   $('#btn-fetch-details').prop('disabled', false);
+
+  // Interface update complete, hide the loader.
+  hideLoader();
 };
 
 /**
@@ -532,14 +571,57 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
  */
 const displayDraftSchema = (schema) => {
   showLoader('All objects loaded, refreshing display');
+
   refreshObjectDisplay({
     message: 'Proposed Database Schema',
     response: schema,
   });
+
+  updateMessage('Proposed schema ready for review.');
+
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
   $('#nav-schema-tab').tab('show');
   hideLoader();
+};
+
+/**
+ * Handles follow up when database creation process completes.
+ * @param {*} data The result details.
+ */
+const handleDatabaseFinish = (data) => {
+  // Check each table to see if it succeeded
+  const hasResponses = Object.prototype.hasOwnProperty.call(data, 'response');
+  let fullSuccess = data.status;
+  let fullFailure = !hasResponses;
+  const tables = Object.getOwnPropertyNames(data.responses);
+  tables.forEach((table) => {
+    fullSuccess = data.responses[table] && fullSuccess;
+    fullFailure = !data.responses[table] || fullFailure;
+  });
+
+  logMessage('Database', 'Info', 'Database generation complete.', data);
+
+  if (fullSuccess) {
+    updateMessage('Database creation complete, all tables created');
+  } else if (fullFailure) {
+    updateMessage('Error creating database tables, all tables failed');
+  } else {
+    updateMessage('Database creation process complete, some tables had error. Review logs for more details');
+  }
+
+  // @todo remove jquery.
+  $('#btn-save-sql-schema').prop('disabled', false);
+
+  hideLoader();
+};
+
+/**
+ * Handles response from sqlite3 file path.
+ * @param {string} filePath The path selected.
+ */
+const updateSqlite3Path = (filePath) => {
+  document.getElementById('db-sqlite3-path').value = filePath;
 };
 
 // ========= Messages to the main process ===============
@@ -603,17 +685,22 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
     }
   }
 
-  showLoader('Creating Database Tables');
+  if (document.getElementById('db-name').value === '' && dbType !== 'sqlite3') {
+    updateMessage('Database name is required to attempt creation.');
+  } else {
+    showLoader('Creating Database Tables');
 
-  window.api.send('knex_schema', {
-    type: dbType,
-    host: document.getElementById('db-host').value,
-    port: document.getElementById('db-port').value,
-    username: document.getElementById('db-username').value,
-    password: document.getElementById('db-password').value,
-    dbname: document.getElementById('db-name').value,
-    overwrite: document.getElementById('db-overwrite').checked,
-  });
+    window.api.send('knex_schema', {
+      type: dbType,
+      host: document.getElementById('db-host').value,
+      port: document.getElementById('db-port').value,
+      username: document.getElementById('db-username').value,
+      password: document.getElementById('db-password').value,
+      dbname: document.getElementById('db-name').value,
+      overwrite: document.getElementById('db-overwrite').checked,
+      fileName: document.getElementById('db-sqlite3-path').value,
+    });
+  }
 });
 
 // Save the database create statement to a file.
@@ -636,12 +723,19 @@ document.getElementById('btn-save-sql-schema').addEventListener('click', () => {
   });
 });
 
+// Add Trigger schema save process.
 document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
 
+// Add trigger for load schema process.
 document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
   window.api.send('load_schema');
+});
+
+// Add trigger for setting sqlite3 file path.
+document.getElementById('btn-sqlite3-file').addEventListener('click', () => {
+  window.api.send('select_sqlite3_location');
 });
 
 // ===== Response handlers from IPC Messages to render context ======
@@ -649,17 +743,20 @@ document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
 window.api.receive('response_login', (data) => {
   hideLoader();
   if (data.status) {
-    handleLogin(data);
     logMessage('Salesforce', 'Success', data.message, data.response);
+    updateMessage('Login Successful');
+    handleLogin(data, data.status);
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
     displayRawResponse(data);
+    updateMessage('Login Error');
   }
 });
 
 // Logout Response.
 window.api.receive('response_logout', (data) => {
   logMessage('Salesforce', 'Info', 'Log out complete', data);
+  updateMessage('Salesforce connection removed.');
 });
 
 // Generic Response.
@@ -670,15 +767,20 @@ window.api.receive('response_error', (data) => {
 
 // Response after building database
 window.api.receive('response_db_generated', (data) => {
-  hideLoader();
-  logMessage('Database', 'Info', 'Database generation complete.', data);
-  $('#btn-save-sql-schema').prop('disabled', false);
+  handleDatabaseFinish(data);
 });
 
+// Response after saving Schema
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
   displayDraftSchema(data.response.schema);
+});
+
+// Response after selecting Sqlite3 file
+window.api.receive('response_sqlite3_file', (data) => {
+  logMessage('Schema', 'Success', 'Selected file location', data);
+  updateSqlite3Path(data.response.filePath);
 });
 
 // List Objects From Global Describe.

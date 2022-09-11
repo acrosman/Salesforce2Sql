@@ -1,6 +1,6 @@
 {
   "name": "salesforce2sql",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,9 @@
     "dist": "electron-builder -wlm",
     "postinstall": "electron-builder install-app-deps",
     "test": "jest --coverage",
-    "madge": "madge --warning --circular --extensions js ./"
+    "test-on-commit": "jest",
+    "madge": "madge --warning --circular --extensions js ./",
+    "prepare": "husky install"
   },
   "jest": {
     "verbose": true
@@ -79,16 +81,17 @@
     "jquery": "^3.5.1",
     "jquery.json-viewer": "^1.4.0",
     "jsforce": "^1.10.1",
-    "knex": "^0.95.2",
+    "knex": "^2.0.0",
     "minimist": "^1.2.6",
     "mysql": "^2.18.1",
-    "pg": "^8.5.1"
+    "pg": "^8.5.1",
+    "sqlite3": "^5.0.9"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
-    "electron": "^16.0",
+    "electron": "^19",
     "electron-builder": "^22.11.7",
     "electron-debug": "^2.2.0",
     "electron-reloader": "^1.1.0",
@@ -100,6 +103,7 @@
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-react": "^7.29.3",
     "eslint-plugin-react-hooks": "^4.3.0",
+    "husky": "^8.0.0",
     "jest": "^27.0.6",
     "madge": "^5.0.1"
   }

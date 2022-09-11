@@ -175,7 +175,7 @@ const extractPicklistValues = (valueList) => {
     val = valueList[i].value;
     // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
     if (val.includes("'")) {
-      // When Node 14 supper drops this can be switched to replaceAll().
+      // When Node 14 support is dropped this can be switched to replaceAll().
       val = val.replace(/'/g, '\\\'');
     }
     values.push(val);
@@ -384,8 +384,14 @@ const buildTable = (table) => {
       // To avoid prefixing with table name (which can easily violate the length
       // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
-      // _really_ long package namespace is in play.
-      column.index(field.name);
+      // _really_ long package namespace is in play. However, on Sqlite you need
+      // a totally unique name (which is what knex does by default but assumes
+      // unlimited length).
+      let name = `${table._tableName}_${field.name}`;
+      if (name.length > 60) {
+        name = field.name + Math.round((Math.random() * 99999) + 10000);
+      }
+      column.index(name);
     }
   }
 };
@@ -445,7 +451,7 @@ const saveSchemaToFile = () => {
 
     let fileName = response.filePath;
 
-    if (path.extname(fileName).toLowerCase() !== 'json') {
+    if (path.extname(fileName).toLowerCase() !== '.json') {
       fileName = `${fileName}.json`;
     }
 
@@ -455,6 +461,36 @@ const saveSchemaToFile = () => {
       } else {
         logMessage('Save', 'Info', `Schema saved to ${fileName}`);
       }
+    });
+  }).catch((err) => {
+    logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+  });
+};
+
+/**
+ * Open a save dialogue and select file target for Sqlite3 file.
+ */
+const saveSqlite3File = () => {
+  const dialogOptions = {
+    title: 'Select Sqlite3 Database Location',
+    message: 'Create File',
+  };
+
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    let fileName = response.filePath;
+    const extension = path.extname(fileName).toLowerCase();
+    if (extension !== '.sqlite' && extension !== '.db' && extension !== '.sqlite3') {
+      fileName = `${fileName}.sqlite`;
+    }
+
+    mainWindow.webContents.send('response_sqlite3_file', {
+      status: false,
+      message: 'Sqlite3 File Selected',
+      response: {
+        filePath: fileName,
+      },
     });
   }).catch((err) => {
     logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
@@ -476,6 +512,12 @@ const createKnexConnection = (settings) => {
       password: settings.password,
       database: settings.dbname,
       port: settings.port,
+      filename: settings.fileName,
+    },
+    useNullAsDefault: true,
+    pool: {
+      min: 0,
+      max: settings.pool,
     },
     log: {
       warn(message) {
@@ -495,6 +537,14 @@ const createKnexConnection = (settings) => {
 
   return db;
 };
+
+/**
+ * Tests if we have a valid connection to the database.
+ * @param {*} knexDb connection to test.
+ * @returns boolean
+ * @throws Exception if connection fails.
+ */
+const validateConnection = (knexDb) => knexDb.raw('SELECT 1 AS isUp');
 
 /**
  * Save the current database schema to an SQL file.
@@ -537,8 +587,13 @@ const saveSchemaToSql = (settings) => {
  * @param {*} settings Database connection settings.
  */
 const buildDatabase = (settings) => {
-  const db = createKnexConnection(settings);
+  // Get the collection of tables we're about to create.
   const tables = Object.getOwnPropertyNames(proposedSchema);
+
+  // Set the connection pool size to be as large as number of tables.
+  settings.pool = tables.length;
+  // Setup Database Connection
+  const db = createKnexConnection(settings);
 
   // Helper to keep one line of logic for creating the tables.
   const tableStatuses = {};
@@ -594,25 +649,35 @@ const buildDatabase = (settings) => {
       return err;
     });
 
-  updateLoader(`Creating ${tables.length} tables`);
+  // If we have a valid connection, let's give this a try
+  validateConnection(db).then(() => {
+    updateLoader(`Creating ${tables.length} tables`);
 
-  const dropCallback = (tableName, err) => {
-    if (err) {
-      logMessage('Database', 'Error', `Error dropping existing table ${err}`);
-    } else {
-      updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
-      createDbTable(db.schema, tableName);
-    }
-  };
+    const dropCallback = (tableName, err) => {
+      if (err) {
+        logMessage('Database', 'Error', `Error dropping existing table ${err}`);
+      } else {
+        updateLoader(`Creating ${tables.length} tables: deleted ${tableName}`);
+        createDbTable(db.schema, tableName);
+      }
+    };
 
-  for (let i = 0; i < tables.length; i += 1) {
-    if (settings.overwrite) {
-      db.schema.dropTableIfExists(tables[i])
-        .asCallback((err) => { dropCallback(tables[i], err); });
-    } else {
-      createDbTable(db.schema, tables[i]);
+    for (let i = 0; i < tables.length; i += 1) {
+      if (settings.overwrite) {
+        db.schema.dropTableIfExists(tables[i])
+          .asCallback((err) => { dropCallback(tables[i], err); });
+      } else {
+        createDbTable(db.schema, tables[i]);
+      }
     }
-  }
+  }).catch((err) => {
+    logMessage('Database', 'Error', `Error connecting to database: ${err}`);
+    mainWindow.webContents.send('response_db_generated', {
+      status: false,
+      message: `Database creation failed: ${err}`,
+      responses: {},
+    });
+  });
 };
 
 /**
@@ -818,6 +883,12 @@ const handlers = {
    */
   save_ddl_sql: (event, args) => {
     saveSchemaToSql(args);
+  },
+  /**
+   * Select Sqlite3 file location.
+   */
+  select_sqlite3_location: () => {
+    saveSqlite3File();
   },
 };
 
