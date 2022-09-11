@@ -114,15 +114,15 @@ app.on('window-all-closed', () => {
 app.on('web-contents-created', (event, contents) => {
   // Block navigation.
   // https://electronjs.org/docs/tutorial/security#12-disable-or-limit-navigation
-  contents.on('will-navigate', (navevent) => {
-    navevent.preventDefault();
+  contents.on('will-navigate', (navEvent) => {
+    navEvent.preventDefault();
   });
-  contents.on('will-redirect', (navevent) => {
-    navevent.preventDefault();
+  contents.on('will-redirect', (navEvent) => {
+    navEvent.preventDefault();
   });
 
   // https://electronjs.org/docs/tutorial/security#11-verify-webview-options-before-creation
-  contents.on('will-attach-webview', (webevent, webPreferences) => {
+  contents.on('will-attach-webview', (webEvent, webPreferences) => {
     // Strip away preload scripts if unused or verify their location is legitimate
     delete webPreferences.preload;
     delete webPreferences.preloadURL;
