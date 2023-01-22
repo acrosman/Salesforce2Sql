@@ -32,14 +32,7 @@ module.exports = {
       },
     },
   ],
-  plugins: [
-    {
-      name: '@electron-forge/plugin-electronegativity',
-      config: {
-        isSarif: true,
-      },
-    },
-  ],
+  plugins: [],
   publishers: [
     {
       name: '@electron-forge/publisher-github',
