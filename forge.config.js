@@ -11,7 +11,9 @@ module.exports = {
     {
       name: '@electron-forge/maker-squirrel',
       config: {
+        exe: 'salesforce2Sql.exe',
         name: 'salesforce2Sql',
+        authors: 'Aaron Crosman',
       },
     },
     {
