@@ -104,7 +104,6 @@
     "eslint-plugin-react": "^7.29.3",
     "eslint-plugin-react-hooks": "^4.3.0",
     "husky": "^8.0.0",
-    "jest": "^27.0.6",
-    "madge": "^5.0.1"
+    "jest": "^27.0.6"
   }
 }
