@@ -50,6 +50,7 @@
     "@electron-forge/maker-squirrel": "^6.0.3",
     "@electron-forge/maker-zip": "^6.0.3",
     "@electron-forge/plugin-electronegativity": "^6.0.3",
+    "@electron-forge/publisher-github": "^6.0.4",
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
