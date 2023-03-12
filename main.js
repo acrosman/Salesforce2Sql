@@ -15,6 +15,10 @@ if (isDev) {
   require("electron-debug")(); // eslint-disable-line
 }
 
+// run this as early in the main process as possible
+// eslint-disable-next-line global-require
+if (require('electron-squirrel-startup')) app.quit();
+
 // Additional Tooling.
 const path = require('path');
 
