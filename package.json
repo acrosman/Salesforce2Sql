@@ -37,7 +37,7 @@
     "minimist": "^1.2.6",
     "mysql": "^2.18.1",
     "pg": "^8.5.1",
-    "sqlite3": "^5.0.9"
+    "sqlite3": "^5.1.5"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.3",
