@@ -820,27 +820,29 @@ const handlers = {
     updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
-      conn.sobject(obj).describe().then((response) => {
-        completedObjects += 1;
-        proposedSchema[response.name] = buildFields(response.fields);
-        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
-        allObjects[response.name] = response;
-        if (completedObjects === args.objects.length) {
-          // Send Schema to interface for review.
-          mainWindow.webContents.send('response_schema', {
-            status: false,
-            message: 'Processed Objects',
-            response: {
-              objects: allObjects,
-              schema: proposedSchema,
-            },
-            limitInfo: conn.limitInfo,
-            request: args,
-          });
-        }
-      }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
-      });
+      if (obj !== undefined) {
+        conn.sobject(obj).describe().then((response) => {
+          completedObjects += 1;
+          proposedSchema[response.name] = buildFields(response.fields);
+          updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
+          allObjects[response.name] = response;
+          if (completedObjects === args.objects.length) {
+            // Send Schema to interface for review.
+            mainWindow.webContents.send('response_schema', {
+              status: false,
+              message: 'Processed Objects',
+              response: {
+                objects: allObjects,
+                schema: proposedSchema,
+              },
+              limitInfo: conn.limitInfo,
+              request: args,
+            });
+          }
+        }, (err) => {
+          logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
+        });
+      }
     });
   },
   /**
