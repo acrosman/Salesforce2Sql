@@ -147,6 +147,19 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
+ * Returns the user name for the OrgId provided if in connection list, otherwise blank.
+ * @param {String} orgId OrgId from org in connection select
+ * @returns User name for requested org
+ */
+function fetchOrgUser(orgId) {
+  const orgRecord = document.getElementById(`sforg-${orgId}`);
+  if (orgRecord === null) {
+    return '';
+  }
+  return orgRecord.text;
+}
+
+/**
  * From a DOM element containing table rows to extract a column from.
  * @param {domElement} ele A dom element containing table rows.
  * @param {Integer} columnIndex The integer of the column to extract.
@@ -167,8 +180,9 @@ function getTableColumn(ele, columnIndex) {
  * Sort the Object table by column. Uses a decorate, sort, un-decorate approach.
  * @param {String} sortProperty The name of the property to sort the data by.
  * @param {String} direction The sorting direction: ASC or DESC.
+ * @param {String} orgId The Id of the org whose objects are being sorted.
  */
-function sortObjectTable(sortProperty, direction = 'ASC') {
+function sortObjectTable(sortProperty, direction = 'ASC', orgId = '') {
   const table = document.getElementById('results-table');
   const tableBody = table.getElementsByTagName('tbody')[0];
   const dir = direction.toUpperCase();
@@ -245,7 +259,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   // Trigger re-render of the table.
   // This is a circular reference so no lint error for you.
   // eslint-disable-next-line no-use-before-define
-  displayObjectList(renderData, selected, true, sortProperty, dir);
+  displayObjectList(orgId, renderData, selected, true, sortProperty, dir);
 }
 
 /**
@@ -391,20 +405,22 @@ const handleLogin = (responseData) => {
 
 /**
  * Displays the list of objects from a Global describe query.
+ * @param {String} orgId The Id for the org queried.
  * @param {Object} sObjectData The results from JSForce to display.
  * @param {Array} selected The list of objects to set as selected.
  * @param {boolean} sorted When true, the list will be rendered in the order provided,
  *  otherwise it will sort selected first.
  * @param {String} sortedColumn The name of the column the data is sorted by to set label.
  */
-const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
+const displayObjectList = (orgId, sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
   // Define  columns to display.
   const displayColumns = [
     'label',
     'name',
   ];
 
-  updateMessage('Object List Retrieved');
+  const orgUser = fetchOrgUser(orgId);
+  updateMessage(`Object List Retrieved for ${orgUser}`);
 
   // Display area.
   // @todo: remove jquery use.
@@ -447,11 +463,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   // that gets passed here would be bad, so switch back to actual string.
   if (nextSort === 'DESC') {
     th.addEventListener('click', () => {
-      sortObjectTable('Select', 'DESC');
+      sortObjectTable('Select', 'DESC', orgId);
     });
   } else {
     th.addEventListener('click', () => {
-      sortObjectTable('Select', 'ASC');
+      sortObjectTable('Select', 'ASC', orgId);
     });
   }
 
@@ -476,11 +492,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     // value instead of the current value.
     if (nextSort === 'DESC') {
       th.addEventListener('click', () => {
-        sortObjectTable(displayColumns[i], 'DESC');
+        sortObjectTable(displayColumns[i], 'DESC', orgId);
       });
     } else {
       th.addEventListener('click', () => {
-        sortObjectTable(displayColumns[i], 'ASC');
+        sortObjectTable(displayColumns[i], 'ASC', orgId);
       });
     }
   }
@@ -567,9 +583,10 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
 /**
  * Displays the drafted schema in the JSONViewer
+ * @param {String} orgId The org ID for the schema.
  * @param {*} schema the built-out schema from main thread.
  */
-const displayDraftSchema = (schema) => {
+const displayDraftSchema = (orgId, schema) => {
   showLoader('All objects loaded, refreshing display');
 
   refreshObjectDisplay({
@@ -577,7 +594,12 @@ const displayDraftSchema = (schema) => {
     response: schema,
   });
 
-  updateMessage('Proposed schema ready for review.');
+  // If we know the org user, show it, otherwise assume this was loaded locally.
+  let orgUser = fetchOrgUser(orgId);
+  if (orgUser === '') {
+    orgUser = 'local file';
+  }
+  updateMessage(`Proposed schema from ${orgUser} ready for review.`);
 
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
@@ -774,7 +796,7 @@ window.api.receive('response_db_generated', (data) => {
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
-  displayDraftSchema(data.response.schema);
+  displayDraftSchema(data.request?.org, data.response.schema);
 });
 
 // Response after selecting Sqlite3 file
@@ -788,7 +810,11 @@ window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
-    displayObjectList(data.response.sobjects, data.response.recommended);
+    displayObjectList(
+      data.request?.org,
+      data.response.sobjects,
+      data.response.recommended,
+    );
   } else {
     logMessage('Salesforce', 'Error', 'Error while retrieving object listing.', data);
   }
