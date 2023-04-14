@@ -39,6 +39,7 @@ const getCurrentPreferences = () => {
     defaults: {
       attemptSFValues: false,
       textEmptyString: false,
+      checkboxDefaultFalse: true,
       suppressReadOnly: false,
       suppressAudit: false,
     },

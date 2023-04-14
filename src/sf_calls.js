@@ -325,6 +325,13 @@ const buildTable = (table) => {
       }
     }
 
+    // For checkbox fields, set a default of false instead of null when pref set.
+    if (preferences.defaults.checkboxDefault && fieldType === 'boolean') {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = false;
+      }
+    }
+
     let column;
     switch (fieldType) {
       case 'binary':
