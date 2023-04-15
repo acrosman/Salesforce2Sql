@@ -48,6 +48,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Opportunity',
     'OpportunityContactRole',
@@ -61,6 +63,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Lead',
     'RecordType',
@@ -73,6 +77,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Lead',
     'Opportunity',
@@ -325,6 +331,13 @@ const buildTable = (table) => {
       }
     }
 
+    // For checkbox fields, set a default of false instead of null when pref set.
+    if (preferences.defaults.checkboxDefault && fieldType === 'boolean') {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = false;
+      }
+    }
+
     let column;
     switch (fieldType) {
       case 'binary':
@@ -384,8 +397,14 @@ const buildTable = (table) => {
       // To avoid prefixing with table name (which can easily violate the length
       // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
-      // _really_ long package namespace is in play.
-      column.index(field.name);
+      // _really_ long package namespace is in play. However, on Sqlite you need
+      // a totally unique name (which is what knex does by default but assumes
+      // unlimited length).
+      let name = `${table._tableName}_${field.name}`;
+      if (name.length > 60) {
+        name = field.name + Math.round((Math.random() * 99999) + 10000);
+      }
+      column.index(name);
     }
   }
 };
@@ -445,7 +464,7 @@ const saveSchemaToFile = () => {
 
     let fileName = response.filePath;
 
-    if (path.extname(fileName).toLowerCase() !== 'json') {
+    if (path.extname(fileName).toLowerCase() !== '.json') {
       fileName = `${fileName}.json`;
     }
 
@@ -475,7 +494,7 @@ const saveSqlite3File = () => {
 
     let fileName = response.filePath;
     const extension = path.extname(fileName).toLowerCase();
-    if (extension !== 'sqlite' || extension !== 'db' || extension !== 'sqlite3') {
+    if (extension !== '.sqlite' && extension !== '.db' && extension !== '.sqlite3') {
       fileName = `${fileName}.sqlite`;
     }
 
@@ -814,27 +833,29 @@ const handlers = {
     updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
-      conn.sobject(obj).describe().then((response) => {
-        completedObjects += 1;
-        proposedSchema[response.name] = buildFields(response.fields);
-        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
-        allObjects[response.name] = response;
-        if (completedObjects === args.objects.length) {
-          // Send Schema to interface for review.
-          mainWindow.webContents.send('response_schema', {
-            status: false,
-            message: 'Processed Objects',
-            response: {
-              objects: allObjects,
-              schema: proposedSchema,
-            },
-            limitInfo: conn.limitInfo,
-            request: args,
-          });
-        }
-      }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
-      });
+      if (obj !== undefined) {
+        conn.sobject(obj).describe().then((response) => {
+          completedObjects += 1;
+          proposedSchema[response.name] = buildFields(response.fields);
+          updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
+          allObjects[response.name] = response;
+          if (completedObjects === args.objects.length) {
+            // Send Schema to interface for review.
+            mainWindow.webContents.send('response_schema', {
+              status: false,
+              message: 'Processed Objects',
+              response: {
+                objects: allObjects,
+                schema: proposedSchema,
+              },
+              limitInfo: conn.limitInfo,
+              request: args,
+            });
+          }
+        }, (err) => {
+          logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
+        });
+      }
     });
   },
   /**

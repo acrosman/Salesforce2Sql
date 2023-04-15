@@ -10,8 +10,8 @@ const nonPrefWindowItems = [
   'find-menu-item',
 ];
 
-let prefWindow;
-let mainWindow;
+let prefWindow = null;
+let mainWindow = null;
 
 const setMainWindow = (win) => {
   mainWindow = win;
@@ -39,6 +39,7 @@ const getCurrentPreferences = () => {
     defaults: {
       attemptSFValues: false,
       textEmptyString: false,
+      checkboxDefaultFalse: true,
       suppressReadOnly: false,
       suppressAudit: false,
     },
