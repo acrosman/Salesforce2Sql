@@ -614,12 +614,14 @@ const displayDraftSchema = (orgId, schema) => {
 const handleDatabaseFinish = (data) => {
   // Check each table to see if it succeeded
   const hasResponses = Object.prototype.hasOwnProperty.call(data, 'response');
-  let fullSuccess = data.status;
+  let fullSuccess = true;
+  let hasFailure = false;
   let fullFailure = !hasResponses;
   const tables = Object.getOwnPropertyNames(data.responses);
   tables.forEach((table) => {
     fullSuccess = data.responses[table] && fullSuccess;
-    fullFailure = !data.responses[table] || fullFailure;
+    hasFailure = !data.responses[table] || hasFailure;
+    fullFailure = !data.responses[table] && fullFailure;
   });
 
   logMessage('Database', 'Info', 'Database generation complete.', data);
