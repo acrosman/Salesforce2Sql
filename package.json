@@ -1,6 +1,6 @@
 {
   "name": "salesforce2sql",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
