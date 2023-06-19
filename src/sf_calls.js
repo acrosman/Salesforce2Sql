@@ -757,17 +757,14 @@ const handlers = {
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
     const fail = (err) => {
-      if (err) {
-        mainWindow.webContents.send('response_logout', {
-          status: false,
-          message: 'Logout Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
-        return true;
-      }
+      mainWindow.webContents.send('response_logout', {
+        status: false,
+        message: 'Logout Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+      logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
     };
     const success = () => {
       // now the session has been expired.
@@ -779,7 +776,6 @@ const handlers = {
         request: args,
       });
       sfConnections[args.org] = null;
-      return true;
     };
     conn.logout.then(fail, success);
   },
