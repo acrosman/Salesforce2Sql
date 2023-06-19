@@ -756,7 +756,7 @@ const handlers = {
    */
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.logout((err) => {
+    const fail = (err) => {
       if (err) {
         mainWindow.webContents.send('response_logout', {
           status: false,
@@ -768,6 +768,8 @@ const handlers = {
         logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
         return true;
       }
+    };
+    const success = () => {
       // now the session has been expired.
       mainWindow.webContents.send('response_logout', {
         status: true,
@@ -778,7 +780,8 @@ const handlers = {
       });
       sfConnections[args.org] = null;
       return true;
-    });
+    };
+    conn.logout.then(fail, success);
   },
   /**
    * Run a global describe.
