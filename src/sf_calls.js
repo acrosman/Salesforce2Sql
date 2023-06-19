@@ -777,7 +777,7 @@ const handlers = {
       });
       sfConnections[args.org] = null;
     };
-    conn.logout.then(fail, success);
+    conn.logout.then(success, fail);
   },
   /**
    * Run a global describe.
@@ -810,7 +810,7 @@ const handlers = {
       return true;
     };
 
-    conn.describeGlobal.then(fail, success);
+    conn.describeGlobal.then(success, fail);
   },
   /**
    * Get a list of all fields on a provided list of objects.
