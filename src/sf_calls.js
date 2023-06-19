@@ -787,19 +787,16 @@ const handlers = {
    */
   sf_describeGlobal: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.describeGlobal((err, result) => {
-      if (err) {
-        mainWindow.webContents.send('response_error', {
-          status: false,
-          message: 'Describe Global Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-
-        return true;
-      }
-
+    const fail = (err) => {
+      mainWindow.webContents.send('response_error', {
+        status: false,
+        message: 'Describe Global Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+    };
+    const success = (result) => {
       // Send records back to the interface.
       logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
       result.recommended = recommendObjects(result.sobjects);
@@ -811,7 +808,9 @@ const handlers = {
         request: args,
       });
       return true;
-    });
+    };
+
+    conn.describeGlobal.then(fail, success);
   },
   /**
    * Get a list of all fields on a provided list of objects.
