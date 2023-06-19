@@ -713,13 +713,32 @@ const handlers = {
       password = `${password}${args.token}`;
     }
 
-    conn.login(args.username, password, (err, userInfo) => {
-      // Since we send the args back to the interface, it's a good idea
-      // to remove the security information.
-      args.password = '';
-      args.token = '';
+    conn.login(args.username, password).then(
+      (userInfo) => {
+        // Since we send the args back to the interface, it's a good idea
+        // to remove the security information.
+        args.password = '';
+        args.token = '';
 
-      if (err) {
+        // Now you can get the access token and instance URL information.
+        // Save them to establish connection next time.
+        logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
+
+        // Save the next connection in the global storage.
+        sfConnections[userInfo.organizationId] = {
+          instanceUrl: conn.instanceUrl,
+          accessToken: conn.accessToken,
+        };
+
+        mainWindow.webContents.send('response_login', {
+          status: true,
+          message: 'Login Successful',
+          response: userInfo,
+          limitInfo: conn.limitInfo,
+          request: args,
+        });
+      },
+      (err) => {
         mainWindow.webContents.send('response_login', {
           status: false,
           message: 'Login Failed',
@@ -727,27 +746,8 @@ const handlers = {
           limitInfo: conn.limitInfo,
           request: args,
         });
-        return true;
-      }
-      // Now you can get the access token and instance URL information.
-      // Save them to establish connection next time.
-      logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-      // Save the next connection in the global storage.
-      sfConnections[userInfo.organizationId] = {
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken,
-      };
-
-      mainWindow.webContents.send('response_login', {
-        status: true,
-        message: 'Login Successful',
-        response: userInfo,
-        limitInfo: conn.limitInfo,
-        request: args,
-      });
-      return true;
-    });
+      },
+    );
   },
   /**
    * Logout of a specific Salesforce org.
