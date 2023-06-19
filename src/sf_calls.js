@@ -713,13 +713,32 @@ const handlers = {
       password = `${password}${args.token}`;
     }
 
-    conn.login(args.username, password, (err, userInfo) => {
-      // Since we send the args back to the interface, it's a good idea
-      // to remove the security information.
-      args.password = '';
-      args.token = '';
+    conn.login(args.username, password).then(
+      (userInfo) => {
+        // Since we send the args back to the interface, it's a good idea
+        // to remove the security information.
+        args.password = '';
+        args.token = '';
 
-      if (err) {
+        // Now you can get the access token and instance URL information.
+        // Save them to establish connection next time.
+        logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
+
+        // Save the next connection in the global storage.
+        sfConnections[userInfo.organizationId] = {
+          instanceUrl: conn.instanceUrl,
+          accessToken: conn.accessToken,
+        };
+
+        mainWindow.webContents.send('response_login', {
+          status: true,
+          message: 'Login Successful',
+          response: userInfo,
+          limitInfo: conn.limitInfo,
+          request: args,
+        });
+      },
+      (err) => {
         mainWindow.webContents.send('response_login', {
           status: false,
           message: 'Login Failed',
@@ -727,27 +746,8 @@ const handlers = {
           limitInfo: conn.limitInfo,
           request: args,
         });
-        return true;
-      }
-      // Now you can get the access token and instance URL information.
-      // Save them to establish connection next time.
-      logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-      // Save the next connection in the global storage.
-      sfConnections[userInfo.organizationId] = {
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken,
-      };
-
-      mainWindow.webContents.send('response_login', {
-        status: true,
-        message: 'Login Successful',
-        response: userInfo,
-        limitInfo: conn.limitInfo,
-        request: args,
-      });
-      return true;
-    });
+      },
+    );
   },
   /**
    * Logout of a specific Salesforce org.
@@ -756,18 +756,17 @@ const handlers = {
    */
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.logout((err) => {
-      if (err) {
-        mainWindow.webContents.send('response_logout', {
-          status: false,
-          message: 'Logout Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
-        return true;
-      }
+    const fail = (err) => {
+      mainWindow.webContents.send('response_logout', {
+        status: false,
+        message: 'Logout Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+      logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
+    };
+    const success = () => {
       // now the session has been expired.
       mainWindow.webContents.send('response_logout', {
         status: true,
@@ -777,8 +776,8 @@ const handlers = {
         request: args,
       });
       sfConnections[args.org] = null;
-      return true;
-    });
+    };
+    conn.logout.then(success, fail);
   },
   /**
    * Run a global describe.
@@ -788,19 +787,16 @@ const handlers = {
    */
   sf_describeGlobal: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.describeGlobal((err, result) => {
-      if (err) {
-        mainWindow.webContents.send('response_error', {
-          status: false,
-          message: 'Describe Global Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-
-        return true;
-      }
-
+    const fail = (err) => {
+      mainWindow.webContents.send('response_error', {
+        status: false,
+        message: 'Describe Global Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+    };
+    const success = (result) => {
       // Send records back to the interface.
       logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
       result.recommended = recommendObjects(result.sobjects);
@@ -812,7 +808,9 @@ const handlers = {
         request: args,
       });
       return true;
-    });
+    };
+
+    conn.describeGlobal().then(success, fail);
   },
   /**
    * Get a list of all fields on a provided list of objects.
