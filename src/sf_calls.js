@@ -810,7 +810,7 @@ const handlers = {
       return true;
     };
 
-    conn.describeGlobal.then(success, fail);
+    conn.describeGlobal().then(success, fail);
   },
   /**
    * Get a list of all fields on a provided list of objects.
