@@ -1,6 +1,6 @@
+const path = require('path');
 const { app, BrowserWindow, Menu } = require('electron');  // eslint-disable-line
 const fs = require('fs-extra');
-const path = require('path');
 
 const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
