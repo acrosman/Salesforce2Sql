@@ -147,6 +147,19 @@ function logMessage(context, importance, message, data) {
 }
 
 /**
+ * Returns the user name for the OrgId provided if in connection list, otherwise blank.
+ * @param {String} orgId OrgId from org in connection select
+ * @returns User name for requested org
+ */
+function fetchOrgUser(orgId) {
+  const orgRecord = document.getElementById(`sforg-${orgId}`);
+  if (orgRecord === null) {
+    return '';
+  }
+  return orgRecord.text;
+}
+
+/**
  * From a DOM element containing table rows to extract a column from.
  * @param {domElement} ele A dom element containing table rows.
  * @param {Integer} columnIndex The integer of the column to extract.
@@ -167,8 +180,9 @@ function getTableColumn(ele, columnIndex) {
  * Sort the Object table by column. Uses a decorate, sort, un-decorate approach.
  * @param {String} sortProperty The name of the property to sort the data by.
  * @param {String} direction The sorting direction: ASC or DESC.
+ * @param {String} orgId The Id of the org whose objects are being sorted.
  */
-function sortObjectTable(sortProperty, direction = 'ASC') {
+function sortObjectTable(sortProperty, direction = 'ASC', orgId = '') {
   const table = document.getElementById('results-table');
   const tableBody = table.getElementsByTagName('tbody')[0];
   const dir = direction.toUpperCase();
@@ -245,7 +259,7 @@ function sortObjectTable(sortProperty, direction = 'ASC') {
   // Trigger re-render of the table.
   // This is a circular reference so no lint error for you.
   // eslint-disable-next-line no-use-before-define
-  displayObjectList(renderData, selected, true, sortProperty, dir);
+  displayObjectList(orgId, renderData, selected, true, sortProperty, dir);
 }
 
 /**
@@ -337,6 +351,35 @@ const refreshObjectDisplay = (data) => {
   hideLoader();
 };
 
+// =============== Interface Setup ===================
+// This section should steadily replace the Jquery at the top of the page.
+
+Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+  btn.style.display = 'none';
+});
+/**
+ * Setup the handlers for the server select radios.
+ */
+document.getElementsByName('db-radio-selectors').forEach((el) => {
+  el.addEventListener('change', (event) => {
+    if (event.target.id === 'db-sqlite') {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+    } else {
+      Array.from(document.getElementsByClassName('db-info-wrapper')).forEach((btn) => {
+        btn.style.display = 'block';
+      });
+      Array.from(document.getElementsByClassName('sqlite3-wrapper')).forEach((btn) => {
+        btn.style.display = 'none';
+      });
+    }
+  });
+});
+
 // ================ Response Handlers =================
 
 /**
@@ -362,20 +405,22 @@ const handleLogin = (responseData) => {
 
 /**
  * Displays the list of objects from a Global describe query.
+ * @param {String} orgId The Id for the org queried.
  * @param {Object} sObjectData The results from JSForce to display.
  * @param {Array} selected The list of objects to set as selected.
  * @param {boolean} sorted When true, the list will be rendered in the order provided,
  *  otherwise it will sort selected first.
  * @param {String} sortedColumn The name of the column the data is sorted by to set label.
  */
-const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
+const displayObjectList = (orgId, sObjectData, selected, sorted = false, sortedColumn = 'Select', sortedDirection = 'ASC') => {
   // Define  columns to display.
   const displayColumns = [
     'label',
     'name',
   ];
 
-  updateMessage('Object List Retrieved');
+  const orgUser = fetchOrgUser(orgId);
+  updateMessage(`Object List Retrieved for ${orgUser}`);
 
   // Display area.
   // @todo: remove jquery use.
@@ -418,11 +463,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
   // that gets passed here would be bad, so switch back to actual string.
   if (nextSort === 'DESC') {
     th.addEventListener('click', () => {
-      sortObjectTable('Select', 'DESC');
+      sortObjectTable('Select', 'DESC', orgId);
     });
   } else {
     th.addEventListener('click', () => {
-      sortObjectTable('Select', 'ASC');
+      sortObjectTable('Select', 'ASC', orgId);
     });
   }
 
@@ -447,11 +492,11 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
     // value instead of the current value.
     if (nextSort === 'DESC') {
       th.addEventListener('click', () => {
-        sortObjectTable(displayColumns[i], 'DESC');
+        sortObjectTable(displayColumns[i], 'DESC', orgId);
       });
     } else {
       th.addEventListener('click', () => {
-        sortObjectTable(displayColumns[i], 'ASC');
+        sortObjectTable(displayColumns[i], 'ASC', orgId);
       });
     }
   }
@@ -538,9 +583,10 @@ const displayObjectList = (sObjectData, selected, sorted = false, sortedColumn =
 
 /**
  * Displays the drafted schema in the JSONViewer
+ * @param {String} orgId The org ID for the schema.
  * @param {*} schema the built-out schema from main thread.
  */
-const displayDraftSchema = (schema) => {
+const displayDraftSchema = (orgId, schema) => {
   showLoader('All objects loaded, refreshing display');
 
   refreshObjectDisplay({
@@ -548,7 +594,12 @@ const displayDraftSchema = (schema) => {
     response: schema,
   });
 
-  updateMessage('Proposed schema ready for review.');
+  // If we know the org user, show it, otherwise assume this was loaded locally.
+  let orgUser = fetchOrgUser(orgId);
+  if (orgUser === '') {
+    orgUser = 'local file';
+  }
+  updateMessage(`Proposed schema from ${orgUser} ready for review.`);
 
   $('#btn-generate-schema').prop('disabled', false);
   $('#btn-save-sf-schema').prop('disabled', false);
@@ -563,12 +614,14 @@ const displayDraftSchema = (schema) => {
 const handleDatabaseFinish = (data) => {
   // Check each table to see if it succeeded
   const hasResponses = Object.prototype.hasOwnProperty.call(data, 'response');
-  let fullSuccess = data.status;
+  let fullSuccess = true;
+  let hasFailure = false;
   let fullFailure = !hasResponses;
   const tables = Object.getOwnPropertyNames(data.responses);
   tables.forEach((table) => {
     fullSuccess = data.responses[table] && fullSuccess;
-    fullFailure = !data.responses[table] || fullFailure;
+    hasFailure = !data.responses[table] || hasFailure;
+    fullFailure = !data.responses[table] && fullFailure;
   });
 
   logMessage('Database', 'Info', 'Database generation complete.', data);
@@ -585,6 +638,14 @@ const handleDatabaseFinish = (data) => {
   $('#btn-save-sql-schema').prop('disabled', false);
 
   hideLoader();
+};
+
+/**
+ * Handles response from sqlite3 file path.
+ * @param {string} filePath The path selected.
+ */
+const updateSqlite3Path = (filePath) => {
+  document.getElementById('db-sqlite3-path').value = filePath;
 };
 
 // ========= Messages to the main process ===============
@@ -648,7 +709,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
     }
   }
 
-  if (document.getElementById('db-name').value === '') {
+  if (document.getElementById('db-name').value === '' && dbType !== 'sqlite3') {
     updateMessage('Database name is required to attempt creation.');
   } else {
     showLoader('Creating Database Tables');
@@ -661,6 +722,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
       password: document.getElementById('db-password').value,
       dbname: document.getElementById('db-name').value,
       overwrite: document.getElementById('db-overwrite').checked,
+      fileName: document.getElementById('db-sqlite3-path').value,
     });
   }
 });
@@ -685,12 +747,19 @@ document.getElementById('btn-save-sql-schema').addEventListener('click', () => {
   });
 });
 
+// Add Trigger schema save process.
 document.getElementById('btn-save-sf-schema').addEventListener('click', () => {
   window.api.send('save_schema');
 });
 
+// Add trigger for load schema process.
 document.getElementById('btn-load-sf-schema').addEventListener('click', () => {
   window.api.send('load_schema');
+});
+
+// Add trigger for setting sqlite3 file path.
+document.getElementById('btn-sqlite3-file').addEventListener('click', () => {
+  window.api.send('select_sqlite3_location');
 });
 
 // ===== Response handlers from IPC Messages to render context ======
@@ -725,10 +794,17 @@ window.api.receive('response_db_generated', (data) => {
   handleDatabaseFinish(data);
 });
 
+// Response after saving Schema
 window.api.receive('response_schema', (data) => {
   document.getElementById('results-object-viewer-wrapper').style.display = 'block';
   logMessage('Schema', 'Success', 'Draft schema built', data);
-  displayDraftSchema(data.response.schema);
+  displayDraftSchema(data.request?.org, data.response.schema);
+});
+
+// Response after selecting Sqlite3 file
+window.api.receive('response_sqlite3_file', (data) => {
+  logMessage('Schema', 'Success', 'Selected file location', data);
+  updateSqlite3Path(data.response.filePath);
 });
 
 // List Objects From Global Describe.
@@ -736,7 +812,11 @@ window.api.receive('response_list_objects', (data) => {
   document.getElementById('results-table-wrapper').style.display = 'block';
   if (data.status) {
     logMessage('Salesforce', 'Info', `Retrieved ${data.response.sobjects.length} SObjects from Salesforce`, data);
-    displayObjectList(data.response.sobjects, data.response.recommended);
+    displayObjectList(
+      data.request?.org,
+      data.response.sobjects,
+      data.response.recommended,
+    );
   } else {
     logMessage('Salesforce', 'Error', 'Error while retrieving object listing.', data);
   }

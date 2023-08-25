@@ -48,6 +48,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Opportunity',
     'OpportunityContactRole',
@@ -61,6 +63,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Lead',
     'RecordType',
@@ -73,6 +77,8 @@ const standardObjectsByNamespace = {
     'Campaign',
     'CampaignMember',
     'Case',
+    'ContentNote',
+    'ContentDocumentLink',
     'Document',
     'Lead',
     'Opportunity',
@@ -325,6 +331,13 @@ const buildTable = (table) => {
       }
     }
 
+    // For checkbox fields, set a default of false instead of null when pref set.
+    if (preferences.defaults.checkboxDefault && fieldType === 'boolean') {
+      if (defaultValue === 'null' || defaultValue === null) {
+        defaultValue = false;
+      }
+    }
+
     let column;
     switch (fieldType) {
       case 'binary':
@@ -384,8 +397,14 @@ const buildTable = (table) => {
       // To avoid prefixing with table name (which can easily violate the length
       // limit from MySQL and Postgres), use the field name as the column name
       // which should top out around the same places as the limit (60) unless a
-      // _really_ long package namespace is in play.
-      column.index(field.name);
+      // _really_ long package namespace is in play. However, on Sqlite you need
+      // a totally unique name (which is what knex does by default but assumes
+      // unlimited length).
+      let name = `${table._tableName}_${field.name}`;
+      if (name.length > 60) {
+        name = field.name + Math.round((Math.random() * 99999) + 10000);
+      }
+      column.index(name);
     }
   }
 };
@@ -445,7 +464,7 @@ const saveSchemaToFile = () => {
 
     let fileName = response.filePath;
 
-    if (path.extname(fileName).toLowerCase() !== 'json') {
+    if (path.extname(fileName).toLowerCase() !== '.json') {
       fileName = `${fileName}.json`;
     }
 
@@ -455,6 +474,36 @@ const saveSchemaToFile = () => {
       } else {
         logMessage('Save', 'Info', `Schema saved to ${fileName}`);
       }
+    });
+  }).catch((err) => {
+    logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
+  });
+};
+
+/**
+ * Open a save dialogue and select file target for Sqlite3 file.
+ */
+const saveSqlite3File = () => {
+  const dialogOptions = {
+    title: 'Select Sqlite3 Database Location',
+    message: 'Create File',
+  };
+
+  dialog.showSaveDialog(mainWindow, dialogOptions).then((response) => {
+    if (response.canceled) { return; }
+
+    let fileName = response.filePath;
+    const extension = path.extname(fileName).toLowerCase();
+    if (extension !== '.sqlite' && extension !== '.db' && extension !== '.sqlite3') {
+      fileName = `${fileName}.sqlite`;
+    }
+
+    mainWindow.webContents.send('response_sqlite3_file', {
+      status: false,
+      message: 'Sqlite3 File Selected',
+      response: {
+        filePath: fileName,
+      },
     });
   }).catch((err) => {
     logMessage('Save', 'Error', `Saved failed after dialog: ${err}`);
@@ -483,8 +532,9 @@ const createKnexConnection = (settings) => {
       password: settings.password,
       database: settings.dbname,
       port: settings.port,
+      filename: settings.fileName,
     },
-    options,
+    useNullAsDefault: true,
     pool: {
       min: 0,
       max: settings.pool,
@@ -670,13 +720,32 @@ const handlers = {
       password = `${password}${args.token}`;
     }
 
-    conn.login(args.username, password, (err, userInfo) => {
-      // Since we send the args back to the interface, it's a good idea
-      // to remove the security information.
-      args.password = '';
-      args.token = '';
+    conn.login(args.username, password).then(
+      (userInfo) => {
+        // Since we send the args back to the interface, it's a good idea
+        // to remove the security information.
+        args.password = '';
+        args.token = '';
 
-      if (err) {
+        // Now you can get the access token and instance URL information.
+        // Save them to establish connection next time.
+        logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
+
+        // Save the next connection in the global storage.
+        sfConnections[userInfo.organizationId] = {
+          instanceUrl: conn.instanceUrl,
+          accessToken: conn.accessToken,
+        };
+
+        mainWindow.webContents.send('response_login', {
+          status: true,
+          message: 'Login Successful',
+          response: userInfo,
+          limitInfo: conn.limitInfo,
+          request: args,
+        });
+      },
+      (err) => {
         mainWindow.webContents.send('response_login', {
           status: false,
           message: 'Login Failed',
@@ -684,27 +753,8 @@ const handlers = {
           limitInfo: conn.limitInfo,
           request: args,
         });
-        return true;
-      }
-      // Now you can get the access token and instance URL information.
-      // Save them to establish connection next time.
-      logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-      // Save the next connection in the global storage.
-      sfConnections[userInfo.organizationId] = {
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken,
-      };
-
-      mainWindow.webContents.send('response_login', {
-        status: true,
-        message: 'Login Successful',
-        response: userInfo,
-        limitInfo: conn.limitInfo,
-        request: args,
-      });
-      return true;
-    });
+      },
+    );
   },
   /**
    * Logout of a specific Salesforce org.
@@ -713,18 +763,17 @@ const handlers = {
    */
   sf_logout: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.logout((err) => {
-      if (err) {
-        mainWindow.webContents.send('response_logout', {
-          status: false,
-          message: 'Logout Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-        logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
-        return true;
-      }
+    const fail = (err) => {
+      mainWindow.webContents.send('response_logout', {
+        status: false,
+        message: 'Logout Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+      logMessage(event.sender.getTitle(), 'Error', `Logout Failed ${err} `);
+    };
+    const success = () => {
       // now the session has been expired.
       mainWindow.webContents.send('response_logout', {
         status: true,
@@ -734,8 +783,8 @@ const handlers = {
         request: args,
       });
       sfConnections[args.org] = null;
-      return true;
-    });
+    };
+    conn.logout.then(success, fail);
   },
   /**
    * Run a global describe.
@@ -745,19 +794,16 @@ const handlers = {
    */
   sf_describeGlobal: (event, args) => {
     const conn = new jsforce.Connection(sfConnections[args.org]);
-    conn.describeGlobal((err, result) => {
-      if (err) {
-        mainWindow.webContents.send('response_error', {
-          status: false,
-          message: 'Describe Global Failed',
-          response: `${err} `,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-
-        return true;
-      }
-
+    const fail = (err) => {
+      mainWindow.webContents.send('response_error', {
+        status: false,
+        message: 'Describe Global Failed',
+        response: `${err} `,
+        limitInfo: conn.limitInfo,
+        request: args,
+      });
+    };
+    const success = (result) => {
       // Send records back to the interface.
       logMessage('Fetch Objects', 'Info', `Used global describe to list ${result.sobjects.length} SObjects.`);
       result.recommended = recommendObjects(result.sobjects);
@@ -769,7 +815,9 @@ const handlers = {
         request: args,
       });
       return true;
-    });
+    };
+
+    conn.describeGlobal().then(success, fail);
   },
   /**
    * Get a list of all fields on a provided list of objects.
@@ -790,27 +838,29 @@ const handlers = {
     updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
 
     args.objects.forEach((obj) => {
-      conn.sobject(obj).describe().then((response) => {
-        completedObjects += 1;
-        proposedSchema[response.name] = buildFields(response.fields);
-        updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
-        allObjects[response.name] = response;
-        if (completedObjects === args.objects.length) {
-          // Send Schema to interface for review.
-          mainWindow.webContents.send('response_schema', {
-            status: false,
-            message: 'Processed Objects',
-            response: {
-              objects: allObjects,
-              schema: proposedSchema,
-            },
-            limitInfo: conn.limitInfo,
-            request: args,
-          });
-        }
-      }, (err) => {
-        logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
-      });
+      if (obj !== undefined) {
+        conn.sobject(obj).describe().then((response) => {
+          completedObjects += 1;
+          proposedSchema[response.name] = buildFields(response.fields);
+          updateLoader(`Loaded ${completedObjects} of ${args.objects.length} Object Describes`);
+          allObjects[response.name] = response;
+          if (completedObjects === args.objects.length) {
+            // Send Schema to interface for review.
+            mainWindow.webContents.send('response_schema', {
+              status: false,
+              message: 'Processed Objects',
+              response: {
+                objects: allObjects,
+                schema: proposedSchema,
+              },
+              limitInfo: conn.limitInfo,
+              request: args,
+            });
+          }
+        }, (err) => {
+          logMessage('Field Fetch', 'Error', `Error loading describe for ${obj}: ${err} `);
+        });
+      }
     });
   },
   /**
@@ -853,6 +903,12 @@ const handlers = {
    */
   save_ddl_sql: (event, args) => {
     saveSchemaToSql(args);
+  },
+  /**
+   * Select Sqlite3 file location.
+   */
+  select_sqlite3_location: () => {
+    saveSqlite3File();
   },
 };
 

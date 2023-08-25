@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
       defaults: {
         attemptSFValues: document.getElementById('default-value').checked,
         textEmptyString: document.getElementById('default-blank').checked,
+        checkboxDefaultFalse: document.getElementById('default-checkbox').checked,
         suppressReadOnly: document.getElementById('hide-readonly-fields').checked,
         suppressAudit: document.getElementById('hide-audit-fields').checked,
       },
@@ -63,6 +64,7 @@ window.api.receive('preferences_data', (data) => {
   document.querySelector(`input[name="lookup-fieldType"][value="${data.lookups.type}"]`).checked = true;
   document.getElementById('default-value').checked = data.defaults.attemptSFValues;
   document.getElementById('default-blank').checked = data.defaults.textEmptyString;
+  document.getElementById('default-checkbox').checked = data.defaults.checkboxDefaultFalse;
   document.getElementById('hide-readonly-fields').checked = data.defaults.suppressReadOnly;
   document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
 });
