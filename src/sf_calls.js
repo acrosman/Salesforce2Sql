@@ -529,6 +529,7 @@ const createKnexConnection = (settings) => {
       port: parseInt(settings.port, 10),
       filename: settings.fileName,
       encrypt,
+      options: { trustServerCertificate: true },
     },
     useNullAsDefault: true,
     pool: {
