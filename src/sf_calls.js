@@ -516,13 +516,8 @@ const saveSqlite3File = () => {
  * @returns the database connection object.
  */
 const createKnexConnection = (settings) => {
-  const options = {
-    encrypt: false,
-  };
-  if (settings.type === 'mssql') {
-    options.encrypt = true;
-    options.port = settings.port;
-  }
+  const encrypt = settings.type === 'mssql';
+
   // Create database connection.
   const db = knex({
     client: settings.type,
@@ -531,8 +526,9 @@ const createKnexConnection = (settings) => {
       user: settings.username,
       password: settings.password,
       database: settings.dbname,
-      port: settings.port,
+      port: parseInt(settings.port, 10),
       filename: settings.fileName,
+      encrypt,
     },
     useNullAsDefault: true,
     pool: {
