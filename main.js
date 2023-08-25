@@ -72,7 +72,7 @@ function createWindow() {
   mainWindow.loadURL(`file://${__dirname}/app/index.html`);
 
   // Attach to IPC handlers
-  ipcFunctions.setwindow(mainWindow);
+  ipcFunctions.setWindow(mainWindow);
 
   // Attach to preference system.
   setMainWindow(mainWindow);
@@ -137,7 +137,7 @@ app.on('web-contents-created', (event, contents) => {
 
   // Block new windows from within the App
   // https://electronjs.org/docs/tutorial/security#13-disable-or-limit-creation-of-new-windows
-  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.setWindoOpenHandler(() => ({ action: 'deny' }));
 });
 
 app.on('activate', () => {
