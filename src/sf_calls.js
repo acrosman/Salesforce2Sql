@@ -108,7 +108,7 @@ const auditFields = [
  * Sets the window being used for the interface. Responses are sent to this window.
  * @param {*} window The ElectronJS window in use.
  */
-const setwindow = (window) => {
+const setWindow = (window) => {
   mainWindow = window;
 };
 
@@ -516,6 +516,8 @@ const saveSqlite3File = () => {
  * @returns the database connection object.
  */
 const createKnexConnection = (settings) => {
+  const encrypt = settings.type === 'mssql';
+
   // Create database connection.
   const db = knex({
     client: settings.type,
@@ -524,8 +526,10 @@ const createKnexConnection = (settings) => {
       user: settings.username,
       password: settings.password,
       database: settings.dbname,
-      port: settings.port,
+      port: parseInt(settings.port, 10),
       filename: settings.fileName,
+      encrypt,
+      options: { trustServerCertificate: true },
     },
     useNullAsDefault: true,
     pool: {
@@ -907,5 +911,5 @@ const handlers = {
 
 // Export setup.
 exports.handlers = handlers;
-exports.setwindow = setwindow;
+exports.setWindow = setWindow;
 exports.setPreferences = setPreferences;
