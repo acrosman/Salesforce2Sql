@@ -33,10 +33,10 @@
     "jquery": "^3.5.1",
     "jquery.json-viewer": "^1.4.0",
     "jsforce": "^2.0.0-beta.25",
-    "knex": "^2.4.0",
+    "knex": "^3.1",
     "minimist": "^1.2.6",
     "mysql": "^2.18.1",
-    "pg": "^8.5.1",
+    "pg": "^8.11",
     "sqlite3": "^5.1.5"
   },
   "devDependencies": {
