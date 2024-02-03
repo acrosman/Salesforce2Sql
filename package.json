@@ -32,11 +32,11 @@
     "fs-extra": "^8.1.0",
     "jquery": "^3.5.1",
     "jquery.json-viewer": "^1.4.0",
-    "jsforce": "^2.0.0-beta.25",
-    "knex": "^2.4.0",
+    "jsforce": "^2.0.0-beta.29",
+    "knex": "^3.1",
     "minimist": "^1.2.6",
     "mysql": "^2.18.1",
-    "pg": "^8.5.1",
+    "pg": "^8.11",
     "sqlite3": "^5.1.5"
   },
   "devDependencies": {
@@ -51,7 +51,7 @@
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
-    "electron": "^26",
+    "electron": "^28",
     "electron-debug": "^2.2.0",
     "electron-reloader": "^1.1.0",
     "eslint": "^8.11.0",
