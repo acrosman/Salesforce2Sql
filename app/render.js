@@ -721,6 +721,7 @@ document.getElementById('schema-trigger').addEventListener('click', () => {
       username: document.getElementById('db-username').value,
       password: document.getElementById('db-password').value,
       dbname: document.getElementById('db-name').value,
+      timeout: document.getElementById('db-timeout').value,
       overwrite: document.getElementById('db-overwrite').checked,
       fileName: document.getElementById('db-sqlite3-path').value,
     });

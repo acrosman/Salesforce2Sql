@@ -172,6 +172,13 @@
                                             <small id="dbNameHelp" class="form-text">Database Name is required.</small>
                                         </div>
                                         <div class="form-group db-info-wrapper">
+                                            <label for="db-timeout">Timeout</label>
+                                            <input type="text" id="db-timeout" class="form-control"
+                                                aria-describedby="dbTimeoutHelp" value="60000" required="required">
+                                            <small id="dbTimeoutHelp" class="form-text">Query timeout in
+                                                milliseconds</small>
+                                        </div>
+                                        <div class="form-group db-info-wrapper">
                                             <label for="db-overwrite" class="form-check-label">Drop and Recreate
                                                 Tables</label>
                                             <input type="checkbox" id="db-overwrite" class="form-check-input"

@@ -527,6 +527,7 @@ const createKnexConnection = (settings) => {
       port: settings.port,
       filename: settings.fileName,
     },
+    acquireConnectionTimeout: settings.timeout,
     useNullAsDefault: true,
     pool: {
       min: 0,
