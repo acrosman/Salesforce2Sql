@@ -189,9 +189,9 @@ test('Test createKnexConnection', () => {
   const settings = {
     type: 'mysql',
     host: 'localhost',
-    username: 'testuser',
-    password: 'testpass',
-    dbname: 'testdb',
+    username: 'testUser',
+    password: 'testPass',
+    dbname: 'testDB',
     port: 3306,
     timeout: 1000,
     pool: 10,
@@ -205,9 +205,9 @@ test('Test createKnexConnection', () => {
   expect(connection.client).toBe('mysql');
   expect(connection.connection).toEqual({
     host: 'localhost',
-    user: 'testuser',
-    password: 'testpass',
-    database: 'testdb',
+    user: 'testUser',
+    password: 'testPass',
+    database: 'testDB',
     port: 3306,
     filename: null,
   });
