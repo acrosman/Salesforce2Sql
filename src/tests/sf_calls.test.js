@@ -219,7 +219,7 @@ test('Test createKnexConnection with SQLite', () => {
     type: 'sqlite3',
     fileName: '/path/to/test.db',
     timeout: 1000,
-    pool: 10
+    pool: 10,
   };
 
   const createKnexConnection = sfcalls.__get__('createKnexConnection');
@@ -233,6 +233,6 @@ test('Test createKnexConnection with SQLite', () => {
     password: undefined,
     database: undefined,
     port: undefined,
-    filename: '/path/to/test.db'
+    filename: '/path/to/test.db',
   });
 });
