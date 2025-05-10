@@ -41,7 +41,7 @@ const typeResolverBases = {
 };
 
 // Different common packages beg for different sets of Standard objects as likely to be used.
-const standardObjectsByNamespace = {
+const standardObjectsByFeature = {
   npsp: [
     'Account',
     'Contact',
@@ -440,7 +440,7 @@ const sniffOrgType = (sObjectList) => {
  */
 const recommendObjects = (objectResult) => {
   const orgType = sniffOrgType(objectResult);
-  const suggestedStandards = standardObjectsByNamespace[orgType];
+  const suggestedStandards = standardObjectsByFeature[orgType];
   const recommended = [];
   objectResult.forEach((obj) => {
     if (suggestedStandards.includes(obj.name) || obj.name.endsWith('__c')) {
