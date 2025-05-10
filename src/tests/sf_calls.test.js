@@ -1,6 +1,9 @@
 // FS is used to load samples from file.
 const fs = require('fs');
 
+// Mock jsforce module
+jest.mock('jsforce');
+
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');
 

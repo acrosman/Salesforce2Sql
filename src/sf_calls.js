@@ -705,7 +705,6 @@ const handlers = {
    */
   sf_login: (event, args) => {
     const conn = new jsforce.Connection({
-      // you can change loginUrl to connect to sandbox or prerelease env.
       loginUrl: args.url,
     });
 
@@ -729,6 +728,7 @@ const handlers = {
         sfConnections[userInfo.organizationId] = {
           instanceUrl: conn.instanceUrl,
           accessToken: conn.accessToken,
+          version: '63.0',
         };
 
         mainWindow.webContents.send('response_login', {
