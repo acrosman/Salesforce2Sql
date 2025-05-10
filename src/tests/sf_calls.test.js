@@ -1,6 +1,9 @@
 // FS is used to load samples from file.
 const fs = require('fs');
 
+// Mock knex module
+jest.mock('knex');
+
 // Mock jsforce module
 jest.mock('jsforce');
 
@@ -178,5 +181,58 @@ test('Test schema construction for a field', (done) => {
     expect(testResult).toHaveProperty('Name.size', 255);
     expect(testResult).toHaveProperty('Name.type', 'string');
     expect(testResult).toHaveProperty('Name.name', 'Name');
+  });
+});
+
+// Add this test after other tests
+test('Test createKnexConnection', () => {
+  const settings = {
+    type: 'mysql',
+    host: 'localhost',
+    username: 'testuser',
+    password: 'testpass',
+    dbname: 'testdb',
+    port: 3306,
+    timeout: 1000,
+    pool: 10,
+    fileName: null,
+  };
+
+  const createKnexConnection = sfcalls.__get__('createKnexConnection');
+  const connection = createKnexConnection(settings);
+
+  // Verify the connection was created with correct config
+  expect(connection.client).toBe('mysql');
+  expect(connection.connection).toEqual({
+    host: 'localhost',
+    user: 'testuser',
+    password: 'testpass',
+    database: 'testdb',
+    port: 3306,
+    filename: null,
+  });
+});
+
+// Add after the previous test
+test('Test createKnexConnection with SQLite', () => {
+  const settings = {
+    type: 'sqlite3',
+    fileName: '/path/to/test.db',
+    timeout: 1000,
+    pool: 10
+  };
+
+  const createKnexConnection = sfcalls.__get__('createKnexConnection');
+  const connection = createKnexConnection(settings);
+
+  // Verify the connection was created with correct config
+  expect(connection.client).toBe('sqlite3');
+  expect(connection.connection).toEqual({
+    host: undefined,
+    user: undefined,
+    password: undefined,
+    database: undefined,
+    port: undefined,
+    filename: '/path/to/test.db'
   });
 });
