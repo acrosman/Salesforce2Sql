@@ -95,12 +95,11 @@ const escapeHTML = (html) => {
  * @param {Object} responseObject The JSForce response object.
  */
 const displayRawResponse = (responseObject) => {
-  $('#raw-response').jsonViewer(responseObject, {
-    collapsed: true,
-    rootCollapsable: false,
-    withQuotes: true,
-    withLinks: true,
-  });
+  const viewer = document.getElementById('raw-response');
+  if (viewer) {
+    viewer.data = JSON.stringify(responseObject);
+    viewer.expanded = 1;
+  }
 };
 
 /**
@@ -152,12 +151,6 @@ function logMessage(context, importance, message, data) {
 
   if (data) {
     displayRawResponse(data);
-    $(mesData).jsonViewer(data, {
-      collapsed: true,
-      rootCollapsable: false,
-      withQuotes: true,
-      withLinks: true,
-    });
   }
 }
 
@@ -355,12 +348,7 @@ const refreshObjectDisplay = (data) => {
     document.querySelector('#results-object-viewer-wrapper .results-summary p').textContent = '';
   }
 
-  $('#results-object-viewer').jsonViewer(data.response, {
-    collapsed: true,
-    rootCollapsable: false,
-    withQuotes: true,
-    withLinks: true,
-  });
+  document.getElementById('#results-object-viewer').data = data;
   hideLoader();
 };
 
