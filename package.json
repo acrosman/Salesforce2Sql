@@ -35,9 +35,9 @@
     "jsforce": "^3",
     "knex": "^3.1",
     "minimist": "^1.2.6",
-    "mysql": "^2.18.1",
+    "mysql2": "^3.14.1",
     "pg": "^8.11",
-    "sqlite3": "^5.1.5"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7",
