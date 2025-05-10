@@ -1,40 +1,49 @@
-/* global $ */
-// Initial interface setup using jQuery (since it's around from bootstrap anyway).
-$.when($.ready).then(() => {
+/* global bootstrap $ */
+// Replace jQuery ready handler
+document.addEventListener('DOMContentLoaded', () => {
   // Get the current application preferences.
   window.api.send('get_preferences');
 
   // Hide the places for handling responses until we have some.
-  $('#org-status').hide();
-  $('#results-table-wrapper').hide();
-  $('#results-object-viewer-wrapper').hide();
+  document.getElementById('org-status').style.display = 'none';
+  document.getElementById('results-table-wrapper').style.display = 'none';
+  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
 
   // Setup next buttons.
-  $('button.btn-next').on('click', (event) => {
-    event.preventDefault();
-    const tab = $(event.target).data('next');
-    $(tab).tab('show');
+  document.querySelectorAll('button.btn-next').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const tab = event.target.dataset.next;
+      // Bootstrap tab show
+      const tabEl = document.querySelector(tab);
+      const bsTab = new bootstrap.Tab(tabEl);
+      bsTab.show();
+    });
   });
 
   // Setup prev buttons.
-  $('button.btn-prev').on('click', (event) => {
-    event.preventDefault();
-    const tab = $(event.target).data('prev');
-    $(tab).tab('show');
+  document.querySelectorAll('button.btn-prev').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const tab = event.target.dataset.prev;
+      const tabEl = document.querySelector(tab);
+      const bsTab = new bootstrap.Tab(tabEl);
+      bsTab.show();
+    });
   });
 
   // Setup Find button.
-  $('#btn-find-in-page').on('click', (event) => {
+  document.getElementById('btn-find-in-page').addEventListener('click', (event) => {
     event.preventDefault();
     let searchDir;
     // Get the search
-    const searchText = $('#find-in-page-text').val().trim();
+    const searchText = document.getElementById('find-in-page-text').value.trim();
 
     // Trigger the search if text was provided.
     if (searchText) {
       // Set direction.
       searchDir = 'forward';
-      if ($('#chk-find-direction').prop('checked')) {
+      if (document.getElementById('chk-find-direction').checked) {
         searchDir = 'back';
       }
 
@@ -46,19 +55,25 @@ $.when($.ready).then(() => {
   });
 
   // Setup Object Select All
-  $('#btn-select-all-objects').on('click', (event) => {
+  document.getElementById('btn-select-all-objects').addEventListener('click', (event) => {
     event.preventDefault();
-    $('#results-table input[type=checkbox]').prop('checked', true);
+    document.querySelectorAll('#results-table input[type=checkbox]')
+      .forEach((checkbox) => {
+        checkbox.checked = true;
+      });
   });
 
-  // Setup Object Select All
-  $('#btn-deselect-all-objects').on('click', (event) => {
+  // Setup Object Deselect All
+  document.getElementById('btn-deselect-all-objects').addEventListener('click', (event) => {
     event.preventDefault();
-    $('#results-table input[type=checkbox]').prop('checked', false);
+    document.querySelectorAll('#results-table input[type=checkbox]')
+      .forEach((checkbox) => {
+        checkbox.checked = false;
+      });
   });
 
   // Hide loader.
-  $('#loader-indicator').hide();
+  document.getElementById('loader-indicator').style.display = 'none';
 });
 
 // ============= Helpers ==============
@@ -308,20 +323,20 @@ const generateTableCell = (tableRow, content, isText = true, position = -1) => {
 };
 
 const showLoader = (message) => {
-  $('#loader-indicator .loader-message').text(message);
-  $('#loader-indicator').show();
-  $('#message-wrapper').hide();
+  document.querySelector('#loader-indicator .loader-message').textContent = message;
+  document.getElementById('loader-indicator').style.display = 'block';
+  document.getElementById('message-wrapper').style.display = 'none';
 };
 
 const hideLoader = () => {
-  $('#loader-indicator').hide();
-  $('#message-wrapper').show();
+  document.getElementById('loader-indicator').style.display = 'none';
+  document.getElementById('message-wrapper').style.display = 'block';
 };
 
 const updateMessage = (message) => {
-  $('#message-wrapper').show();
+  document.getElementById('message-wrapper').style.display = 'block';
   const messageArea = document.getElementById('results-message-only');
-  messageArea.innerText = message;
+  messageArea.textContent = message;
 };
 
 /**
@@ -331,15 +346,13 @@ const updateMessage = (message) => {
  */
 const refreshObjectDisplay = (data) => {
   showLoader('Refreshing database schema display');
-  $('#results-object-viewer-wrapper .results-summary h3').text(data.message);
+  document.querySelector('#results-object-viewer-wrapper .results-summary h3').textContent = data.message;
 
   // When this is displaying a describe add a little helpful summary.
   if (Object.prototype.hasOwnProperty.call(data, 'response.fields')) {
-    $('#results-object-viewer-wrapper .results-summary p').text(
-      `Found ${data.response.fields.length} fields and ${data.response.recordTypeInfos.length} record types.`,
-    );
+    document.querySelector('#results-object-viewer-wrapper .results-summary p').textContent = `Found ${data.response.fields.length} fields and ${data.response.recordTypeInfos.length} record types.`;
   } else {
-    $('#results-object-viewer-wrapper .results-summary p').text('');
+    document.querySelector('#results-object-viewer-wrapper .results-summary p').textContent = '';
   }
 
   $('#results-object-viewer').jsonViewer(data.response, {
@@ -400,7 +413,7 @@ const handleLogin = (responseData) => {
   replaceText('login-response-message', responseData.message);
 
   // Enable the button to fetch object list.
-  $('#btn-fetch-objects').prop('disabled', false);
+  document.getElementById('btn-fetch-objects').disabled = false;
 };
 
 /**
@@ -423,10 +436,10 @@ const displayObjectList = (orgId, sObjectData, selected, sorted = false, sortedC
   updateMessage(`Object List Retrieved for ${orgUser}`);
 
   // Display area.
-  // @todo: remove jquery use.
-  $('#results-table-wrapper').show();
-  $('#results-object-viewer-wrapper').hide();
-  $('#results-summary-count').text('Loading objects...');
+  // Replace jQuery show/hide calls
+  document.getElementById('results-table-wrapper').style.display = 'block';
+  document.getElementById('results-object-viewer-wrapper').style.display = 'none';
+  document.getElementById('results-summary-count').textContent = 'Loading objects...';
 
   // Get the table.
   const resultsTable = document.getElementById('results-table');
@@ -572,10 +585,11 @@ const displayObjectList = (orgId, sObjectData, selected, sorted = false, sortedC
   // Add the whole table body to the table itself.
   resultsTable.appendChild(tBody);
 
-  $('#results-summary-count').text(`Your org contains ${objCount} creatable objects`);
+  // Replace jQuery text setting
+  document.getElementById('results-summary-count').textContent = `Your org contains ${objCount} creatable objects`;
 
-  // Enable the button to fetch object list.
-  $('#btn-fetch-details').prop('disabled', false);
+  // Replace jQuery prop call
+  document.getElementById('btn-fetch-details').disabled = false;
 
   // Interface update complete, hide the loader.
   hideLoader();
@@ -601,9 +615,15 @@ const displayDraftSchema = (orgId, schema) => {
   }
   updateMessage(`Proposed schema from ${orgUser} ready for review.`);
 
-  $('#btn-generate-schema').prop('disabled', false);
-  $('#btn-save-sf-schema').prop('disabled', false);
-  $('#nav-schema-tab').tab('show');
+  // Replace jQuery prop calls
+  document.getElementById('btn-generate-schema').disabled = false;
+  document.getElementById('btn-save-sf-schema').disabled = false;
+
+  // Replace jQuery tab show with Bootstrap native
+  const tabEl = document.querySelector('#nav-schema-tab');
+  const tab = new bootstrap.Tab(tabEl);
+  tab.show();
+
   hideLoader();
 };
 
@@ -634,8 +654,7 @@ const handleDatabaseFinish = (data) => {
     updateMessage('Database creation process complete, some tables had error. Review logs for more details');
   }
 
-  // @todo remove jquery.
-  $('#btn-save-sql-schema').prop('disabled', false);
+  document.getElementById('btn-save-sql-schema').disabled = false;
 
   hideLoader();
 };
