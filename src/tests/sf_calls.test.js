@@ -317,21 +317,19 @@ test('Test recommendObjects with NPSP and Industry Cloud', () => {
   expect(recommended.filter((obj) => obj === 'Account')).toHaveLength(1);
 });
 
-test('Test recommendObjects with no features but custom objects', () => {
+test('Test sniffOrgType detects Sales org by default', () => {
   const sObjectList = [
     { name: 'Account' },
     { name: 'Contact' },
+    { name: 'Opportunity' },
+    { name: 'Lead' },
     { name: 'CustomObject__c' },
-    { name: 'Another_Custom_Object__c' },
   ];
 
-  const recommendObjects = sfcalls.__get__('recommendObjects');
-  const recommended = recommendObjects(sObjectList);
+  const sniffOrgType = sfcalls.__get__('sniffOrgType');
+  const features = sniffOrgType(sObjectList);
 
-  // Should only include custom objects when no features detected
-  expect(recommended).toContain('CustomObject__c');
-  expect(recommended).toContain('Another_Custom_Object__c');
-  expect(recommended).not.toContain('Account');
-  expect(recommended).not.toContain('Contact');
-  expect(recommended).toHaveLength(2);
+  // Should detect sales when no special features found
+  expect(features).toContain('sales');
+  expect(features).toHaveLength(1);
 });

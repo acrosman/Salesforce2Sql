@@ -577,6 +577,12 @@ const sniffOrgType = (sObjectList) => {
       });
     }
   }
+
+  // If no features were detected, assume this is a Sales org
+  if (features.length === 0) {
+    features.push('sales');
+  }
+
   return features;
 };
 
