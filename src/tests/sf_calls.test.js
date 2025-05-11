@@ -423,3 +423,30 @@ test('Test setPreferences function', () => {
   expect(preferences.indexes.lookups).toBe(true);
   expect(preferences.picklists.type).toBe('enum');
 });
+
+test('Test logMessage function', () => {
+  const logMessage = sfcalls.__get__('logMessage');
+
+  // Set the window first
+  const setwindow = sfcalls.__get__('setwindow');
+  setwindow(electron.mainWindow);
+
+  // Test sending a log message
+  const result = logMessage('Test Title', 'Info', 'Test Message');
+
+  // Verify the window's send method was called with correct parameters
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    {
+      sender: 'Test Title',
+      channel: 'Info',
+      message: 'Test Message',
+    },
+  );
+
+  // Verify function returns true
+  expect(result).toBe(true);
+
+  // Verify the send method was called exactly once
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledTimes(1);
+});
