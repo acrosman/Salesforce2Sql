@@ -40,22 +40,26 @@ const typeResolverBases = {
   url: 'string',
 };
 
-// Different common packages beg for different sets of Standard objects as likely to be used.
+// Different industry features and common packages need different sets of
+// Standard objects as likely to be wanted selected by the user by default.
 const standardObjectsByFeature = {
-  npsp: [
-    'Account',
-    'Contact',
-    'Campaign',
-    'CampaignMember',
-    'Case',
-    'ContentNote',
-    'ContentDocumentLink',
-    'Document',
-    'Opportunity',
-    'OpportunityContactRole',
-    'RecordType',
-    'Task',
-    'User',
+  caseManagement: [
+    'CarePlan',
+    'CarePlanTemplate',
+    'CarePlanTemplateBenefit',
+    'CarePlanTemplateGoal',
+    'CaseParticipant',
+    'ComplaintCase',
+    'ComplaintParticipant',
+    'GoalAssignment',
+    'GoalDefinition',
+    'Interaction',
+    'InteractionAttendee',
+    'InteractionRelatedAccount',
+    'InteractionSummary',
+    'InteractionSumDiscussedAccount',
+    'PublicComplaint',
+    'Referral',
   ],
   eda: [
     'Account',
@@ -71,7 +75,120 @@ const standardObjectsByFeature = {
     'Task',
     'User',
   ],
-  other: [
+  fundraising: [
+    'ContactProfile',
+    'DonorGiftSummary',
+    'FocusSegment',
+    'GiftCommitment',
+    'GiftCommitmentSchedule',
+    'GiftDefaultDesignation',
+    'GiftRefund',
+    'GiftSoftCredit',
+    'GiftTransaction',
+    'GiftTransactionDesignation',
+    'Grant',
+    'OutreachSourceCode',
+    'OutreachSummary',
+    'PaymentInstrument',
+    'Pledge',
+    'PlannedGift',
+    'RecurringDonation',
+    'Roles',
+    'Team',
+  ],
+  grantsManagement: [
+    'ApplicationDecision',
+    'ApplicationRenderMethod',
+    'ApplicationReview',
+    'ApplicationStageDefinition',
+    'ApplicationTimeline',
+    'Budget',
+    'BudgetAllocation',
+    'BudgetCategory',
+    'BudgetCategoryValue',
+    'BudgetParticipant',
+    'BudgetPeriod',
+    'FundingAward',
+    'FundingAwardAmendment',
+    'FundingAwardParticipant',
+    'FundingAwardRequirement',
+    'FundingAwardRqmtSection',
+    'FundingDisbursement',
+    'FundingOpportunity',
+    'FundingOppParticipant',
+    'IndicatorAssignment',
+    'IndicatorPerformancePeriod',
+    'IndividualApplication',
+    'IndividualApplicationTask',
+    'IndvApplicationTaskParticipant',
+    'IndividualApplnParticipant',
+    'OutcomeActivity',
+    'PreliminaryApplicationRef',
+    'Program',
+  ],
+  industryCloudBase: [
+    'Account',
+    'AccountAccountRelation',
+    'AccountContactRelation',
+    'Contact',
+    'ContactContactRelation',
+    'ContactPointAddress',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'ContentNote',
+    'ContentDocumentLink',
+    'Document',
+    'Opportunity',
+    'PartyRelationshipGroup',
+    'PartyRoleRelation',
+    'RecordType',
+    'Task',
+    'User',
+  ],
+  npsp: [
+    'Account',
+    'Contact',
+    'Campaign',
+    'CampaignMember',
+    'Case',
+    'ContentNote',
+    'ContentDocumentLink',
+    'Document',
+    'Opportunity',
+    'OpportunityContactRole',
+    'RecordType',
+    'Task',
+    'User',
+  ],
+  outcomeManagement: [
+    'ImpactStrategy',
+    'ImpactStrategyAssignment',
+    'IndicatorAssignment',
+    'IndicatorDefinition',
+    'IndicatorPerformancePeriod',
+    'IndicatorResult',
+    'Outcome',
+    'OutcomeActivity',
+    'TimePeriod',
+    'UnitOfMeasure',
+  ],
+  programManagement: [
+    'Benefit',
+    'BenefitAssignment',
+    'BenefitDisbursement',
+    'BenefitSchedule',
+    'BenefitScheduleAssignment',
+    'BenefitSession',
+    'BenefitType',
+    'CaseProgram',
+    'Program',
+    'ProgramCohort',
+    'ProgramCohortMember',
+    'ProgramEnrollment',
+    'RecurrenceSchedule',
+  ],
+  sales: [
     'Account',
     'Contact',
     'Campaign',
@@ -93,6 +210,24 @@ const standardObjectsByFeature = {
   ],
 };
 
+// Industry Cloud features come with their own standard objects. This
+// collection is used to detect which features are included in the involved org.
+const indicatorObjects = {
+  GiftCommitment: ['fundraising', 'industryCloudBase'],
+  CarePlan: ['caseManagement', 'industryCloudBase'],
+  FundingAward: ['grantmaking', 'industryCloudBase'],
+  ProgramEnrollment: ['programManagement', 'industryCloudBase'],
+  Outcome: ['outcomeManagement', 'industryCloudBase'],
+};
+
+// Packages use namespaces, which we can use to detect their presence.
+const indicatorNamespaces = {
+  npsp: 'npsp',
+  npe: 'npsp',
+  hed: 'eda',
+};
+
+// Salesforce audit fields have settings for special handling.
 const auditFields = [
   'CreatedDate',
   'CreatedById',
@@ -410,26 +545,39 @@ const buildTable = (table) => {
 };
 
 /**
- * Reviews an org's list of objects to guess the org type
+ * Reviews an org's list of objects to guess the org type. Returns a list of enabled features
+ * and packages (supported by this process) to help identify what's in this org.
  * @param {Object} sObjectList The list of objects for the org.
- * @returns {String} org type. One of npsp, eda, other.
+ * @returns {Array} org feature list.
  */
 const sniffOrgType = (sObjectList) => {
-  const namespaces = {
-    npsp: 'npsp',
-    npe: 'npsp',
-    hed: 'eda',
-  };
+  // List of features found.
+  const features = [];
 
-  const keys = Object.getOwnPropertyNames(namespaces);
+  const namespaceKeys = Object.getOwnPropertyNames(indicatorNamespaces);
+  const objectKeys = Object.getOwnPropertyNames(indicatorObjects);
   for (let i = 0; i < sObjectList.length; i += 1) {
-    for (let j = 0; j < keys.length; j += 1) {
-      if (sObjectList[i].name.startsWith(keys[j])) {
-        return namespaces[keys[j]];
+    // Check namespace-based indicators
+    for (let j = 0; j < namespaceKeys.length; j += 1) {
+      if (sObjectList[i].name.startsWith(namespaceKeys[j])) {
+        const feature = indicatorNamespaces[namespaceKeys[j]];
+        if (!features.includes(feature)) {
+          features.push(feature);
+        }
       }
     }
+
+    // Check indicator objects.
+    if (objectKeys.includes(sObjectList[i].name)) {
+      const featureList = indicatorObjects[sObjectList[i].name];
+      featureList.forEach((feature) => {
+        if (!features.includes(feature)) {
+          features.push(feature);
+        }
+      });
+    }
   }
-  return 'other';
+  return features;
 };
 
 /**
@@ -439,15 +587,29 @@ const sniffOrgType = (sObjectList) => {
  * @returns an array of object name to default select.
  */
 const recommendObjects = (objectResult) => {
-  const orgType = sniffOrgType(objectResult);
-  const suggestedStandards = standardObjectsByFeature[orgType];
-  const recommended = [];
-  objectResult.forEach((obj) => {
-    if (suggestedStandards.includes(obj.name) || obj.name.endsWith('__c')) {
-      recommended.push(obj.name);
+  const featureList = sniffOrgType(objectResult);
+  const recommended = new Set();
+
+  // Add standard objects for each detected feature
+  featureList.forEach((feature) => {
+    if (standardObjectsByFeature[feature]) {
+      standardObjectsByFeature[feature].forEach((obj) => {
+        recommended.add(obj);
+      });
     }
   });
-  return recommended;
+
+  // Add all custom objects found in the org
+  objectResult.forEach((obj) => {
+    if (obj.name.endsWith('__c')) {
+      recommended.add(obj.name);
+    }
+  });
+
+  // Convert Set to array
+  const recommendedList = [...recommended];
+
+  return recommendedList;
 };
 
 /**
