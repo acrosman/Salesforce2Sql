@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const electron = require('electron'); // eslint-disable-line
+// eslint-disable-next-line import/no-extraneous-dependencies
+const electron = require('electron');
 const jsforce = require('jsforce');
 const knex = require('knex');
+const constants = require('./constants');
 
 // Get the dialog library from Electron
 const { dialog } = electron;
@@ -12,232 +14,14 @@ let mainWindow = null;
 let proposedSchema = {};
 let preferences = null;
 
-// Baseline for Type conversions between environments.
-const typeResolverBases = {
-  base64: 'text',
-  boolean: 'boolean',
-  byte: 'binary',
-  calculated: 'string',
-  comboBox: 'string',
-  currency: 'decimal',
-  date: 'date',
-  datetime: 'datetime',
-  double: 'decimal',
-  email: 'string',
-  encryptedstring: 'string',
-  id: 'reference',
-  int: 'integer',
-  long: 'biginteger',
-  masterrecord: 'string',
-  multipicklist: 'string',
-  percent: 'decimal',
-  phone: 'string',
-  picklist: 'enum',
-  reference: 'reference',
-  string: 'string',
-  textarea: 'text',
-  time: 'time',
-  url: 'string',
-};
-
-// Different industry features and common packages need different sets of
-// Standard objects as likely to be wanted selected by the user by default.
-const standardObjectsByFeature = {
-  caseManagement: [
-    'CarePlan',
-    'CarePlanTemplate',
-    'CarePlanTemplateBenefit',
-    'CarePlanTemplateGoal',
-    'CaseParticipant',
-    'ComplaintCase',
-    'ComplaintParticipant',
-    'GoalAssignment',
-    'GoalDefinition',
-    'Interaction',
-    'InteractionAttendee',
-    'InteractionRelatedAccount',
-    'InteractionSummary',
-    'InteractionSumDiscussedAccount',
-    'PublicComplaint',
-    'Referral',
-  ],
-  eda: [
-    'Account',
-    'Contact',
-    'Campaign',
-    'CampaignMember',
-    'Case',
-    'ContentNote',
-    'ContentDocumentLink',
-    'Document',
-    'Lead',
-    'RecordType',
-    'Task',
-    'User',
-  ],
-  fundraising: [
-    'ContactProfile',
-    'DonorGiftSummary',
-    'FocusSegment',
-    'GiftCommitment',
-    'GiftCommitmentSchedule',
-    'GiftDefaultDesignation',
-    'GiftRefund',
-    'GiftSoftCredit',
-    'GiftTransaction',
-    'GiftTransactionDesignation',
-    'Grant',
-    'OutreachSourceCode',
-    'OutreachSummary',
-    'PaymentInstrument',
-    'Pledge',
-    'PlannedGift',
-    'RecurringDonation',
-    'Roles',
-    'Team',
-  ],
-  grantsManagement: [
-    'ApplicationDecision',
-    'ApplicationRenderMethod',
-    'ApplicationReview',
-    'ApplicationStageDefinition',
-    'ApplicationTimeline',
-    'Budget',
-    'BudgetAllocation',
-    'BudgetCategory',
-    'BudgetCategoryValue',
-    'BudgetParticipant',
-    'BudgetPeriod',
-    'FundingAward',
-    'FundingAwardAmendment',
-    'FundingAwardParticipant',
-    'FundingAwardRequirement',
-    'FundingAwardRqmtSection',
-    'FundingDisbursement',
-    'FundingOpportunity',
-    'FundingOppParticipant',
-    'IndicatorAssignment',
-    'IndicatorPerformancePeriod',
-    'IndividualApplication',
-    'IndividualApplicationTask',
-    'IndvApplicationTaskParticipant',
-    'IndividualApplnParticipant',
-    'OutcomeActivity',
-    'PreliminaryApplicationRef',
-    'Program',
-  ],
-  industryCloudBase: [
-    'Account',
-    'AccountAccountRelation',
-    'AccountContactRelation',
-    'Contact',
-    'ContactContactRelation',
-    'ContactPointAddress',
-    'Campaign',
-    'CampaignMember',
-    'Case',
-    'ContentNote',
-    'ContentDocumentLink',
-    'Document',
-    'Opportunity',
-    'PartyRelationshipGroup',
-    'PartyRoleRelation',
-    'RecordType',
-    'Task',
-    'User',
-  ],
-  npsp: [
-    'Account',
-    'Contact',
-    'Campaign',
-    'CampaignMember',
-    'Case',
-    'ContentNote',
-    'ContentDocumentLink',
-    'Document',
-    'Opportunity',
-    'OpportunityContactRole',
-    'RecordType',
-    'Task',
-    'User',
-  ],
-  outcomeManagement: [
-    'ImpactStrategy',
-    'ImpactStrategyAssignment',
-    'IndicatorAssignment',
-    'IndicatorDefinition',
-    'IndicatorPerformancePeriod',
-    'IndicatorResult',
-    'Outcome',
-    'OutcomeActivity',
-    'TimePeriod',
-    'UnitOfMeasure',
-  ],
-  programManagement: [
-    'Benefit',
-    'BenefitAssignment',
-    'BenefitDisbursement',
-    'BenefitSchedule',
-    'BenefitScheduleAssignment',
-    'BenefitSession',
-    'BenefitType',
-    'CaseProgram',
-    'Program',
-    'ProgramCohort',
-    'ProgramCohortMember',
-    'ProgramEnrollment',
-    'RecurrenceSchedule',
-  ],
-  sales: [
-    'Account',
-    'Contact',
-    'Campaign',
-    'CampaignMember',
-    'Case',
-    'ContentNote',
-    'ContentDocumentLink',
-    'Document',
-    'Lead',
-    'Opportunity',
-    'OpportunityContactRole',
-    'Order',
-    'OrderItem',
-    'PriceBook2',
-    'Product2',
-    'RecordType',
-    'Task',
-    'User',
-  ],
-};
-
-// Industry Cloud features come with their own standard objects. This
-// collection is used to detect which features are included in the involved org.
-const indicatorObjects = {
-  GiftCommitment: ['fundraising', 'industryCloudBase'],
-  CarePlan: ['caseManagement', 'industryCloudBase'],
-  FundingAward: ['grantmaking', 'industryCloudBase'],
-  ProgramEnrollment: ['programManagement', 'industryCloudBase'],
-  Outcome: ['outcomeManagement', 'industryCloudBase'],
-};
-
-// Packages use namespaces, which we can use to detect their presence.
-const indicatorNamespaces = {
-  npsp: 'npsp',
-  npe: 'npsp',
-  hed: 'eda',
-};
-
-// Salesforce audit fields have settings for special handling.
-const auditFields = [
-  'CreatedDate',
-  'CreatedById',
-  'LastModifiedDate',
-  'LastModifiedById',
-  'SystemModstamp',
-  'LastActivityDate',
-  'LastViewedDate',
-  'LastReferencedDate',
-];
+// Import constants
+const {
+  typeResolverBases,
+  standardObjectsByFeature,
+  indicatorObjects,
+  indicatorNamespaces,
+  auditFields,
+} = constants;
 
 /**
  * Sets the window being used for the interface. Responses are sent to this window.
