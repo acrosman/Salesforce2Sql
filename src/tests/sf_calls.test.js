@@ -184,7 +184,6 @@ test('Test schema construction for a field', (done) => {
   });
 });
 
-// Add this test after other tests
 test('Test createKnexConnection', () => {
   const settings = {
     type: 'mysql',
@@ -235,4 +234,104 @@ test('Test createKnexConnection with SQLite', () => {
     port: undefined,
     filename: '/path/to/test.db',
   });
+});
+
+test('Test sniffOrgType with NPSP objects', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'npe01__Contacts_And_Orgs_Settings__c' },
+    { name: 'GiftCommitment' },
+    { name: 'CustomObject__c' },
+  ];
+
+  const sniffOrgType = sfcalls.__get__('sniffOrgType');
+  const features = sniffOrgType(sObjectList);
+
+  // Should detect NPSP from namespace and GiftCommitment object
+  expect(features).toContain('npsp');
+  expect(features).toContain('fundraising');
+  expect(features).toContain('industryCloudBase');
+  expect(features).toHaveLength(3); // Should have no duplicates
+});
+
+test('Test sniffOrgType with EDA objects', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'hed__Course__c' },
+    { name: 'CustomObject__c' },
+  ];
+
+  const sniffOrgType = sfcalls.__get__('sniffOrgType');
+  const features = sniffOrgType(sObjectList);
+
+  // Should detect EDA from namespace
+  expect(features).toContain('eda');
+  expect(features).toHaveLength(1);
+});
+
+test('Test sniffOrgType with multiple Industry Cloud objects', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'CarePlan' },
+    { name: 'ProgramEnrollment' },
+    { name: 'Outcome' },
+  ];
+
+  const sniffOrgType = sfcalls.__get__('sniffOrgType');
+  const features = sniffOrgType(sObjectList);
+
+  // Should detect all Industry Cloud features without duplicates
+  expect(features).toContain('caseManagement');
+  expect(features).toContain('programManagement');
+  expect(features).toContain('outcomeManagement');
+  expect(features).toContain('industryCloudBase');
+  expect(features).toHaveLength(4); // industryCloudBase should only appear once
+});
+
+test('Test recommendObjects with NPSP and Industry Cloud', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'npe01__Contacts_And_Orgs_Settings__c' },
+    { name: 'GiftCommitment' },
+    { name: 'CustomObject__c' },
+    { name: 'Another_Custom_Object__c' },
+  ];
+
+  const recommendObjects = sfcalls.__get__('recommendObjects');
+  const recommended = recommendObjects(sObjectList);
+
+  // Should include standard objects from NPSP and fundraising
+  expect(recommended).toContain('Account');
+  expect(recommended).toContain('Contact');
+  expect(recommended).toContain('Opportunity');
+
+  // Should include custom objects
+  expect(recommended).toContain('CustomObject__c');
+  expect(recommended).toContain('Another_Custom_Object__c');
+
+  // Should not have duplicates even though Account appears in multiple feature sets
+  expect(recommended.filter((obj) => obj === 'Account')).toHaveLength(1);
+});
+
+test('Test recommendObjects with no features but custom objects', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'CustomObject__c' },
+    { name: 'Another_Custom_Object__c' },
+  ];
+
+  const recommendObjects = sfcalls.__get__('recommendObjects');
+  const recommended = recommendObjects(sObjectList);
+
+  // Should only include custom objects when no features detected
+  expect(recommended).toContain('CustomObject__c');
+  expect(recommended).toContain('Another_Custom_Object__c');
+  expect(recommended).not.toContain('Account');
+  expect(recommended).not.toContain('Contact');
+  expect(recommended).toHaveLength(2);
 });
