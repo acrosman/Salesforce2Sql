@@ -333,3 +333,53 @@ test('Test sniffOrgType detects Sales org by default', () => {
   expect(features).toContain('sales');
   expect(features).toHaveLength(1);
 });
+
+test('Test sniffOrgType with Education Cloud objects', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'AcademicTerm' },
+    { name: 'CourseOffering' },
+    { name: 'LearningProgram' },
+    { name: 'CustomObject__c' },
+  ];
+
+  const sniffOrgType = sfcalls.__get__('sniffOrgType');
+  const features = sniffOrgType(sObjectList);
+
+  // Should detect Education Cloud from indicator objects
+  expect(features).toContain('educationCloud');
+  expect(features).toContain('industryCloudBase');
+  expect(features).toHaveLength(2);
+});
+
+test('Test recommendObjects with Education Cloud', () => {
+  const sObjectList = [
+    { name: 'Account' },
+    { name: 'Contact' },
+    { name: 'AcademicTerm' },
+    { name: 'CourseOffering' },
+    { name: 'LearningProgram' },
+    { name: 'CustomObject__c' },
+    { name: 'Another_Custom_Object__c' },
+  ];
+
+  const recommendObjects = sfcalls.__get__('recommendObjects');
+  const recommended = recommendObjects(sObjectList);
+
+  // Should include standard Education Cloud objects
+  expect(recommended).toContain('AcademicTerm');
+  expect(recommended).toContain('CourseOffering');
+  expect(recommended).toContain('LearningProgram');
+
+  // Should include base objects
+  expect(recommended).toContain('Account');
+  expect(recommended).toContain('Contact');
+
+  // Should include custom objects
+  expect(recommended).toContain('CustomObject__c');
+  expect(recommended).toContain('Another_Custom_Object__c');
+
+  // Should not have duplicates even though Account appears in multiple feature sets
+  expect(recommended.filter((obj) => obj === 'Account')).toHaveLength(1);
+});
