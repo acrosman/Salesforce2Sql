@@ -450,3 +450,22 @@ test('Test logMessage function', () => {
   // Verify the send method was called exactly once
   expect(electron.mainWindow.webContents.send).toHaveBeenCalledTimes(1);
 });
+
+test('Test updateLoader function', () => {
+  const updateLoader = sfcalls.__get__('updateLoader');
+
+  // Set the window first
+  const setwindow = sfcalls.__get__('setwindow');
+  setwindow(electron.mainWindow);
+
+  // Test updating the loader
+  updateLoader('Test Loading Message');
+
+  // Verify the window's send method was called with correct parameters
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'update_loader',
+    {
+      message: 'Test Loading Message',
+    },
+  );
+});
