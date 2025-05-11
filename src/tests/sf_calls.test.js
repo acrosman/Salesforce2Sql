@@ -1,11 +1,6 @@
 // FS is used to load samples from file.
 const fs = require('fs');
-
-// Mock knex module
-jest.mock('knex');
-
-// Mock jsforce module
-jest.mock('jsforce');
+const electron = require('electron');
 
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');
@@ -382,4 +377,49 @@ test('Test recommendObjects with Education Cloud', () => {
 
   // Should not have duplicates even though Account appears in multiple feature sets
   expect(recommended.filter((obj) => obj === 'Account')).toHaveLength(1);
+});
+
+test('Test setWindow function', () => {
+  const setwindow = sfcalls.__get__('setwindow');
+
+  setwindow(electron.mainWindow);
+  const resultWindow = sfcalls.__get__('mainWindow');
+
+  expect(resultWindow).toBe(electron.mainWindow);
+  expect(resultWindow.webContents.send).toBeDefined();
+  expect(resultWindow).toHaveProperty('webContents.send');
+});
+
+test('Test setPreferences function', () => {
+  const setPreferences = sfcalls.__get__('setPreferences');
+  const mockPreferences = {
+    defaults: {
+      suppressReadOnly: true,
+      suppressAudit: false,
+      textEmptyString: true,
+      checkboxDefault: false,
+      attemptSFValues: true,
+    },
+    indexes: {
+      lookups: true,
+      picklists: false,
+      externalIds: true,
+    },
+    picklists: {
+      type: 'enum',
+      unrestricted: false,
+      ensureBlanks: true,
+    },
+    lookups: {
+      type: 'char(18)',
+    },
+  };
+
+  setPreferences(mockPreferences);
+  const preferences = sfcalls.__get__('preferences');
+
+  expect(preferences).toEqual(mockPreferences);
+  expect(preferences.defaults.suppressReadOnly).toBe(true);
+  expect(preferences.indexes.lookups).toBe(true);
+  expect(preferences.picklists.type).toBe('enum');
 });
