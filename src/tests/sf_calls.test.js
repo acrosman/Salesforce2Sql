@@ -1,4 +1,3 @@
-// FS is used to load samples from file.
 const fs = require('fs');
 const electron = require('electron');
 
@@ -467,5 +466,56 @@ test('Test updateLoader function', () => {
     {
       message: 'Test Loading Message',
     },
+  );
+});
+
+test('Test loadSchemaFromFile function with successful file load', () => {
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  const setwindow = sfcalls.__get__('setwindow');
+
+  // Set the window first
+  setwindow(electron.mainWindow);
+
+  // Call the function
+  loadSchemaFromFile();
+
+  // Verify dialog was shown with correct options
+  expect(electron.dialog.showOpenDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({
+      title: 'Load Schema',
+      properties: ['openFile'],
+    }),
+  );
+
+  // Verify the correct messages were sent
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: expect.stringContaining('Test Title'),
+      channel: 'Info',
+      message: expect.stringContaining('Test Message'),
+    }),
+  );
+});
+
+test('Test loadSchemaFromFile function with file read error', () => {
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  const setwindow = sfcalls.__get__('setwindow');
+
+  // Set the window first
+  setwindow(electron.mainWindow);
+
+  // Call the function
+  loadSchemaFromFile();
+
+  // Verify error message was sent
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: expect.stringContaining('Test Title'),
+      channel: 'Info',
+      message: expect.stringContaining('Test Message'),
+    }),
   );
 });

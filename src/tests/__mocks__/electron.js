@@ -6,11 +6,11 @@ const mockWindow = {
 
 const mockDialog = {
   showOpenDialog: jest.fn().mockResolvedValue({
-    filePaths: ['/path/to/file'],
+    filePaths: ['src/tests/sampleSObjectDescribes.json'],
     canceled: false,
   }),
   showSaveDialog: jest.fn().mockResolvedValue({
-    filePath: '/path/to/save/file',
+    filePath: 'path/to/save/file',
     canceled: false,
   }),
 };
