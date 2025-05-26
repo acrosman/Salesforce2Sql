@@ -1,64 +1,17 @@
 {
   "name": "salesforce2sql",
-  "version": "0.6.0",
+  "version": "0.12.0",
   "description": "Create a database schema from a Salesforce org.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "lint": "eslint --ignore-path .gitignore src app",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder -wlm",
-    "postinstall": "electron-builder install-app-deps",
-    "test": "jest --coverage",
-    "madge": "madge --warning --circular --extensions js ./"
-  },
-  "jest": {
-    "verbose": true
-  },
-  "build": {
-    "appId": "com.electron.acrosman.Salesforce2Sql",
-    "productName": "Salesforce2Sql",
-    "mac": {
-      "category": "public.app-category.utilities"
-    },
-    "dmg": {
-      "contents": [
-        {
-          "x": 110,
-          "y": 150
-        },
-        {
-          "x": 440,
-          "y": 150,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ],
-      "artifactName": "salesforce2sql-${version}.${ext}"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable"
-        }
-      ]
-    },
-    "nsis": {
-      "runAfterFinish": true,
-      "artifactName": "salesforce2sql-${version}.${ext}"
-    },
-    "portable": {
-      "artifactName": "salesforce2sql.exe"
-    },
-    "linux": {
-      "target": "zip"
-    }
+    "start": "electron-forge start",
+    "lint": "eslint src app --ignore-path .gitignore ",
+    "test": "jest --coverage --passWithNoTests",
+    "test-on-commit": "jest",
+    "prepare": "husky install",
+    "package": "electron-forge package",
+    "publish": "electron-forge publish",
+    "make": "electron-forge make"
   },
   "keywords": [
     "Electron",
@@ -75,30 +28,41 @@
     "bootstrap": "^5.1.3",
     "bootstrap-icons": "^1.5.0",
     "bootswatch": "^5.1.3",
+    "electron-squirrel-startup": "^1.0.0",
     "fs-extra": "^8.1.0",
     "jquery": "^3.5.1",
     "jquery.json-viewer": "^1.4.0",
-    "jsforce": "^1.10.1",
-    "knex": "^0.95.2",
-    "minimist": "^1.2.5",
-    "mysql": "^2.18.1",
-    "pg": "^8.5.1"
+    "jsforce": "^3",
+    "knex": "^3.1",
+    "minimist": "^1.2.6",
+    "mysql2": "^3.14.1",
+    "pg": "^8.11",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "@electron-forge/cli": "^7",
+    "@electron-forge/maker-deb": "^7",
+    "@electron-forge/maker-dmg": "^7",
+    "@electron-forge/maker-rpm": "^7",
+    "@electron-forge/maker-squirrel": "^7",
+    "@electron-forge/maker-zip": "^7",
+    "@electron-forge/plugin-electronegativity": "^7",
+    "@electron-forge/publisher-github": "^7",
+    "@typescript-eslint/eslint-plugin": "^5.14.0",
     "babel-plugin-rewire": "^1.2.0",
     "debug-menu": "^0.6.1",
-    "electron": "^16.0",
-    "electron-builder": "^22.11.7",
+    "electron": "^36",
     "electron-debug": "^2.2.0",
     "electron-reloader": "^1.1.0",
-    "eslint": "^5.3.0",
-    "eslint-config-airbnb": "^17.1.1",
-    "eslint-config-airbnb-base": "^14.2.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-jest": "^24.4.0",
-    "eslint-plugin-jsx-a11y": "^6.3.1",
-    "eslint-plugin-react": "^7.22.0",
-    "jest": "^27.0.6",
-    "madge": "^5.0.1"
+    "eslint": "^8.11.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-base": "^15.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jest": "^26.1.1",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.29.3",
+    "eslint-plugin-react-hooks": "^4.3.0",
+    "husky": "^8.0.0",
+    "jest": "^27.0.6"
   }
 }

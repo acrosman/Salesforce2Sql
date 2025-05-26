@@ -1,6 +1,6 @@
+const path = require('path');
 const { app, BrowserWindow, Menu } = require('electron');  // eslint-disable-line
 const fs = require('fs-extra');
-const path = require('path');
 
 const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
@@ -10,8 +10,8 @@ const nonPrefWindowItems = [
   'find-menu-item',
 ];
 
-let prefWindow;
-let mainWindow;
+let prefWindow = null;
+let mainWindow = null;
 
 const setMainWindow = (win) => {
   mainWindow = win;
@@ -24,8 +24,9 @@ const getCurrentPreferences = () => {
   const preferences = {
     theme: 'Cyborg',
     indexes: {
-      picklists: true,
+      externalIds: true,
       lookups: true,
+      picklists: true,
     },
     picklists: {
       type: 'enum',
@@ -38,12 +39,13 @@ const getCurrentPreferences = () => {
     defaults: {
       attemptSFValues: false,
       textEmptyString: false,
-      supressReadOnly: false,
-      supressAudit: false,
+      checkboxDefaultFalse: true,
+      suppressReadOnly: false,
+      suppressAudit: false,
     },
   };
 
-  // Load any exisiting values.
+  // Load any existing values.
   let settingsData = {};
   try {
     settingsData = JSON.parse(fs.readFileSync(settingsPath));
@@ -100,7 +102,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 700,
+      height: 730,
       resizable: false,
       frame: false,
       webPreferences: {

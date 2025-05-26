@@ -1,0 +1,10 @@
+{
+  "verbose": true,
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/out/"
+  ],
+  "modulePathIgnorePatterns": [
+    "/out/"
+  ]
+}
