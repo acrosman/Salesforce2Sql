@@ -647,61 +647,74 @@ const buildDatabase = (settings) => {
   });
 };
 
+const sfPasswordLogin = (url, username, password) => {
+  const conn = new jsforce.Connection({
+    loginUrl: url,
+  });
+
+  conn.login(username, password).then(
+    (userInfo) => {
+      // Now you can get the access token and instance URL information.
+      // Save them to establish connection next time.
+      logMessage('Password Login Attempt', 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
+
+      // Save the next connection in the global storage.
+      sfConnections[userInfo.organizationId] = {
+        instanceUrl: conn.instanceUrl,
+        accessToken: conn.accessToken,
+        version: '63.0',
+      };
+
+      mainWindow.webContents.send('response_login', {
+        status: true,
+        message: 'Login Successful',
+        response: userInfo,
+        limitInfo: conn.limitInfo,
+        request: {
+          username,
+          password: '********',
+          token: '********',
+          url,
+        },
+      });
+    },
+    (err) => {
+      mainWindow.webContents.send('response_login', {
+        status: false,
+        message: 'Login Failed',
+        response: err,
+        limitInfo: conn.limitInfo,
+        request: {
+          username,
+          password: '********',
+          token: '********',
+          url,
+        },
+      });
+    },
+  );
+};
+
 /**
  * List of remote call handlers for using with IPC.
  */
 const handlers = {
   /**
-   * Login to an org using password authentication.
+   * Login to an org.
    * @param {*} event Standard message event.
    * @param {*} args Login credentials from the interface.
    */
   sf_login: (event, args) => {
-    const conn = new jsforce.Connection({
-      loginUrl: args.url,
-    });
-
-    let { password } = args;
-    if (args.token !== '') {
-      password = `${password}${args.token}`;
+    if (args.mode === 'oauth') {
+      oauth.attemptLogin(args.url);
+    } else {
+      let { password } = args;
+      if (args.token && args.token.trim()) {
+        password = `${password}${args.token.trim()}`;
+      }
+      logMessage(event.sender.getTitle(), 'Info', 'Attempting Login with Basic Credentials');
+      sfPasswordLogin(args.url, args.username, password);
     }
-
-    conn.login(args.username, password).then(
-      (userInfo) => {
-        // Since we send the args back to the interface, it's a good idea
-        // to remove the security information.
-        args.password = '';
-        args.token = '';
-
-        // Now you can get the access token and instance URL information.
-        // Save them to establish connection next time.
-        logMessage(event.sender.getTitle(), 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-        // Save the next connection in the global storage.
-        sfConnections[userInfo.organizationId] = {
-          instanceUrl: conn.instanceUrl,
-          accessToken: conn.accessToken,
-          version: '63.0',
-        };
-
-        mainWindow.webContents.send('response_login', {
-          status: true,
-          message: 'Login Successful',
-          response: userInfo,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-      },
-      (err) => {
-        mainWindow.webContents.send('response_login', {
-          status: false,
-          message: 'Login Failed',
-          response: err,
-          limitInfo: conn.limitInfo,
-          request: args,
-        });
-      },
-    );
   },
   /**
    * Logout of a specific Salesforce org.
