@@ -710,7 +710,7 @@ const handlers = {
     } else {
       let { password } = args;
       if (args.token && args.token.trim()) {
-        password = `${password}${args.token.trim()}`;
+        password = `${password.trim()}${args.token.trim()}`;
       }
       logMessage(event.sender.getTitle(), 'Info', 'Attempting Login with Basic Credentials');
       sfPasswordLogin(args.url, args.username, password);
