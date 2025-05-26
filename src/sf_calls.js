@@ -15,6 +15,7 @@ let mainWindow = null;
 let proposedSchema = {};
 let preferences = null;
 
+// Import constants
 const {
   typeResolverBases,
   standardObjectsByFeature,
@@ -29,71 +30,6 @@ const {
  */
 const setwindow = (window) => {
   mainWindow = window;
-};
-
-/**
- * Attempt a traditional Username/Password login.
- * @param {String} url
- * @param {String} username
- * @param {String} password
- * @param {String} token
- */
-const passwordLogin = (url, username, password, token) => {
-  const conn = new jsforce.Connection({
-    // you can change loginUrl to connect to sandbox or prerelease env.
-    loginUrl: url,
-  });
-  let pass = password;
-  if (token !== '') {
-    pass = `${password}${token}`;
-  }
-
-  conn.login(username, pass, (err, userInfo) => {
-    if (err) {
-      logMessage(
-        'Login',
-        'Error',
-        `Login Failed ${err}`,
-      );
-
-      mainWindow.webContents.send('response_generic', {
-        status: false,
-        message: 'Login Failed',
-        response: err,
-        limitInfo: conn.limitInfo,
-        request: {
-          url,
-          username,
-          password: '*****',
-          token: '*****',
-        },
-      });
-      return true;
-    }
-    // Now you can get the access token and instance URL information.
-    // Save them to establish connection next time.
-    logMessage('Login', 'Info', `Connected to Org: ${userInfo.organizationId} for User: ${userInfo.id}`);
-
-    // Save the next connection in the global storage.
-    sfConnections[userInfo.organizationId] = {
-      instanceUrl: conn.instanceUrl,
-      accessToken: conn.accessToken,
-    };
-
-    mainWindow.webContents.send('response_login', {
-      status: true,
-      message: 'Login Successful',
-      response: userInfo,
-      limitInfo: conn.limitInfo,
-      request: {
-        url,
-        username,
-        password: '*****',
-        token: '*****',
-      },
-    });
-    return true;
-  });
 };
 
 /**
@@ -127,6 +63,22 @@ const resolveFieldType = (sfTypeName) => {
   }
 
   return 'text';
+};
+
+/**
+ * Send a log message to the console window.
+ * @param {String} title  Message title or sender
+ * @param {String} channel  Message category
+ * @param {String} message  Message
+ * @returns True (always).
+ */
+const logMessage = (title, channel, message) => {
+  mainWindow.webContents.send('log_message', {
+    sender: title,
+    channel,
+    message,
+  });
+  return true;
 };
 
 /**
