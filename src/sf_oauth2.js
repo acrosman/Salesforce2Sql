@@ -50,6 +50,13 @@ function createLocalServer(jsfOauth) {
 function isValidSalesforceUrl(url) {
   try {
     const parsedUrl = new URL(url);
+
+    // Check for HTTPS protocol
+    if (parsedUrl.protocol !== 'https:') {
+      console.error('Invalid protocol - HTTPS required');
+      return false;
+    }
+
     // List of valid Salesforce login domains
     const validDomains = [
       'login.salesforce.com',
