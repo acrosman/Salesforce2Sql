@@ -53,6 +53,26 @@ function createLocalServer(jsfOauth) {
   });
 }
 
+function isValidSalesforceUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    // List of valid Salesforce login domains
+    const validDomains = [
+      'login.salesforce.com',
+      'test.salesforce.com',
+      'login.sandbox.salesforce.com',
+      'login.cloudforce.com',
+    ];
+
+    return validDomains.some((domain) => parsedUrl.hostname === domain
+      || parsedUrl.hostname.endsWith('.my.salesforce.com')
+      || parsedUrl.hostname.endsWith('.cloudforce.com'));
+  } catch (err) {
+    console.error('Invalid URL format:', err);
+    return false;
+  }
+}
+
 async function attemptLogin(authDomain) {
   if (!config.oauth.clientId || !config.oauth.clientSecret) {
     throw new Error('Missing OAuth credentials. Both Client ID and Client Secret are required.');
@@ -67,13 +87,16 @@ async function attemptLogin(authDomain) {
   });
 
   try {
-    // Start local server to handle callback
     const codePromise = createLocalServer(jsfOauth);
 
-    // Get authorization URL and open in default browser
     const authUrl = jsfOauth.getAuthorizationUrl({
       scope: config.oauth.scopes.join(' '),
     });
+
+    if (!isValidSalesforceUrl(authUrl)) {
+      throw new Error('Invalid Salesforce authentication URL');
+    }
+
     console.log(`Opening browser for authentication: ${authUrl}`);
     await shell.openExternal(authUrl);
 
