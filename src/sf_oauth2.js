@@ -1,12 +1,6 @@
 const electron = require("electron"); // eslint-disable-line
 const { shell } = electron;
 
-// Extract the needed elements.
-const {
-  BrowserWindow,
-  session,
-} = electron;
-
 // Additional Tooling.
 const jsforce = require('jsforce');
 const http = require('http');
