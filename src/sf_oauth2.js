@@ -8,6 +8,9 @@ const {
 
 // Additional Tooling.
 const jsforce = require('jsforce');
+const http = require('http');
+
+const { shell } = electron;
 
 function createAuthWindow() {
   // Lock down the session.
@@ -16,24 +19,45 @@ function createAuthWindow() {
     callback(false);
   });
 
-  // Create the browser window.
+  // Set default security policies for the session
+  authSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "script-src 'self' https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "style-src 'self' 'unsafe-inline' https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "img-src 'self' data: https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "font-src 'self' data: https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "connect-src 'self' https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+          "frame-src 'self' https://*.salesforce.com https://*.force.com https://login.salesforce.com;",
+        ].join(' '),
+      },
+    });
+  });
+
+  // Create the browser window with secure defaults
   let authWindow = new BrowserWindow({
-    width: 300,
-    height: 500,
-    resizable: false,
-    frame: false,
+    width: 600,
+    height: 700,
+    resizable: true,
+    frame: true,
     show: false,
     session: authSession,
     webPreferences: {
-      devTools: true,
-      nodeIntegration: false, // Disable nodeIntegration for security.
+      devTools: process.env.NODE_ENV === 'development',
+      nodeIntegration: false,
       nodeIntegrationInWorker: false,
       nodeIntegrationInSubFrames: false,
       disableBlinkFeatures: 'Auxclick', // See: https://github.com/doyensec/electronegativity/wiki/AUXCLICK_JS_CHECK
       contextIsolation: true, // Enabling contextIsolation to protect against prototype pollution.
       worldSafeExecuteJavaScript: true, // https://github.com/electron/electron/pull/24712
       enableRemoteModule: false, // Turn off remote to avoid temptation.
-      // preload: path.join(app.getAppPath(), 'app/authPreload.js'),
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      sandbox: true,
     },
   });
 
@@ -45,57 +69,96 @@ function createAuthWindow() {
     authWindow = null;
   });
 
-  authWindow.webContents.on('did-fail-load', () => {
-    console.log('did-fail-load');
+  // Add these handlers after creating the window
+  authWindow.webContents.on('did-start-loading', () => {
+    console.log('Window started loading');
   });
+
+  authWindow.webContents.on('did-finish-load', () => {
+    console.log('Window finished loading');
+  });
+
+  authWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error(`Failed to load: ${errorDescription} (${errorCode}) for URL: ${validatedURL}`);
+  });
+
+  // Open DevTools in detached mode for debugging
+  if (process.env.NODE_ENV === 'development') {
+    authWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 
   return authWindow;
 }
 
-function attemptLogin(authDomain) {
-  const jsfOauth = new jsforce.OAuth2({
-    loginUrl: authDomain,
-    // Temporary testing value from trailhead org.
-    clientId: '3MVG9cHH2bfKACZaQ.djia5w9g24IaXl.LCkYPmKS.T7ud235Q8c1pX0_zN6xkDBj.88d1qLf1pTcmZwGODB.',
-    redirectUri: 'https://localhost/completesetup',
-  });
+function createLocalServer(jsfOauth) {
+  return new Promise((resolve, reject) => {
+    // Create local server to handle OAuth callback
+    const server = http.createServer((req, res) => {
+      if (req.url.startsWith('/completesetup')) {
+        const url = new URL(req.url, 'http://localhost');
+        const code = url.searchParams.get('code');
 
-  const authWindow = createAuthWindow();
+        if (code) {
+          // Send success response to browser
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end('<h1>Authentication successful!</h1><p>You can close this window.</p>');
 
-  // Prepare to filter only the callbacks for my redirectUri
-  const filter = {
-    urls: [`${authDomain}/*`],
-  };
+          // Close server and resolve promise with auth code
+          server.close();
+          resolve(code);
+        } else {
+          reject(new Error('No authorization code received'));
+        }
+      }
+    });
 
-  // Intercept 302's triggered on page load attempt and redirect.
-  authWindow.webContents.session.webRequest.onHeadersReceived(filter, (details, callback) => {
-    const { statusCode, responseHeaders } = details;
+    // Listen on a random available port
+    server.listen(0, 'localhost', () => {
+      const { port } = server.address();
+      console.log(`Local server listening on port ${port}`);
+    });
 
-    // This is redirect, so let's try again.
-    if (statusCode === 302) {
-      authWindow.loadURL(responseHeaders.Location.pop());
-    }
-
-    // don't forget to let the request proceed
-    callback({
-      cancel: false,
+    // Handle server errors
+    server.on('error', (error) => {
+      reject(error);
     });
   });
+}
 
-  // 'will-navigate' is an event emitted when the window.location changes
-  // newUrl should contain the tokens you need
-  authWindow.webContents.on('will-navigate', (event, newUrl) => {
-    console.log(`Redirected to: ${newUrl}`);
-    // More complex code to handle tokens goes here.
+async function attemptLogin(authDomain) {
+  // Create OAuth configuration
+  const jsfOauth = new jsforce.OAuth2({
+    loginUrl: authDomain,
+    clientId: '3MVG9cHH2bfKACZaQ.djia5w9g24IaXl.LCkYPmKS.T7ud235Q8c1pX0_zN6xkDBj.88d1qLf1pTcmZwGODB.',
+    redirectUri: 'http://localhost/completesetup',
   });
 
-  authWindow.once('ready-to-show', () => {
-    authWindow.show();
-  });
+  try {
+    // Start local server to handle callback
+    const codePromise = createLocalServer(jsfOauth);
 
-  // Load the authUrl from Salesforce.
-  const authUrl = jsfOauth.getAuthorizationUrl({ scope: 'api id web refresh_token' });
-  authWindow.loadURL(authUrl);
+    // Get authorization URL and open in default browser
+    const authUrl = jsfOauth.getAuthorizationUrl({ scope: 'api id web refresh_token' });
+    console.log(`Opening browser for authentication: ${authUrl}`);
+    await shell.openExternal(authUrl);
+
+    // Wait for the authorization code
+    const code = await codePromise;
+    console.log('Received authorization code');
+
+    // Exchange code for access token
+    const conn = new jsforce.Connection({ oauth2: jsfOauth });
+    const userInfo = await conn.authorize(code);
+
+    console.log('Authentication successful');
+    return {
+      conn,
+      userInfo,
+    };
+  } catch (error) {
+    console.error('Authentication failed:', error);
+    throw error;
+  }
 }
 
 exports.attemptLogin = attemptLogin;
