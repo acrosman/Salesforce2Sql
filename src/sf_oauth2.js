@@ -10,7 +10,6 @@ const config = require('./config');
 function createLocalServer(jsfOauth) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
-      console.log('Received callback request:', req.url); // Add debugging
 
       // Remove any port information from the URL
       if (req.url.startsWith('/completesetup')) {
@@ -36,13 +35,6 @@ function createLocalServer(jsfOauth) {
       const { port } = server.address();
       // Update the OAuth config with the actual port
       jsfOauth.redirectUri = `http://localhost:${port}/completesetup`;
-      console.log(`Local server listening on port ${port}`);
-      console.log(`Updated redirect URI: ${jsfOauth.redirectUri}`);
-    });
-
-    // Handle server errors
-    server.on('error', (error) => {
-      reject(error);
     });
   });
 }
@@ -53,7 +45,6 @@ function isValidSalesforceUrl(url) {
 
     // Check for HTTPS protocol
     if (parsedUrl.protocol !== 'https:') {
-      console.error('Invalid protocol - HTTPS required');
       return false;
     }
 
@@ -69,7 +60,6 @@ function isValidSalesforceUrl(url) {
       || parsedUrl.hostname.endsWith('.my.salesforce.com')
       || parsedUrl.hostname.endsWith('.cloudforce.com'));
   } catch (err) {
-    console.error('Invalid URL format:', err);
     return false;
   }
 }
@@ -98,18 +88,15 @@ async function attemptLogin(authDomain) {
       throw new Error('Invalid Salesforce authentication URL');
     }
 
-    console.log(`Opening browser for authentication: ${authUrl}`);
     await shell.openExternal(authUrl);
 
     // Wait for the authorization code
     const code = await codePromise;
-    console.log('Received authorization code');
 
     // Exchange code for access token
     const conn = new jsforce.Connection({ oauth2: jsfOauth });
     const userInfo = await conn.authorize(code);
 
-    console.log('Authentication successful');
     return {
       conn,
       userInfo,
