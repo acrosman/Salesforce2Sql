@@ -10,7 +10,6 @@ const config = require('./config');
 function createLocalServer(jsfOauth) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
-
       // Remove any port information from the URL
       if (req.url.startsWith('/completesetup')) {
         const url = new URL(req.url, `http://localhost:${server.address().port}`);
@@ -77,34 +76,29 @@ async function attemptLogin(authDomain) {
     redirectUri: 'http://localhost/completesetup',
   });
 
-  try {
-    const codePromise = createLocalServer(jsfOauth);
+  const codePromise = createLocalServer(jsfOauth);
 
-    const authUrl = jsfOauth.getAuthorizationUrl({
-      scope: config.oauth.scopes.join(' '),
-    });
+  const authUrl = jsfOauth.getAuthorizationUrl({
+    scope: config.oauth.scopes.join(' '),
+  });
 
-    if (!isValidSalesforceUrl(authUrl)) {
-      throw new Error('Invalid Salesforce authentication URL');
-    }
-
-    await shell.openExternal(authUrl);
-
-    // Wait for the authorization code
-    const code = await codePromise;
-
-    // Exchange code for access token
-    const conn = new jsforce.Connection({ oauth2: jsfOauth });
-    const userInfo = await conn.authorize(code);
-
-    return {
-      conn,
-      userInfo,
-    };
-  } catch (error) {
-    console.error('Authentication failed:', error);
-    throw error;
+  if (!isValidSalesforceUrl(authUrl)) {
+    throw new Error('Invalid Salesforce authentication URL');
   }
+
+  await shell.openExternal(authUrl);
+
+  // Wait for the authorization code
+  const code = await codePromise;
+
+  // Exchange code for access token
+  const conn = new jsforce.Connection({ oauth2: jsfOauth });
+  const userInfo = await conn.authorize(code);
+
+  return {
+    conn,
+    userInfo,
+  };
 }
 
 exports.attemptLogin = attemptLogin;
