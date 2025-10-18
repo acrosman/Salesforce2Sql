@@ -8,7 +8,7 @@ Salesforce2Sql is built and released for MacOS, Windows, and Linux (most testing
 
 You will need API access to a Salesforce org and a database to create your schema within.
 
-![Main Interface](documentation/InterfaceScreenshots/MainScreen.png?raw=true)
+![Main Interface](InterfaceScreenshots/MainScreen.png?raw=true)
 
 ## Basic Salesforce2Sql Use
 
@@ -16,7 +16,7 @@ You will need API access to a Salesforce org and a database to create your schem
 
 Click "Create New Connection" to open the login screen. In the login fields provide your username, password, and security token. If you are logging into a production or trailhead instance you can use the default login URL. If you are logging into a Sandbox use: https://test.salesforce.com. You can also enter the [Salesforce My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) of your org.
 
-![Login Screen](documentation/InterfaceScreenshots/Login.PNG?raw=true)
+![Login Screen](InterfaceScreenshots/Login.PNG?raw=true)
 
 As of this writing Salesforce2Sql uses the old security token connection method. [OAuth2 support is under development](https://github.com/acrosman/Salesforce2Sql/pull/52). So with the application running, and your [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5) in hand, click the big “Create New Connection” button on the left side of the main interface.
 
@@ -46,7 +46,7 @@ There are a few preferences you might want to experiment with when building mirr
 
 Preference screen from the application with sections for picklist settings, index settings, other defaults, and theme.
 
-![Preference pane showing sections described above.](documentation/InterfaceScreenshots/Sf2SqlPreferences.png?raw=true)
+![Preference pane showing sections described above.](InterfaceScreenshots/Sf2SqlPreferences.png?raw=true)
 
 #### Picklists
 
