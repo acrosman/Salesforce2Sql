@@ -127,7 +127,7 @@ test('Test updateMessage', () => {
   const message = 'Test message';
   updateMessage(message);
   const messageElement = document.getElementById('results-message-only');
-  expect(messageElement.innerText).toEqual(message);
+  expect(messageElement.innerHTML).toEqual(message);
 });
 
 // test('Test refreshObjectDisplay', () => {
