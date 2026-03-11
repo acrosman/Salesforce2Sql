@@ -41,3 +41,41 @@ This project has no direct association with Salesforce except the use of the API
 ## Getting Involved
 
 If you would like to contribute to this project please feel invited to do so. Feel free to review open [issues](issues) and read the [contributing guide](contributing.md).
+
+## Environment Setup
+
+This application requires specific environment variables to be set for Salesforce OAuth authentication. Create a `.env` file in the root directory with the following variables:
+
+```env
+SALESFORCE_CLIENT_ID=your_client_id_here
+SALESFORCE_CLIENT_SECRET=your_client_secret_here
+```
+
+### Getting the Credentials
+
+1. Go to Salesforce Setup
+2. Navigate to App Manager
+3. Create a new Connected App or use an existing one
+4. Configure OAuth settings:
+   - Enable OAuth Settings
+   - Callback URL: `http://localhost/completesetup`
+   - OAuth Scopes:
+     - Access and manage your data (api)
+     - Access your basic information (id)
+     - Perform requests on your behalf at any time (refresh_token)
+5. After saving, copy the Consumer Key (Client ID) and Consumer Secret (Client Secret)
+6. Add these values to your `.env` file
+
+### Development Setup
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edit `.env` with your Salesforce Connected App credentials
+3. Run the application in development mode:
+   ```bash
+   npm run dev
+   ```
+
+**Note:** Never commit the `.env` file to version control. The `.env.example` file is provided as a template.

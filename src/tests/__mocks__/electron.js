@@ -7,4 +7,7 @@ module.exports = {
     getName: jest.fn().mockReturnValue('appName'),
   },
   dialog: jest.fn(),
+  shell: {
+    openExternal: jest.fn().mockResolvedValue(true),
+  },
 };
