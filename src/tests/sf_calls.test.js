@@ -796,3 +796,265 @@ test('Test sf_getObjectFields error path', async () => {
     }),
   );
 });
+
+// ==========================================
+// validateConnection tests
+// ==========================================
+
+test('Test validateConnection success path', async () => {
+  const validateConnection = sfcalls.__get__('validateConnection');
+  const mockKnexDb = {
+    raw: jest.fn().mockResolvedValue([{ isUp: 1 }]),
+  };
+
+  await expect(validateConnection(mockKnexDb)).resolves.toEqual([{ isUp: 1 }]);
+  expect(mockKnexDb.raw).toHaveBeenCalledWith('SELECT 1 AS isUp');
+});
+
+test('Test validateConnection DB error path', async () => {
+  const validateConnection = sfcalls.__get__('validateConnection');
+  const mockKnexDb = {
+    raw: jest.fn().mockRejectedValue(new Error('connection refused')),
+  };
+
+  await expect(validateConnection(mockKnexDb)).rejects.toThrow('connection refused');
+  expect(mockKnexDb.raw).toHaveBeenCalledWith('SELECT 1 AS isUp');
+});
+
+// ==========================================
+// buildTable tests
+// ==========================================
+
+// Preferences for buildTable unit tests — all indexes and SF-defaults disabled.
+const buildTablePrefs = {
+  theme: 'Cyborg',
+  indexes: {
+    externalIds: false,
+    lookups: false,
+    picklists: false,
+  },
+  picklists: {
+    type: 'enum',
+    unrestricted: false,
+    ensureBlanks: false,
+  },
+  lookups: {
+    type: 'char(18)',
+  },
+  defaults: {
+    attemptSFValues: false,
+    textEmptyString: false,
+    suppressReadOnly: false,
+    suppressAudit: false,
+    checkboxDefault: false,
+  },
+};
+
+// Restores typeResolverBases fields that earlier tests mutate without reverting.
+// resolveFieldType mutates the shared object but has no restore path, so we fix
+// it before tests that require the canonical picklist→enum and reference→reference mappings.
+const resetTypeResolver = () => {
+  const typeResolverBases = sfcalls.__get__('typeResolverBases');
+  typeResolverBases.picklist = 'enum';
+  typeResolverBases.reference = 'reference';
+};
+
+// Creates a minimal knex column stub with the methods buildTable may call.
+const makeColumnMock = () => ({
+  collate: jest.fn().mockReturnThis(),
+  defaultTo: jest.fn().mockReturnThis(),
+  index: jest.fn().mockReturnThis(),
+});
+
+// Creates a full knex table stub whose column methods each return a fresh column mock.
+const makeTableMock = (tableName) => ({
+  _tableName: tableName,
+  binary: jest.fn().mockReturnValue(makeColumnMock()),
+  boolean: jest.fn().mockReturnValue(makeColumnMock()),
+  biginteger: jest.fn().mockReturnValue(makeColumnMock()),
+  date: jest.fn().mockReturnValue(makeColumnMock()),
+  datetime: jest.fn().mockReturnValue(makeColumnMock()),
+  decimal: jest.fn().mockReturnValue(makeColumnMock()),
+  enu: jest.fn().mockReturnValue(makeColumnMock()),
+  float: jest.fn().mockReturnValue(makeColumnMock()),
+  integer: jest.fn().mockReturnValue(makeColumnMock()),
+  string: jest.fn().mockReturnValue(makeColumnMock()),
+  text: jest.fn().mockReturnValue(makeColumnMock()),
+  time: jest.fn().mockReturnValue(makeColumnMock()),
+});
+
+test('Test buildTable invokes the correct column method for each field type', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  sfcalls.__set__('proposedSchema', {
+    TestObject: {
+      BinaryFld: { name: 'BinaryFld', type: 'byte', size: 8, defaultValue: null, externalId: false },
+      BoolFld: { name: 'BoolFld', type: 'boolean', size: 0, defaultValue: null, externalId: false },
+      BigIntFld: { name: 'BigIntFld', type: 'long', size: 18, defaultValue: null, externalId: false },
+      DateFld: { name: 'DateFld', type: 'date', size: 10, defaultValue: null, externalId: false },
+      DatetimeFld: { name: 'DatetimeFld', type: 'datetime', size: 10, defaultValue: null, externalId: false },
+      DecimalFld: {
+        name: 'DecimalFld', type: 'double', size: 18, precision: 15, scale: 2, defaultValue: null, externalId: false,
+      },
+      EnumFld: {
+        name: 'EnumFld', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: ['A', 'B'], isRestricted: true,
+      },
+      IntFld: { name: 'IntFld', type: 'int', size: 4, defaultValue: null, externalId: false },
+      RefFld: { name: 'RefFld', type: 'reference', size: 18, defaultValue: null, externalId: false },
+      TextFld: { name: 'TextFld', type: 'textarea', size: 1000, defaultValue: null, externalId: false },
+      TimeFld: { name: 'TimeFld', type: 'time', size: 10, defaultValue: null, externalId: false },
+      StrFld: { name: 'StrFld', type: 'string', size: 100, defaultValue: null, externalId: false },
+    },
+  });
+
+  const table = makeTableMock('TestObject');
+  buildTable(table);
+
+  expect(table.binary).toHaveBeenCalledWith('BinaryFld', 8);
+  expect(table.boolean).toHaveBeenCalledWith('BoolFld');
+  expect(table.biginteger).toHaveBeenCalledWith('BigIntFld');
+  expect(table.date).toHaveBeenCalledWith('DateFld');
+  expect(table.datetime).toHaveBeenCalledWith('DatetimeFld');
+  expect(table.decimal).toHaveBeenCalledWith('DecimalFld', 15, 2);
+  expect(table.enu).toHaveBeenCalledWith('EnumFld', ['A', 'B']);
+  expect(table.integer).toHaveBeenCalledWith('IntFld');
+  expect(table.string).toHaveBeenCalledWith('RefFld', 18);
+  expect(table.string).toHaveBeenCalledWith('StrFld', 100);
+  expect(table.text).toHaveBeenCalledWith('TextFld');
+  expect(table.time).toHaveBeenCalledWith('TimeFld');
+});
+
+test('Test buildTable calls collate on reference-type fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  const refColMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Contact: {
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const table = makeTableMock('Contact');
+  table.string = jest.fn().mockReturnValue(refColMock);
+
+  buildTable(table);
+
+  expect(table.string).toHaveBeenCalledWith('AccountId', 18);
+  expect(refColMock.collate).toHaveBeenCalledWith('utf8mb4_bin');
+});
+
+test('Test buildTable creates index for externalId fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: true, lookups: false, picklists: false },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      External_ID__c: {
+        name: 'External_ID__c', type: 'string', size: 36, defaultValue: null, externalId: true,
+      },
+    },
+  });
+
+  const table = makeTableMock('Account');
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Account_External_ID__c');
+});
+
+test('Test buildTable creates index for lookup (reference) fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: false, lookups: true, picklists: false },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Contact: {
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const table = makeTableMock('Contact');
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Contact_AccountId');
+});
+
+test('Test buildTable creates index for picklist fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: false, lookups: false, picklists: true },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Opportunity: {
+      StageName: {
+        name: 'StageName', type: 'picklist', size: 40, defaultValue: null, externalId: false, values: ['Prospecting', 'Closed Won'], isRestricted: true,
+      },
+    },
+  });
+
+  const table = makeTableMock('Opportunity');
+  // Override both enu and string: if the type resolver has been mutated by an earlier
+  // test, picklist may resolve to 'string' (default branch) instead of 'enum'. Either
+  // way the field is still indexed because addIndex checks field.type, not fieldType.
+  table.enu = jest.fn().mockReturnValue(colMock);
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Opportunity_StageName');
+});
+
+test('Test buildTable does NOT create index when index preferences are disabled', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences(buildTablePrefs);
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      ExtId: { name: 'ExtId', type: 'string', size: 36, defaultValue: null, externalId: true },
+      AccountId: { name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false },
+      StageName: {
+        name: 'StageName', type: 'picklist', size: 40, defaultValue: null, externalId: false, values: ['Open'], isRestricted: true,
+      },
+    },
+  });
+
+  const table = {
+    _tableName: 'Account',
+    binary: jest.fn().mockReturnValue(colMock),
+    boolean: jest.fn().mockReturnValue(colMock),
+    biginteger: jest.fn().mockReturnValue(colMock),
+    date: jest.fn().mockReturnValue(colMock),
+    datetime: jest.fn().mockReturnValue(colMock),
+    decimal: jest.fn().mockReturnValue(colMock),
+    enu: jest.fn().mockReturnValue(colMock),
+    float: jest.fn().mockReturnValue(colMock),
+    integer: jest.fn().mockReturnValue(colMock),
+    string: jest.fn().mockReturnValue(colMock),
+    text: jest.fn().mockReturnValue(colMock),
+    time: jest.fn().mockReturnValue(colMock),
+  };
+
+  buildTable(table);
+
+  expect(colMock.index).not.toHaveBeenCalled();
+});
