@@ -631,3 +631,168 @@ test('Test sf_logout error path', () => {
     }),
   );
 });
+
+test('Test sf_describeGlobal success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId' };
+
+  sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_list_objects',
+    expect.objectContaining({
+      status: true,
+      message: 'Describe Global Successful',
+      response: expect.objectContaining({
+        sobjects: [],
+        recommended: expect.any(Array),
+      }),
+    }),
+  );
+});
+
+test('Test sf_describeGlobal error path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    describeGlobal: jest.fn().mockRejectedValue(new Error('Connection timed out')),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    errorOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'errorOrgId' };
+
+  sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_error',
+    expect.objectContaining({
+      status: false,
+      message: 'Describe Global Failed',
+    }),
+  );
+});
+
+test('Test sf_getObjectFields success path', async () => {
+  jest.clearAllMocks();
+  const mockFields = [
+    {
+      name: 'Id',
+      type: 'id',
+      length: 18,
+      label: 'Account ID',
+      calculated: false,
+      updateable: false,
+      createable: false,
+      defaultValue: null,
+      externalId: false,
+      picklistValues: [],
+    },
+    {
+      name: 'Name',
+      type: 'string',
+      length: 80,
+      label: 'Account Name',
+      calculated: false,
+      updateable: true,
+      createable: true,
+      defaultValue: null,
+      externalId: false,
+      picklistValues: [],
+    },
+  ];
+
+  jsforce.Connection.mockImplementationOnce(() => ({
+    sobject: jest.fn().mockReturnValue({
+      describe: jest.fn().mockResolvedValue({ name: 'Account', fields: mockFields }),
+    }),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId', objects: ['Account'] };
+
+  sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // proposedSchema should have been populated with the Account fields.
+  const schema = sfcalls.__get__('proposedSchema');
+  expect(schema).toHaveProperty('Account');
+  expect(schema.Account).toHaveProperty('Id');
+  expect(schema.Account).toHaveProperty('Name');
+
+  // response_schema should have been sent to the renderer.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_schema',
+    expect.objectContaining({
+      status: false,
+      message: 'Processed Objects',
+      response: expect.objectContaining({
+        schema: expect.objectContaining({ Account: expect.any(Object) }),
+      }),
+    }),
+  );
+});
+
+test('Test sf_getObjectFields error path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    sobject: jest.fn().mockReturnValue({
+      describe: jest.fn().mockRejectedValue(new Error('Object not found')),
+    }),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId', objects: ['NonExistentObject__c'] };
+
+  sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // An error log message should have been sent for the failed describe.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      channel: 'Error',
+      message: expect.stringContaining('NonExistentObject__c'),
+    }),
+  );
+});
