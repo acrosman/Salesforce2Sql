@@ -1,5 +1,6 @@
 const fs = require('fs');
 const electron = require('electron');
+const jsforce = require('jsforce');
 
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');
@@ -516,6 +517,117 @@ test('Test loadSchemaFromFile function with file read error', () => {
       sender: expect.stringContaining('Test Title'),
       channel: 'Info',
       message: expect.stringContaining('Test Message'),
+    }),
+  );
+});
+
+test('Test sf_login success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {
+    url: 'https://test.salesforce.com',
+    username: 'test@test.com',
+    password: 'testpassword',
+    token: 'testtoken',
+  };
+
+  sfcalls.handlers.sf_login(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: true,
+      message: 'Login Successful',
+    }),
+  );
+  // Password and token must be cleared before sending back to the renderer.
+  expect(mockArgs.password).toBe('');
+  expect(mockArgs.token).toBe('');
+});
+
+test('Test sf_login auth failure path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    login: jest.fn().mockRejectedValue(new Error('INVALID_LOGIN: Invalid username, password, security token')),
+    limitInfo: {},
+  }));
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {
+    url: 'https://test.salesforce.com',
+    username: 'wrong@test.com',
+    password: 'wrongpassword',
+    token: '',
+  };
+
+  sfcalls.handlers.sf_login(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: false,
+      message: 'Login Failed',
+    }),
+  );
+});
+
+test('Test sf_logout success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = { org: 'testOrgId' };
+
+  sfcalls.handlers.sf_logout(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_logout',
+    expect.objectContaining({
+      status: true,
+      message: 'Logout Successful',
+    }),
+  );
+  expect(sfcalls.__get__('sfConnections').testOrgId).toBeNull();
+});
+
+test('Test sf_logout error path', () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    logout: { then: (_onFulfilled, onRejected) => onRejected(new Error('Logout requested for unknown user')) },
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    errorOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = { org: 'errorOrgId' };
+
+  sfcalls.handlers.sf_logout(mockEvent, mockArgs);
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_logout',
+    expect.objectContaining({
+      status: false,
+      message: 'Logout Failed',
     }),
   );
 });
