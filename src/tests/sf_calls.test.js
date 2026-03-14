@@ -1058,3 +1058,167 @@ test('Test buildTable does NOT create index when index preferences are disabled'
 
   expect(colMock.index).not.toHaveBeenCalled();
 });
+
+// ==========================================
+// buildDatabase / knex_schema tests
+// ==========================================
+
+test('Test buildDatabase success path sends response_db_generated', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
+      Name: { name: 'Name', type: 'string', size: 255, defaultValue: null, externalId: false },
+    },
+  });
+
+  const mockSchema = { createTable: jest.fn().mockResolvedValue(true) };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { Account: true },
+    }),
+  );
+});
+
+test('Test buildDatabase ER_TOO_BIG_ROWSIZE retry converts string fields and succeeds', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    BigTable: {
+      Field1: { name: 'Field1', type: 'string', size: 255, defaultValue: null, externalId: false },
+      Field2: { name: 'Field2', type: 'phone', size: 40, defaultValue: null, externalId: false },
+    },
+  });
+
+  const rowsizeError = {
+    code: 'ER_TOO_BIG_ROWSIZE', message: 'Row size too large', errno: 1118, sql: '',
+  };
+  const createTableMock = jest.fn()
+    .mockRejectedValueOnce(rowsizeError)
+    .mockResolvedValueOnce(true);
+  const mockSchema = { createTable: createTableMock };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  // Allow nested async retry chains to settle.
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // createTable should have been called twice (initial attempt + retry).
+  expect(createTableMock).toHaveBeenCalledTimes(2);
+
+  // String-resolving fields should have been converted to text.
+  const schema = sfcalls.__get__('proposedSchema');
+  expect(schema.BigTable.Field1.type).toBe('text');
+  expect(schema.BigTable.Field2.type).toBe('text');
+
+  // After the retry succeeds, response_db_generated should report success.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { BigTable: true },
+    }),
+  );
+});
+
+test('Test buildDatabase ER_TOO_MANY_KEYS marks table success and sends response_db_generated', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    WideTable: {
+      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
+    },
+  });
+
+  const tooManyKeysError = {
+    code: 'ER_TOO_MANY_KEYS', message: 'Too many keys', errno: 1069, sql: '',
+  };
+  const mockSchema = { createTable: jest.fn().mockRejectedValue(tooManyKeysError) };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // ER_TOO_MANY_KEYS marks the table successful (table was created, just missing some indexes).
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { WideTable: true },
+    }),
+  );
+});
+
+test('Test buildDatabase connection failure sends response_db_generated with status false', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
+    },
+  });
+
+  const mockDb = { schema: {} };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockRejectedValue(new Error('connection refused')));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: false,
+      message: expect.stringContaining('connection refused'),
+    }),
+  );
+});
