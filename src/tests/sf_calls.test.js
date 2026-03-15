@@ -583,7 +583,7 @@ test('Test loadSchemaFromFile logs error when file contains invalid JSON', async
   );
 
   // response_schema must NOT be sent when parsing fails.
-  const calls = electron.mainWindow.webContents.send.mock.calls;
+  const { calls } = electron.mainWindow.webContents.send.mock;
   const responseSchemaCalls = calls.filter((c) => c[0] === 'response_schema');
   expect(responseSchemaCalls).toHaveLength(0);
 });
@@ -956,22 +956,42 @@ test('Test buildTable invokes the correct column method for each field type', ()
   sfcalls.setPreferences(buildTablePrefs);
   sfcalls.__set__('proposedSchema', {
     TestObject: {
-      BinaryFld: { name: 'BinaryFld', type: 'byte', size: 8, defaultValue: null, externalId: false },
-      BoolFld: { name: 'BoolFld', type: 'boolean', size: 0, defaultValue: null, externalId: false },
-      BigIntFld: { name: 'BigIntFld', type: 'long', size: 18, defaultValue: null, externalId: false },
-      DateFld: { name: 'DateFld', type: 'date', size: 10, defaultValue: null, externalId: false },
-      DatetimeFld: { name: 'DatetimeFld', type: 'datetime', size: 10, defaultValue: null, externalId: false },
+      BinaryFld: {
+        name: 'BinaryFld', type: 'byte', size: 8, defaultValue: null, externalId: false,
+      },
+      BoolFld: {
+        name: 'BoolFld', type: 'boolean', size: 0, defaultValue: null, externalId: false,
+      },
+      BigIntFld: {
+        name: 'BigIntFld', type: 'long', size: 18, defaultValue: null, externalId: false,
+      },
+      DateFld: {
+        name: 'DateFld', type: 'date', size: 10, defaultValue: null, externalId: false,
+      },
+      DatetimeFld: {
+        name: 'DatetimeFld', type: 'datetime', size: 10, defaultValue: null, externalId: false,
+      },
       DecimalFld: {
         name: 'DecimalFld', type: 'double', size: 18, precision: 15, scale: 2, defaultValue: null, externalId: false,
       },
       EnumFld: {
         name: 'EnumFld', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: ['A', 'B'], isRestricted: true,
       },
-      IntFld: { name: 'IntFld', type: 'int', size: 4, defaultValue: null, externalId: false },
-      RefFld: { name: 'RefFld', type: 'reference', size: 18, defaultValue: null, externalId: false },
-      TextFld: { name: 'TextFld', type: 'textarea', size: 1000, defaultValue: null, externalId: false },
-      TimeFld: { name: 'TimeFld', type: 'time', size: 10, defaultValue: null, externalId: false },
-      StrFld: { name: 'StrFld', type: 'string', size: 100, defaultValue: null, externalId: false },
+      IntFld: {
+        name: 'IntFld', type: 'int', size: 4, defaultValue: null, externalId: false,
+      },
+      RefFld: {
+        name: 'RefFld', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+      TextFld: {
+        name: 'TextFld', type: 'textarea', size: 1000, defaultValue: null, externalId: false,
+      },
+      TimeFld: {
+        name: 'TimeFld', type: 'time', size: 10, defaultValue: null, externalId: false,
+      },
+      StrFld: {
+        name: 'StrFld', type: 'string', size: 100, defaultValue: null, externalId: false,
+      },
     },
   });
 
@@ -1097,8 +1117,12 @@ test('Test buildTable does NOT create index when index preferences are disabled'
   const colMock = makeColumnMock();
   sfcalls.__set__('proposedSchema', {
     Account: {
-      ExtId: { name: 'ExtId', type: 'string', size: 36, defaultValue: null, externalId: true },
-      AccountId: { name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false },
+      ExtId: {
+        name: 'ExtId', type: 'string', size: 36, defaultValue: null, externalId: true,
+      },
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
       StageName: {
         name: 'StageName', type: 'picklist', size: 40, defaultValue: null, externalId: false, values: ['Open'], isRestricted: true,
       },
@@ -1138,8 +1162,12 @@ test('Test buildDatabase success path sends response_db_generated', async () => 
 
   sfcalls.__set__('proposedSchema', {
     Account: {
-      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
-      Name: { name: 'Name', type: 'string', size: 255, defaultValue: null, externalId: false },
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
+      Name: {
+        name: 'Name', type: 'string', size: 255, defaultValue: null, externalId: false,
+      },
     },
   });
 
@@ -1174,8 +1202,12 @@ test('Test buildDatabase ER_TOO_BIG_ROWSIZE retry converts string fields and suc
 
   sfcalls.__set__('proposedSchema', {
     BigTable: {
-      Field1: { name: 'Field1', type: 'string', size: 255, defaultValue: null, externalId: false },
-      Field2: { name: 'Field2', type: 'phone', size: 40, defaultValue: null, externalId: false },
+      Field1: {
+        name: 'Field1', type: 'string', size: 255, defaultValue: null, externalId: false,
+      },
+      Field2: {
+        name: 'Field2', type: 'phone', size: 40, defaultValue: null, externalId: false,
+      },
     },
   });
 
@@ -1227,7 +1259,9 @@ test('Test buildDatabase ER_TOO_MANY_KEYS marks table success and sends response
 
   sfcalls.__set__('proposedSchema', {
     WideTable: {
-      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
     },
   });
 
@@ -1265,7 +1299,9 @@ test('Test buildDatabase connection failure sends response_db_generated with sta
 
   sfcalls.__set__('proposedSchema', {
     Account: {
-      Id: { name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false },
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
     },
   });
 

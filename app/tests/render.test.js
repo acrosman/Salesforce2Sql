@@ -187,7 +187,7 @@ test('displayObjectList renders one row per createable object', () => {
   displayObjectList('', sObjects, []);
 
   const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
-  expect(tbody.rows.length).toEqual(2);
+  expect(tbody.rows).toHaveLength(2);
 });
 
 test('displayObjectList renders selected objects as the first rows when not pre-sorted', () => {
@@ -300,7 +300,7 @@ test('response_list_objects success populates the object table with createable o
     },
   });
   const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
-  expect(tbody.rows.length).toEqual(2);
+  expect(tbody.rows).toHaveLength(2);
 });
 
 test('response_list_objects error path logs an error row', () => {
