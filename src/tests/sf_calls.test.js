@@ -1437,3 +1437,152 @@ test('Test save_schema handler delegates to saveSchemaToFile', async () => {
 
   sfcalls.__set__('saveSchemaToFile', sfcalls.__get__('saveSchemaToFile'));
 });
+
+// ==========================================
+// saveSqlite3File tests
+// ==========================================
+
+test('Test saveSqlite3File calls showSaveDialog with correct options', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Default mock returns 'path/to/save/file' (no known extension — .sqlite will be appended).
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.dialog.showSaveDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({ title: 'Select Sqlite3 Database Location' }),
+  );
+});
+
+test('Test saveSqlite3File appends .sqlite when no recognized extension is given', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Default mock gives 'path/to/save/file' — no sqlite/db/sqlite3 extension.
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      status: false,
+      message: 'Sqlite3 File Selected',
+      response: { filePath: 'path/to/save/file.sqlite' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .sqlite extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.sqlite',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.sqlite' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .db extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.db',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.db' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .sqlite3 extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.sqlite3',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.sqlite3' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce(electron.mockDialogSaveCanceled);
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test saveSqlite3File logs error when dialog rejects', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockRejectedValueOnce(new Error('dialog crashed'));
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'Save',
+      channel: 'Error',
+      message: expect.stringContaining('dialog crashed'),
+    }),
+  );
+});
+
+test('Test select_sqlite3_location handler delegates to saveSqlite3File', () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockFn = jest.fn();
+  sfcalls.__set__('saveSqlite3File', mockFn);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.select_sqlite3_location(mockEvent, {});
+
+  expect(mockFn).toHaveBeenCalledTimes(1);
+
+  sfcalls.__set__('saveSqlite3File', sfcalls.__get__('saveSqlite3File'));
+});
