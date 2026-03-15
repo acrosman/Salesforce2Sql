@@ -26,6 +26,12 @@ Follow the [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
 npm run lint   # eslint src app --ignore-path .gitignore
 ```
 
+To auto fix linting errors, run:
+
+```sh
+npm run lint:fix   #eslint src app --ignore-path .gitignore --fix`
+```
+
 ## Testing
 
 Use VS Code's built-in test runner (Jest integration) to run tests. Test files live in `src/tests/` and `app/tests/`.
