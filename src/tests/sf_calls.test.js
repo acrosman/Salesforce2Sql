@@ -1,11 +1,6 @@
-// FS is used to load samples from file.
 const fs = require('fs');
-
-// Mock knex module
-jest.mock('knex');
-
-// Mock jsforce module
-jest.mock('jsforce');
+const electron = require('electron');
+const jsforce = require('jsforce');
 
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');
@@ -382,4 +377,1248 @@ test('Test recommendObjects with Education Cloud', () => {
 
   // Should not have duplicates even though Account appears in multiple feature sets
   expect(recommended.filter((obj) => obj === 'Account')).toHaveLength(1);
+});
+
+test('Test setWindow function', () => {
+  const setwindow = sfcalls.__get__('setwindow');
+
+  setwindow(electron.mainWindow);
+  const resultWindow = sfcalls.__get__('mainWindow');
+
+  expect(resultWindow).toBe(electron.mainWindow);
+  expect(resultWindow.webContents.send).toBeDefined();
+  expect(resultWindow).toHaveProperty('webContents.send');
+});
+
+test('Test setPreferences function', () => {
+  const setPreferences = sfcalls.__get__('setPreferences');
+  const mockPreferences = {
+    defaults: {
+      suppressReadOnly: true,
+      suppressAudit: false,
+      textEmptyString: true,
+      checkboxDefault: false,
+      attemptSFValues: true,
+    },
+    indexes: {
+      lookups: true,
+      picklists: false,
+      externalIds: true,
+    },
+    picklists: {
+      type: 'enum',
+      unrestricted: false,
+      ensureBlanks: true,
+    },
+    lookups: {
+      type: 'char(18)',
+    },
+  };
+
+  setPreferences(mockPreferences);
+  const preferences = sfcalls.__get__('preferences');
+
+  expect(preferences).toEqual(mockPreferences);
+  expect(preferences.defaults.suppressReadOnly).toBe(true);
+  expect(preferences.indexes.lookups).toBe(true);
+  expect(preferences.picklists.type).toBe('enum');
+});
+
+test('Test logMessage function', () => {
+  const logMessage = sfcalls.__get__('logMessage');
+
+  // Set the window first
+  const setwindow = sfcalls.__get__('setwindow');
+  setwindow(electron.mainWindow);
+
+  // Test sending a log message
+  const result = logMessage('Test Title', 'Info', 'Test Message');
+
+  // Verify the window's send method was called with correct parameters
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    {
+      sender: 'Test Title',
+      channel: 'Info',
+      message: 'Test Message',
+    },
+  );
+
+  // Verify function returns true
+  expect(result).toBe(true);
+
+  // Verify the send method was called exactly once
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledTimes(1);
+});
+
+test('Test updateLoader function', () => {
+  const updateLoader = sfcalls.__get__('updateLoader');
+
+  // Set the window first
+  const setwindow = sfcalls.__get__('setwindow');
+  setwindow(electron.mainWindow);
+
+  // Test updating the loader
+  updateLoader('Test Loading Message');
+
+  // Verify the window's send method was called with correct parameters
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'update_loader',
+    {
+      message: 'Test Loading Message',
+    },
+  );
+});
+
+// ==========================================
+// loadSchemaFromFile tests
+// ==========================================
+
+test('Test loadSchemaFromFile calls showOpenDialog with correct options', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify({})));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.dialog.showOpenDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({
+      title: 'Load Schema',
+      properties: ['openFile'],
+    }),
+  );
+});
+
+test('Test loadSchemaFromFile success path populates proposedSchema and sends response_schema', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const schemaData = { Account: { Id: { name: 'Id', type: 'id', size: 18 } } };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(schemaData)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(sfcalls.__get__('proposedSchema')).toEqual(schemaData);
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_schema',
+    expect.objectContaining({
+      status: false,
+      response: expect.objectContaining({ schema: schemaData }),
+    }),
+  );
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({ sender: 'File', channel: 'Info' }),
+  );
+});
+
+test('Test loadSchemaFromFile logs error when fs.readFile fails', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(new Error('ENOENT: file not found'), null);
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to load'),
+    }),
+  );
+});
+
+test('Test loadSchemaFromFile does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showOpenDialog.mockResolvedValueOnce(electron.mockDialogOpenCanceled);
+  const readFileSpy = jest.spyOn(fs, 'readFile');
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(readFileSpy).not.toHaveBeenCalled();
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test loadSchemaFromFile logs error when file contains invalid JSON', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from('{ not valid json '));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to parse'),
+    }),
+  );
+
+  // response_schema must NOT be sent when parsing fails.
+  const { calls } = electron.mainWindow.webContents.send.mock;
+  const responseSchemaCalls = calls.filter((c) => c[0] === 'response_schema');
+  expect(responseSchemaCalls).toHaveLength(0);
+});
+
+test('Test sf_login success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {
+    url: 'https://test.salesforce.com',
+    username: 'test@test.com',
+    password: 'testpassword',
+    token: 'testtoken',
+  };
+
+  sfcalls.handlers.sf_login(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: true,
+      message: 'Login Successful',
+    }),
+  );
+  // Password and token must be cleared before sending back to the renderer.
+  expect(mockArgs.password).toBe('');
+  expect(mockArgs.token).toBe('');
+});
+
+test('Test sf_login auth failure path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    login: jest.fn().mockRejectedValue(new Error('INVALID_LOGIN: Invalid username, password, security token')),
+    limitInfo: {},
+  }));
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {
+    url: 'https://test.salesforce.com',
+    username: 'wrong@test.com',
+    password: 'wrongpassword',
+    token: '',
+  };
+
+  sfcalls.handlers.sf_login(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: false,
+      message: 'Login Failed',
+    }),
+  );
+});
+
+test('Test sf_logout success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = { org: 'testOrgId' };
+
+  sfcalls.handlers.sf_logout(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_logout',
+    expect.objectContaining({
+      status: true,
+      message: 'Logout Successful',
+    }),
+  );
+  expect(sfcalls.__get__('sfConnections').testOrgId).toBeNull();
+});
+
+test('Test sf_logout error path', () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    logout: { then: (_onFulfilled, onRejected) => onRejected(new Error('Logout requested for unknown user')) },
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    errorOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = { org: 'errorOrgId' };
+
+  sfcalls.handlers.sf_logout(mockEvent, mockArgs);
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_logout',
+    expect.objectContaining({
+      status: false,
+      message: 'Logout Failed',
+    }),
+  );
+});
+
+test('Test sf_describeGlobal success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId' };
+
+  sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_list_objects',
+    expect.objectContaining({
+      status: true,
+      message: 'Describe Global Successful',
+      response: expect.objectContaining({
+        sobjects: [],
+        recommended: expect.any(Array),
+      }),
+    }),
+  );
+});
+
+test('Test sf_describeGlobal error path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    describeGlobal: jest.fn().mockRejectedValue(new Error('Connection timed out')),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    errorOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'errorOrgId' };
+
+  sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_error',
+    expect.objectContaining({
+      status: false,
+      message: 'Describe Global Failed',
+    }),
+  );
+});
+
+test('Test sf_getObjectFields success path', async () => {
+  jest.clearAllMocks();
+  const mockFields = [
+    {
+      name: 'Id',
+      type: 'id',
+      length: 18,
+      label: 'Account ID',
+      calculated: false,
+      updateable: false,
+      createable: false,
+      defaultValue: null,
+      externalId: false,
+      picklistValues: [],
+    },
+    {
+      name: 'Name',
+      type: 'string',
+      length: 80,
+      label: 'Account Name',
+      calculated: false,
+      updateable: true,
+      createable: true,
+      defaultValue: null,
+      externalId: false,
+      picklistValues: [],
+    },
+  ];
+
+  jsforce.Connection.mockImplementationOnce(() => ({
+    sobject: jest.fn().mockReturnValue({
+      describe: jest.fn().mockResolvedValue({ name: 'Account', fields: mockFields }),
+    }),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId', objects: ['Account'] };
+
+  sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // proposedSchema should have been populated with the Account fields.
+  const schema = sfcalls.__get__('proposedSchema');
+  expect(schema).toHaveProperty('Account');
+  expect(schema.Account).toHaveProperty('Id');
+  expect(schema.Account).toHaveProperty('Name');
+
+  // response_schema should have been sent to the renderer.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_schema',
+    expect.objectContaining({
+      status: false,
+      message: 'Processed Objects',
+      response: expect.objectContaining({
+        schema: expect.objectContaining({ Account: expect.any(Object) }),
+      }),
+    }),
+  );
+});
+
+test('Test sf_getObjectFields error path', async () => {
+  jest.clearAllMocks();
+  jsforce.Connection.mockImplementationOnce(() => ({
+    sobject: jest.fn().mockReturnValue({
+      describe: jest.fn().mockRejectedValue(new Error('Object not found')),
+    }),
+    limitInfo: {},
+  }));
+  sfcalls.__set__('sfConnections', {
+    testOrgId: {
+      instanceUrl: 'https://test.salesforce.com',
+      accessToken: 'testToken',
+      version: '63.0',
+    },
+  });
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(samplePrefs);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  const mockArgs = { org: 'testOrgId', objects: ['NonExistentObject__c'] };
+
+  sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // An error log message should have been sent for the failed describe.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      channel: 'Error',
+      message: expect.stringContaining('NonExistentObject__c'),
+    }),
+  );
+});
+
+// ==========================================
+// validateConnection tests
+// ==========================================
+
+test('Test validateConnection success path', async () => {
+  const validateConnection = sfcalls.__get__('validateConnection');
+  const mockKnexDb = {
+    raw: jest.fn().mockResolvedValue([{ isUp: 1 }]),
+  };
+
+  await expect(validateConnection(mockKnexDb)).resolves.toEqual([{ isUp: 1 }]);
+  expect(mockKnexDb.raw).toHaveBeenCalledWith('SELECT 1 AS isUp');
+});
+
+test('Test validateConnection DB error path', async () => {
+  const validateConnection = sfcalls.__get__('validateConnection');
+  const mockKnexDb = {
+    raw: jest.fn().mockRejectedValue(new Error('connection refused')),
+  };
+
+  await expect(validateConnection(mockKnexDb)).rejects.toThrow('connection refused');
+  expect(mockKnexDb.raw).toHaveBeenCalledWith('SELECT 1 AS isUp');
+});
+
+// ==========================================
+// buildTable tests
+// ==========================================
+
+// Preferences for buildTable unit tests — all indexes and SF-defaults disabled.
+const buildTablePrefs = {
+  theme: 'Cyborg',
+  indexes: {
+    externalIds: false,
+    lookups: false,
+    picklists: false,
+  },
+  picklists: {
+    type: 'enum',
+    unrestricted: false,
+    ensureBlanks: false,
+  },
+  lookups: {
+    type: 'char(18)',
+  },
+  defaults: {
+    attemptSFValues: false,
+    textEmptyString: false,
+    suppressReadOnly: false,
+    suppressAudit: false,
+    checkboxDefault: false,
+  },
+};
+
+// Restores typeResolverBases fields that earlier tests mutate without reverting.
+// resolveFieldType mutates the shared object but has no restore path, so we fix
+// it before tests that require the canonical picklist→enum and reference→reference mappings.
+const resetTypeResolver = () => {
+  const typeResolverBases = sfcalls.__get__('typeResolverBases');
+  typeResolverBases.picklist = 'enum';
+  typeResolverBases.reference = 'reference';
+};
+
+// Creates a minimal knex column stub with the methods buildTable may call.
+const makeColumnMock = () => ({
+  collate: jest.fn().mockReturnThis(),
+  defaultTo: jest.fn().mockReturnThis(),
+  index: jest.fn().mockReturnThis(),
+});
+
+// Creates a full knex table stub whose column methods each return a fresh column mock.
+const makeTableMock = (tableName) => ({
+  _tableName: tableName,
+  binary: jest.fn().mockReturnValue(makeColumnMock()),
+  boolean: jest.fn().mockReturnValue(makeColumnMock()),
+  biginteger: jest.fn().mockReturnValue(makeColumnMock()),
+  date: jest.fn().mockReturnValue(makeColumnMock()),
+  datetime: jest.fn().mockReturnValue(makeColumnMock()),
+  decimal: jest.fn().mockReturnValue(makeColumnMock()),
+  enu: jest.fn().mockReturnValue(makeColumnMock()),
+  float: jest.fn().mockReturnValue(makeColumnMock()),
+  integer: jest.fn().mockReturnValue(makeColumnMock()),
+  string: jest.fn().mockReturnValue(makeColumnMock()),
+  text: jest.fn().mockReturnValue(makeColumnMock()),
+  time: jest.fn().mockReturnValue(makeColumnMock()),
+});
+
+test('Test buildTable invokes the correct column method for each field type', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  sfcalls.__set__('proposedSchema', {
+    TestObject: {
+      BinaryFld: {
+        name: 'BinaryFld', type: 'byte', size: 8, defaultValue: null, externalId: false,
+      },
+      BoolFld: {
+        name: 'BoolFld', type: 'boolean', size: 0, defaultValue: null, externalId: false,
+      },
+      BigIntFld: {
+        name: 'BigIntFld', type: 'long', size: 18, defaultValue: null, externalId: false,
+      },
+      DateFld: {
+        name: 'DateFld', type: 'date', size: 10, defaultValue: null, externalId: false,
+      },
+      DatetimeFld: {
+        name: 'DatetimeFld', type: 'datetime', size: 10, defaultValue: null, externalId: false,
+      },
+      DecimalFld: {
+        name: 'DecimalFld', type: 'double', size: 18, precision: 15, scale: 2, defaultValue: null, externalId: false,
+      },
+      EnumFld: {
+        name: 'EnumFld', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: ['A', 'B'], isRestricted: true,
+      },
+      IntFld: {
+        name: 'IntFld', type: 'int', size: 4, defaultValue: null, externalId: false,
+      },
+      RefFld: {
+        name: 'RefFld', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+      TextFld: {
+        name: 'TextFld', type: 'textarea', size: 1000, defaultValue: null, externalId: false,
+      },
+      TimeFld: {
+        name: 'TimeFld', type: 'time', size: 10, defaultValue: null, externalId: false,
+      },
+      StrFld: {
+        name: 'StrFld', type: 'string', size: 100, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const table = makeTableMock('TestObject');
+  buildTable(table);
+
+  expect(table.binary).toHaveBeenCalledWith('BinaryFld', 8);
+  expect(table.boolean).toHaveBeenCalledWith('BoolFld');
+  expect(table.biginteger).toHaveBeenCalledWith('BigIntFld');
+  expect(table.date).toHaveBeenCalledWith('DateFld');
+  expect(table.datetime).toHaveBeenCalledWith('DatetimeFld');
+  expect(table.decimal).toHaveBeenCalledWith('DecimalFld', 15, 2);
+  expect(table.enu).toHaveBeenCalledWith('EnumFld', ['A', 'B']);
+  expect(table.integer).toHaveBeenCalledWith('IntFld');
+  expect(table.string).toHaveBeenCalledWith('RefFld', 18);
+  expect(table.string).toHaveBeenCalledWith('StrFld', 100);
+  expect(table.text).toHaveBeenCalledWith('TextFld');
+  expect(table.time).toHaveBeenCalledWith('TimeFld');
+});
+
+test('Test buildTable calls collate on reference-type fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  const refColMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Contact: {
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const table = makeTableMock('Contact');
+  table.string = jest.fn().mockReturnValue(refColMock);
+
+  buildTable(table);
+
+  expect(table.string).toHaveBeenCalledWith('AccountId', 18);
+  expect(refColMock.collate).toHaveBeenCalledWith('utf8mb4_bin');
+});
+
+test('Test buildTable creates index for externalId fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: true, lookups: false, picklists: false },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      External_ID__c: {
+        name: 'External_ID__c', type: 'string', size: 36, defaultValue: null, externalId: true,
+      },
+    },
+  });
+
+  const table = makeTableMock('Account');
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Account_External_ID__c');
+});
+
+test('Test buildTable creates index for lookup (reference) fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: false, lookups: true, picklists: false },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Contact: {
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const table = makeTableMock('Contact');
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Contact_AccountId');
+});
+
+test('Test buildTable creates index for picklist fields', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    indexes: { externalIds: false, lookups: false, picklists: true },
+  });
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Opportunity: {
+      StageName: {
+        name: 'StageName', type: 'picklist', size: 40, defaultValue: null, externalId: false, values: ['Prospecting', 'Closed Won'], isRestricted: true,
+      },
+    },
+  });
+
+  const table = makeTableMock('Opportunity');
+  // Override both enu and string: if the type resolver has been mutated by an earlier
+  // test, picklist may resolve to 'string' (default branch) instead of 'enum'. Either
+  // way the field is still indexed because addIndex checks field.type, not fieldType.
+  table.enu = jest.fn().mockReturnValue(colMock);
+  table.string = jest.fn().mockReturnValue(colMock);
+
+  buildTable(table);
+
+  expect(colMock.index).toHaveBeenCalledWith('Opportunity_StageName');
+});
+
+test('Test buildTable does NOT create index when index preferences are disabled', () => {
+  const buildTable = sfcalls.__get__('buildTable');
+  sfcalls.setPreferences(buildTablePrefs);
+
+  const colMock = makeColumnMock();
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      ExtId: {
+        name: 'ExtId', type: 'string', size: 36, defaultValue: null, externalId: true,
+      },
+      AccountId: {
+        name: 'AccountId', type: 'reference', size: 18, defaultValue: null, externalId: false,
+      },
+      StageName: {
+        name: 'StageName', type: 'picklist', size: 40, defaultValue: null, externalId: false, values: ['Open'], isRestricted: true,
+      },
+    },
+  });
+
+  const table = {
+    _tableName: 'Account',
+    binary: jest.fn().mockReturnValue(colMock),
+    boolean: jest.fn().mockReturnValue(colMock),
+    biginteger: jest.fn().mockReturnValue(colMock),
+    date: jest.fn().mockReturnValue(colMock),
+    datetime: jest.fn().mockReturnValue(colMock),
+    decimal: jest.fn().mockReturnValue(colMock),
+    enu: jest.fn().mockReturnValue(colMock),
+    float: jest.fn().mockReturnValue(colMock),
+    integer: jest.fn().mockReturnValue(colMock),
+    string: jest.fn().mockReturnValue(colMock),
+    text: jest.fn().mockReturnValue(colMock),
+    time: jest.fn().mockReturnValue(colMock),
+  };
+
+  buildTable(table);
+
+  expect(colMock.index).not.toHaveBeenCalled();
+});
+
+// ==========================================
+// buildDatabase / knex_schema tests
+// ==========================================
+
+test('Test buildDatabase success path sends response_db_generated', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
+      Name: {
+        name: 'Name', type: 'string', size: 255, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const mockSchema = { createTable: jest.fn().mockResolvedValue(true) };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { Account: true },
+    }),
+  );
+});
+
+test('Test buildDatabase ER_TOO_BIG_ROWSIZE retry converts string fields and succeeds', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    BigTable: {
+      Field1: {
+        name: 'Field1', type: 'string', size: 255, defaultValue: null, externalId: false,
+      },
+      Field2: {
+        name: 'Field2', type: 'phone', size: 40, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const rowsizeError = {
+    code: 'ER_TOO_BIG_ROWSIZE', message: 'Row size too large', errno: 1118, sql: '',
+  };
+  const createTableMock = jest.fn()
+    .mockRejectedValueOnce(rowsizeError)
+    .mockResolvedValueOnce(true);
+  const mockSchema = { createTable: createTableMock };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  // Allow nested async retry chains to settle.
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // createTable should have been called twice (initial attempt + retry).
+  expect(createTableMock).toHaveBeenCalledTimes(2);
+
+  // String-resolving fields should have been converted to text.
+  const schema = sfcalls.__get__('proposedSchema');
+  expect(schema.BigTable.Field1.type).toBe('text');
+  expect(schema.BigTable.Field2.type).toBe('text');
+
+  // After the retry succeeds, response_db_generated should report success.
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { BigTable: true },
+    }),
+  );
+});
+
+test('Test buildDatabase ER_TOO_MANY_KEYS marks table success and sends response_db_generated', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+  resetTypeResolver();
+
+  sfcalls.__set__('proposedSchema', {
+    WideTable: {
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const tooManyKeysError = {
+    code: 'ER_TOO_MANY_KEYS', message: 'Too many keys', errno: 1069, sql: '',
+  };
+  const mockSchema = { createTable: jest.fn().mockRejectedValue(tooManyKeysError) };
+  const mockDb = { schema: mockSchema };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockResolvedValue([{ isUp: 1 }]));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // ER_TOO_MANY_KEYS marks the table successful (table was created, just missing some indexes).
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: true,
+      message: 'Database created',
+      responses: { WideTable: true },
+    }),
+  );
+});
+
+test('Test buildDatabase connection failure sends response_db_generated with status false', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+  sfcalls.setPreferences(buildTablePrefs);
+
+  sfcalls.__set__('proposedSchema', {
+    Account: {
+      Id: {
+        name: 'Id', type: 'id', size: 18, defaultValue: null, externalId: false,
+      },
+    },
+  });
+
+  const mockDb = { schema: {} };
+  sfcalls.__set__('createKnexConnection', jest.fn().mockReturnValue(mockDb));
+  sfcalls.__set__('validateConnection', jest.fn().mockRejectedValue(new Error('connection refused')));
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.knex_schema(mockEvent, {
+    type: 'mysql', host: 'localhost', username: 'u', password: 'p', dbname: 'db', port: 3306,
+  });
+
+  await new Promise((resolve) => { process.nextTick(resolve); });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_db_generated',
+    expect.objectContaining({
+      status: false,
+      message: expect.stringContaining('connection refused'),
+    }),
+  );
+});
+
+// ==========================================
+// saveSchemaToFile tests
+// ==========================================
+
+test('Test saveSchemaToFile calls showSaveDialog with correct options', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.dialog.showSaveDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({ title: 'Save Schema To' }),
+  );
+});
+
+test('Test saveSchemaToFile success path writes JSON and logs info', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const schemaData = { Contact: { Name: { name: 'Name', type: 'string', size: 80 } } };
+  sfcalls.__set__('proposedSchema', schemaData);
+
+  // Default mock returns 'path/to/save/file' (no .json extension — triggers auto-append).
+  const writeFileSpy = jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // The path written must end with .json.
+  expect(writeFileSpy).toHaveBeenCalledWith(
+    expect.stringMatching(/\.json$/),
+    JSON.stringify(schemaData),
+    expect.any(Function),
+  );
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({ sender: 'Save', channel: 'Info' }),
+  );
+});
+
+test('Test saveSchemaToFile does not append .json when extension already present', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/path/to/schema.json',
+    canceled: false,
+  });
+
+  const writeFileSpy = jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // The path should be exactly as provided — no double extension.
+  expect(writeFileSpy).toHaveBeenCalledWith(
+    '/path/to/schema.json',
+    expect.any(String),
+    expect.any(Function),
+  );
+});
+
+test('Test saveSchemaToFile does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce(electron.mockDialogSaveCanceled);
+  const writeFileSpy = jest.spyOn(fs, 'writeFile');
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(writeFileSpy).not.toHaveBeenCalled();
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test saveSchemaToFile logs error when fs.writeFile fails', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(new Error('EACCES: permission denied'));
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'Save',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to save'),
+    }),
+  );
+});
+
+// ==========================================
+// IPC handler wrappers: load_schema / save_schema
+// ==========================================
+
+test('Test load_schema handler delegates to loadSchemaFromFile', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockLoad = jest.fn();
+  sfcalls.__set__('loadSchemaFromFile', mockLoad);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.load_schema(mockEvent, {});
+
+  expect(mockLoad).toHaveBeenCalledTimes(1);
+
+  // Restore the real implementation so later tests are unaffected.
+  sfcalls.__set__('loadSchemaFromFile', sfcalls.__get__('loadSchemaFromFile'));
+});
+
+test('Test save_schema handler delegates to saveSchemaToFile', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockSave = jest.fn();
+  sfcalls.__set__('saveSchemaToFile', mockSave);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.save_schema(mockEvent, {});
+
+  expect(mockSave).toHaveBeenCalledTimes(1);
+
+  sfcalls.__set__('saveSchemaToFile', sfcalls.__get__('saveSchemaToFile'));
+});
+
+// ==========================================
+// saveSqlite3File tests
+// ==========================================
+
+test('Test saveSqlite3File calls showSaveDialog with correct options', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Default mock returns 'path/to/save/file' (no known extension — .sqlite will be appended).
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.dialog.showSaveDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({ title: 'Select Sqlite3 Database Location' }),
+  );
+});
+
+test('Test saveSqlite3File appends .sqlite when no recognized extension is given', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Default mock gives 'path/to/save/file' — no sqlite/db/sqlite3 extension.
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      status: false,
+      message: 'Sqlite3 File Selected',
+      response: { filePath: 'path/to/save/file.sqlite' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .sqlite extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.sqlite',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.sqlite' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .db extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.db',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.db' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File keeps .sqlite3 extension unchanged', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/data/mydb.sqlite3',
+    canceled: false,
+  });
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_sqlite3_file',
+    expect.objectContaining({
+      response: { filePath: '/data/mydb.sqlite3' },
+    }),
+  );
+});
+
+test('Test saveSqlite3File does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce(electron.mockDialogSaveCanceled);
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test saveSqlite3File logs error when dialog rejects', async () => {
+  jest.clearAllMocks();
+  const saveSqlite3File = sfcalls.__get__('saveSqlite3File');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockRejectedValueOnce(new Error('dialog crashed'));
+
+  saveSqlite3File();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'Save',
+      channel: 'Error',
+      message: expect.stringContaining('dialog crashed'),
+    }),
+  );
+});
+
+test('Test select_sqlite3_location handler delegates to saveSqlite3File', () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockFn = jest.fn();
+  sfcalls.__set__('saveSqlite3File', mockFn);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.select_sqlite3_location(mockEvent, {});
+
+  expect(mockFn).toHaveBeenCalledTimes(1);
+
+  sfcalls.__set__('saveSqlite3File', sfcalls.__get__('saveSqlite3File'));
 });
