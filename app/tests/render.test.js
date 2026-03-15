@@ -13,6 +13,8 @@ beforeAll(() => {
   };
   // JSONViewer Mock
   global.$.fn.jsonViewer = jest.fn();
+  // Bootstrap tab plugin stub (used by displayDraftSchema)
+  global.$.fn.tab = jest.fn();
 });
 
 beforeEach(() => {
@@ -135,3 +137,210 @@ test('Test updateMessage', () => {
 //   refreshObjectDisplay();
 //   expect('Test Stub').toEqual('Test Stub');
 // });
+
+// ---- fetchOrgUser ----
+
+test('fetchOrgUser returns empty string for an unknown org id', () => {
+  const fetchOrgUser = render.__get__('fetchOrgUser');
+  expect(fetchOrgUser('unknown-org')).toEqual('');
+});
+
+test('fetchOrgUser returns the username text for a known org id', () => {
+  const fetchOrgUser = render.__get__('fetchOrgUser');
+  const sel = document.getElementById('active-org');
+  const opt = document.createElement('option');
+  opt.value = 'abc123';
+  opt.text = 'user@example.com';
+  opt.id = 'sforg-abc123';
+  sel.appendChild(opt);
+  expect(fetchOrgUser('abc123')).toEqual('user@example.com');
+});
+
+// ---- handleLogin ----
+
+test('handleLogin adds an option to the org dropdown, shows org-status, and enables fetch-objects', () => {
+  const handleLogin = render.__get__('handleLogin');
+  const data = {
+    message: 'Welcome',
+    request: { username: 'admin@example.com' },
+    response: { organizationId: 'org001' },
+  };
+  handleLogin(data);
+
+  const opt = document.getElementById('sforg-org001');
+  expect(opt).not.toBeNull();
+  expect(opt.value).toEqual('org001');
+  expect(document.getElementById('org-status').style.display).toEqual('block');
+  expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
+});
+
+// ---- displayObjectList ----
+
+test('displayObjectList renders one row per createable object', () => {
+  const displayObjectList = render.__get__('displayObjectList');
+  const sObjects = [
+    { name: 'Account', label: 'Account', createable: true },
+    { name: 'Contact', label: 'Contact', createable: true },
+    { name: 'Task', label: 'Task', createable: false },
+  ];
+
+  displayObjectList('', sObjects, []);
+
+  const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+  expect(tbody.rows.length).toEqual(2);
+});
+
+test('displayObjectList renders selected objects as the first rows when not pre-sorted', () => {
+  const displayObjectList = render.__get__('displayObjectList');
+  const sObjects = [
+    { name: 'Account', label: 'Account', createable: true },
+    { name: 'Contact', label: 'Contact', createable: true },
+  ];
+
+  displayObjectList('', sObjects, ['Contact']);
+
+  const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+  const firstCheckbox = tbody.rows[0].cells[0].querySelector('input[type=checkbox]');
+  expect(firstCheckbox.dataset.objectName).toEqual('Contact');
+});
+
+// ---- sortObjectTable ----
+
+test('sortObjectTable re-renders table rows in ascending label order', () => {
+  const displayObjectList = render.__get__('displayObjectList');
+  const sortObjectTable = render.__get__('sortObjectTable');
+  const sObjects = [
+    { name: 'Zzz', label: 'Zzz', createable: true },
+    { name: 'Aaa', label: 'Aaa', createable: true },
+  ];
+
+  // Populate the table first so sortObjectTable has data-rowData to read.
+  displayObjectList('', sObjects, [], true, 'label', 'ASC');
+  sortObjectTable('label', 'ASC');
+
+  const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+  // Column 0 = select checkbox; column 1 = label.
+  expect(tbody.rows[0].cells[1].textContent).toEqual('Aaa');
+});
+
+test('sortObjectTable re-renders table rows in descending label order', () => {
+  const displayObjectList = render.__get__('displayObjectList');
+  const sortObjectTable = render.__get__('sortObjectTable');
+  const sObjects = [
+    { name: 'Aaa', label: 'Aaa', createable: true },
+    { name: 'Zzz', label: 'Zzz', createable: true },
+  ];
+
+  displayObjectList('', sObjects, [], true, 'label', 'ASC');
+  sortObjectTable('label', 'DESC');
+
+  const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+  expect(tbody.rows[0].cells[1].textContent).toEqual('Zzz');
+});
+
+// ---- IPC receive callbacks ----
+
+// Helper: retrieve the callback registered for a given channel via window.api.receive.
+const getReceiveCallback = (channel) => {
+  const entry = window.api.receive.mock.calls.find(([ch]) => ch === channel);
+  return entry ? entry[1] : undefined;
+};
+
+test('response_login success path updates login message and enables fetch-objects button', () => {
+  const cb = getReceiveCallback('response_login');
+  cb({
+    status: true,
+    message: 'Login successful',
+    request: { username: 'admin@example.com' },
+    response: { organizationId: 'org999' },
+  });
+  expect(document.getElementById('login-response-message').innerText).toEqual('Login successful');
+  expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
+});
+
+test('response_login error path logs an error row and updates status message', () => {
+  const cb = getReceiveCallback('response_login');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ status: false, message: 'Invalid credentials', response: {} });
+  expect(logTable.rows.length).toBeGreaterThan(before);
+  expect(document.getElementById('results-message-only').innerText).toEqual('Login Error');
+});
+
+test('response_logout logs a message and updates the status text', () => {
+  const cb = getReceiveCallback('response_logout');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ message: 'Logged out', response: {} });
+  expect(logTable.rows.length).toBeGreaterThan(before);
+  expect(document.getElementById('results-message-only').innerText)
+    .toEqual('Salesforce connection removed.');
+});
+
+test('response_error logs an error row', () => {
+  const cb = getReceiveCallback('response_error');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ message: 'Something broke', response: 'Error details' });
+  expect(logTable.rows.length).toBeGreaterThan(before);
+});
+
+test('response_list_objects success populates the object table with createable objects', () => {
+  const cb = getReceiveCallback('response_list_objects');
+  cb({
+    status: true,
+    request: { org: '' },
+    response: {
+      sobjects: [
+        { name: 'Account', label: 'Account', createable: true },
+        { name: 'Lead', label: 'Lead', createable: true },
+        { name: 'Activity', label: 'Activity', createable: false },
+      ],
+      recommended: [],
+    },
+  });
+  const tbody = document.getElementById('results-table').getElementsByTagName('tbody')[0];
+  expect(tbody.rows.length).toEqual(2);
+});
+
+test('response_list_objects error path logs an error row', () => {
+  const cb = getReceiveCallback('response_list_objects');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ status: false, request: {}, response: {} });
+  expect(logTable.rows.length).toBeGreaterThan(before);
+});
+
+test('response_schema makes the object viewer visible and logs a success row', () => {
+  const cb = getReceiveCallback('response_schema');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ request: { org: '' }, response: { schema: { Account: {} } } });
+  expect(document.getElementById('results-object-viewer-wrapper').style.display).toEqual('block');
+  expect(logTable.rows.length).toBeGreaterThan(before);
+});
+
+test('response_db_generated full success logs completion and updates message', () => {
+  const cb = getReceiveCallback('response_db_generated');
+  const logTable = document.getElementById('consoleMessageTable');
+  const before = logTable.rows.length;
+  cb({ response: {}, responses: { Account: true, Contact: true } });
+  expect(logTable.rows.length).toBeGreaterThan(before);
+  expect(document.getElementById('results-message-only').innerText)
+    .toEqual('Database creation complete, all tables created');
+});
+
+test('response_db_generated full failure updates message to all-failed text', () => {
+  const cb = getReceiveCallback('response_db_generated');
+  // Omit the 'response' key so hasResponses=false, which initialises fullFailure=true.
+  cb({ responses: { Account: false } });
+  expect(document.getElementById('results-message-only').innerText)
+    .toEqual('Error creating database tables, all tables failed');
+});
+
+test('response_db_generated partial success updates message with some-tables-had-error text', () => {
+  const cb = getReceiveCallback('response_db_generated');
+  cb({ response: {}, responses: { Account: true, Contact: false } });
+  expect(document.getElementById('results-message-only').innerText)
+    .toContain('some tables had error');
+});
