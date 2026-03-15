@@ -470,17 +470,22 @@ test('Test updateLoader function', () => {
   );
 });
 
-test('Test loadSchemaFromFile function with successful file load', () => {
+// ==========================================
+// loadSchemaFromFile tests
+// ==========================================
+
+test('Test loadSchemaFromFile calls showOpenDialog with correct options', async () => {
+  jest.clearAllMocks();
   const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
-  const setwindow = sfcalls.__get__('setwindow');
+  sfcalls.setwindow(electron.mainWindow);
 
-  // Set the window first
-  setwindow(electron.mainWindow);
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify({})));
+  });
 
-  // Call the function
   loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
 
-  // Verify dialog was shown with correct options
   expect(electron.dialog.showOpenDialog).toHaveBeenCalledWith(
     electron.mainWindow,
     expect.objectContaining({
@@ -488,37 +493,99 @@ test('Test loadSchemaFromFile function with successful file load', () => {
       properties: ['openFile'],
     }),
   );
+});
 
-  // Verify the correct messages were sent
+test('Test loadSchemaFromFile success path populates proposedSchema and sends response_schema', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const schemaData = { Account: { Id: { name: 'Id', type: 'id', size: 18 } } };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(schemaData)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(sfcalls.__get__('proposedSchema')).toEqual(schemaData);
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_schema',
+    expect.objectContaining({
+      status: false,
+      response: expect.objectContaining({ schema: schemaData }),
+    }),
+  );
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({ sender: 'File', channel: 'Info' }),
+  );
+});
+
+test('Test loadSchemaFromFile logs error when fs.readFile fails', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(new Error('ENOENT: file not found'), null);
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
   expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
     'log_message',
     expect.objectContaining({
-      sender: expect.stringContaining('Test Title'),
-      channel: 'Info',
-      message: expect.stringContaining('Test Message'),
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to load'),
     }),
   );
 });
 
-test('Test loadSchemaFromFile function with file read error', () => {
+test('Test loadSchemaFromFile does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
   const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
-  const setwindow = sfcalls.__get__('setwindow');
+  sfcalls.setwindow(electron.mainWindow);
 
-  // Set the window first
-  setwindow(electron.mainWindow);
+  electron.dialog.showOpenDialog.mockResolvedValueOnce(electron.mockDialogOpenCanceled);
+  const readFileSpy = jest.spyOn(fs, 'readFile');
 
-  // Call the function
   loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
 
-  // Verify error message was sent
+  expect(readFileSpy).not.toHaveBeenCalled();
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test loadSchemaFromFile logs error when file contains invalid JSON', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from('{ not valid json '));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
   expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
     'log_message',
     expect.objectContaining({
-      sender: expect.stringContaining('Test Title'),
-      channel: 'Info',
-      message: expect.stringContaining('Test Message'),
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to parse'),
     }),
   );
+
+  // response_schema must NOT be sent when parsing fails.
+  const calls = electron.mainWindow.webContents.send.mock.calls;
+  const responseSchemaCalls = calls.filter((c) => c[0] === 'response_schema');
+  expect(responseSchemaCalls).toHaveLength(0);
 });
 
 test('Test sf_login success path', async () => {
@@ -1221,4 +1288,152 @@ test('Test buildDatabase connection failure sends response_db_generated with sta
       message: expect.stringContaining('connection refused'),
     }),
   );
+});
+
+// ==========================================
+// saveSchemaToFile tests
+// ==========================================
+
+test('Test saveSchemaToFile calls showSaveDialog with correct options', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.dialog.showSaveDialog).toHaveBeenCalledWith(
+    electron.mainWindow,
+    expect.objectContaining({ title: 'Save Schema To' }),
+  );
+});
+
+test('Test saveSchemaToFile success path writes JSON and logs info', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const schemaData = { Contact: { Name: { name: 'Name', type: 'string', size: 80 } } };
+  sfcalls.__set__('proposedSchema', schemaData);
+
+  // Default mock returns 'path/to/save/file' (no .json extension — triggers auto-append).
+  const writeFileSpy = jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // The path written must end with .json.
+  expect(writeFileSpy).toHaveBeenCalledWith(
+    expect.stringMatching(/\.json$/),
+    JSON.stringify(schemaData),
+    expect.any(Function),
+  );
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({ sender: 'Save', channel: 'Info' }),
+  );
+});
+
+test('Test saveSchemaToFile does not append .json when extension already present', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce({
+    filePath: '/path/to/schema.json',
+    canceled: false,
+  });
+
+  const writeFileSpy = jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(null);
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  // The path should be exactly as provided — no double extension.
+  expect(writeFileSpy).toHaveBeenCalledWith(
+    '/path/to/schema.json',
+    expect.any(String),
+    expect.any(Function),
+  );
+});
+
+test('Test saveSchemaToFile does nothing when dialog is canceled', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showSaveDialog.mockResolvedValueOnce(electron.mockDialogSaveCanceled);
+  const writeFileSpy = jest.spyOn(fs, 'writeFile');
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(writeFileSpy).not.toHaveBeenCalled();
+  expect(electron.mainWindow.webContents.send).not.toHaveBeenCalled();
+});
+
+test('Test saveSchemaToFile logs error when fs.writeFile fails', async () => {
+  jest.clearAllMocks();
+  const saveSchemaToFile = sfcalls.__get__('saveSchemaToFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  jest.spyOn(fs, 'writeFile').mockImplementationOnce((_path, _data, callback) => {
+    callback(new Error('EACCES: permission denied'));
+  });
+
+  saveSchemaToFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'Save',
+      channel: 'Error',
+      message: expect.stringContaining('Unable to save'),
+    }),
+  );
+});
+
+// ==========================================
+// IPC handler wrappers: load_schema / save_schema
+// ==========================================
+
+test('Test load_schema handler delegates to loadSchemaFromFile', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockLoad = jest.fn();
+  sfcalls.__set__('loadSchemaFromFile', mockLoad);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.load_schema(mockEvent, {});
+
+  expect(mockLoad).toHaveBeenCalledTimes(1);
+
+  // Restore the real implementation so later tests are unaffected.
+  sfcalls.__set__('loadSchemaFromFile', sfcalls.__get__('loadSchemaFromFile'));
+});
+
+test('Test save_schema handler delegates to saveSchemaToFile', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockSave = jest.fn();
+  sfcalls.__set__('saveSchemaToFile', mockSave);
+
+  const mockEvent = { sender: electron.mainWindow.webContents };
+  sfcalls.handlers.save_schema(mockEvent, {});
+
+  expect(mockSave).toHaveBeenCalledTimes(1);
+
+  sfcalls.__set__('saveSchemaToFile', sfcalls.__get__('saveSchemaToFile'));
 });
