@@ -83,3 +83,6 @@ typings/
 
 # SQLite files
 *.sqlite
+
+# Salesforce DX project files
+.sfdx
