@@ -29,9 +29,6 @@ module.exports = {
     getName: jest.fn().mockReturnValue('appName'),
     isPackaged: false,
   },
-  shell: {
-    openExternal: jest.fn().mockResolvedValue(true),
-  },
   screen: {
     getPrimaryDisplay: jest.fn().mockReturnValue({
       workAreaSize: { width: 1280, height: 800 },
@@ -45,6 +42,9 @@ module.exports = {
     on: jest.fn(),
     handle: jest.fn(),
     send: jest.fn(),
+  },
+  shell: {
+    openExternal: jest.fn().mockResolvedValue(true),
   },
   mainWindow: mockWindow,
 };
