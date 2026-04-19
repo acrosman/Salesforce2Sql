@@ -47,11 +47,15 @@ $.when($.ready).then(() => {
 
   // Setup login radio behaviors.
   $('#login-password-wrapper').hide();
+  $('#login-oauth-wrapper').show();
   $('input[type=radio][name=sfconnect-radio-selectors]').on('change', (event) => {
-    if ($(event.target, ':checked').val() === 'oauth') {
+    $('#login-modal-message').addClass('d-none').text('');
+    if ($(event.target).val() === 'oauth') {
       $('#login-password-wrapper').hide();
+      $('#login-oauth-wrapper').show();
     } else {
       $('#login-password-wrapper').show();
+      $('#login-oauth-wrapper').hide();
     }
   });
 
@@ -159,6 +163,15 @@ function logMessage(context, importance, message, data) {
  * @returns User name for requested org
  */
 function fetchOrgUser(orgId) {
+  const activeUser = document.getElementById('active-org-user');
+  const activeUserText = activeUser
+    ? (activeUser.innerText || activeUser.textContent || '')
+    : '';
+
+  if (activeUserText.trim() !== '') {
+    return activeUserText;
+  }
+
   const orgRecord = document.getElementById(`sforg-${orgId}`);
   if (orgRecord === null) {
     return '';
@@ -394,16 +407,12 @@ document.getElementsByName('db-radio-selectors').forEach((el) => {
  * @param {*} responseData The data sent from the main process.
  */
 const handleLogin = (responseData) => {
-  // Add the new connection to the list of options.
-  const opt = document.createElement('option');
-  opt.value = responseData.response.organizationId;
-  opt.innerHTML = responseData.request.username;
-  opt.id = `sforg-${opt.value}`;
-  document.getElementById('active-org').appendChild(opt);
+  const activeUser = responseData.request?.username || responseData.response?.username || 'Authenticated User';
 
   // Shuffle what's shown.
   document.getElementById('org-status').style.display = 'block';
-  replaceText('active-org-id', responseData.response.organizationId);
+  replaceText('active-org-user', activeUser);
+  replaceText('active-org-id', responseData.response.organizationId || 'Connected');
   replaceText('login-response-message', responseData.message);
 
   // Enable the button to fetch object list.
@@ -659,9 +668,10 @@ const updateSqlite3Path = (filePath) => {
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
   const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  $('#login-modal-message').addClass('d-none').text('');
   showLoader('Attempting Login');
   window.api.send('sf_login', {
-    mode: modeRadio.value,
+    mode: modeRadio ? modeRadio.value : 'oauth',
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,
@@ -671,26 +681,19 @@ document.getElementById('login-trigger').addEventListener('click', () => {
 
 // Logout
 document.getElementById('logout-trigger').addEventListener('click', () => {
-  const { value } = document.getElementById('active-org');
-  window.api.send('sf_logout', {
-    org: value,
-  });
-  // Remove from interface:
-  const selectObject = document.getElementById('active-org');
-  for (let i = 0; i < selectObject.length; i += 1) {
-    if (selectObject.options[i].value === value) {
-      selectObject.remove(i);
-    }
-  }
+  window.api.send('sf_logout', {});
   document.getElementById('org-status').style.display = 'none';
+  replaceText('active-org-user', '');
+  replaceText('active-org-id', '');
+  replaceText('login-response-message', '');
+  $('#btn-fetch-objects').prop('disabled', true);
+  $('#btn-fetch-details').prop('disabled', true);
 });
 
 // Fetch Org Objects
 document.getElementById('btn-fetch-objects').addEventListener('click', () => {
   showLoader('Loading Object List');
-  window.api.send('sf_describeGlobal', {
-    org: document.getElementById('active-org').value,
-  });
+  window.api.send('sf_describeGlobal', {});
 });
 
 // Fetch Object Field lists
@@ -702,7 +705,6 @@ document.getElementById('btn-fetch-details').addEventListener('click', () => {
   }
   showLoader('Loading Object Fields');
   window.api.send('sf_getObjectFields', {
-    org: document.getElementById('active-org').value,
     objects: selectedObjects,
   });
 });
@@ -776,21 +778,32 @@ document.getElementById('btn-sqlite3-file').addEventListener('click', () => {
 // Login response.
 window.api.receive('response_login', (data) => {
   hideLoader();
+  replaceText('login-response-message', data.message);
+
   if (data.status) {
     logMessage('Salesforce', 'Success', data.message, data.response);
     updateMessage('Login Successful');
     handleLogin(data, data.status);
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+      const modalElement = document.getElementById('loginModal');
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+      modal.hide();
+    }
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
     displayRawResponse(data);
     updateMessage('Login Error');
+    $('#login-modal-message').removeClass('d-none').text(data.response || data.message);
   }
 });
 
 // Logout Response.
 window.api.receive('response_logout', (data) => {
+  hideLoader();
   logMessage('Salesforce', 'Info', 'Log out complete', data);
   updateMessage('Salesforce connection removed.');
+  document.getElementById('org-status').style.display = 'none';
 });
 
 // Generic Response.
@@ -842,6 +855,13 @@ window.api.receive('current_preferences', (data) => {
   // Update the theme:
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
+
+  const oauthStatus = document.getElementById('oauth-config-status');
+  if (oauthStatus) {
+    oauthStatus.innerText = data.oauth?.hasClientSecret
+      ? 'OAuth client credentials are configured and ready to use.'
+      : 'Set the OAuth client ID and secret in Preferences before connecting.';
+  }
 });
 
 // Start the find process by activating the controls and scrolling there.

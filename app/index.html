@@ -19,9 +19,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="consoleModalLabel">Message Console</h5>
-                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="container-fluid">
@@ -58,8 +56,7 @@
                             data-bs-target="#loginModal">Create New Connection</button>
                     </div>
                     <div class="card-footer" id="org-status">
-                        <label for="active-org">Active Org for next action.</label>
-                        <select id="active-org" class="custom-select"></select>
+                        <p class="mb-1">Connected User: <span id="active-org-user"></span></p>
                         <p>Message: <span id="login-response-message"></span><br>
                             Org Id: <span id="active-org-id"></span></p>
                         <button type="button" id="logout-trigger" class="btn btn-warning" value="Logout">Logout</button>
@@ -70,9 +67,8 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="loginModalLabel">Enter Salesforce Login</h5>
-                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
+                                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
                                     <form>
@@ -97,6 +93,12 @@
                                             <input type="url" id="login-url" class="form-control"
                                                 value="https://login.salesforce.com">
                                         </div>
+                                        <div class="alert alert-info mt-3 mb-3" id="login-oauth-wrapper">
+                                            OAuth uses the Connected App values saved in Preferences.
+                                            <div id="oauth-config-status" class="small mt-2">Set the OAuth client ID and
+                                                secret in Preferences before connecting.</div>
+                                        </div>
+                                        <div class="alert alert-warning d-none" id="login-modal-message"></div>
                                         <div id="login-password-wrapper">
                                             <div class="form-group">
                                                 <label for="login-username">User Name</label>
@@ -127,8 +129,7 @@
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary"
                                         data-bs-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-primary" id="login-trigger"
-                                        data-bs-dismiss="modal">Connect</button>
+                                    <button type="button" class="btn btn-primary" id="login-trigger">Connect</button>
                                 </div>
                             </div>
                         </div>
@@ -139,9 +140,8 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="dbModalLabel">Enter Database Information</h5>
-                                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
+                                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body">
                                     <form>

@@ -10,7 +10,7 @@ const constants = require('./constants');
 // Get the dialog library from Electron
 const { dialog } = electron;
 
-const sfConnections = {};
+let activeConnection = null;
 let mainWindow = null;
 let proposedSchema = {};
 let preferences = null;
@@ -38,6 +38,37 @@ const setwindow = (window) => {
  */
 const setPreferences = (prefs) => {
   preferences = prefs;
+};
+
+const buildMaskedRequest = (request = {}) => ({
+  mode: request.mode || 'password',
+  username: request.username || '',
+  password: '********',
+  token: '********',
+  url: request.url || '',
+});
+
+const setActiveSalesforceConnection = (conn, userInfo = {}) => {
+  activeConnection = {
+    instanceUrl: conn.instanceUrl,
+    accessToken: conn.accessToken,
+    refreshToken: conn.refreshToken,
+    version: '63.0',
+    userInfo,
+  };
+  return activeConnection;
+};
+
+const getActiveSalesforceConnection = () => {
+  if (!activeConnection) {
+    return null;
+  }
+
+  return new jsforce.Connection({
+    instanceUrl: activeConnection.instanceUrl,
+    accessToken: activeConnection.accessToken,
+    version: activeConnection.version,
+  });
 };
 
 /**
@@ -651,53 +682,74 @@ const buildDatabase = (settings) => {
   });
 };
 
+const sendLoginResponse = (conn, status, message, response, request) => {
+  mainWindow.webContents.send('response_login', {
+    status,
+    message,
+    response,
+    limitInfo: conn?.limitInfo || {},
+    request: buildMaskedRequest(request),
+  });
+};
+
+const handleLoginSuccess = (conn, userInfo, request, context) => {
+  const response = {
+    ...userInfo,
+    organizationId: userInfo.organizationId || userInfo.organization_id || '',
+    username: request.username || userInfo.username || userInfo.preferred_username || userInfo.id || 'OAuth2',
+  };
+
+  logMessage(
+    context,
+    'Info',
+    `Connection Org ${response.organizationId || 'Unknown'} for User ${response.username}`,
+  );
+  setActiveSalesforceConnection(conn, response);
+  sendLoginResponse(conn, true, 'Login Successful', response, request);
+};
+
+const handleLoginFailure = (err, conn, request) => {
+  sendLoginResponse(conn, false, 'Login Failed', err.message || `${err}`, request);
+};
+
 const sfPasswordLogin = (url, username, password) => {
   const conn = new jsforce.Connection({
     loginUrl: url,
   });
 
-  conn.login(username, password).then(
+  return conn.login(username, password).then(
     (userInfo) => {
-      // Now you can get the access token and instance URL information.
-      // Save them to establish connection next time.
-      logMessage('Password Login Attempt', 'Info', `Connection Org ${userInfo.organizationId} for User ${userInfo.id}`);
-
-      // Save the next connection in the global storage.
-      sfConnections[userInfo.organizationId] = {
-        instanceUrl: conn.instanceUrl,
-        accessToken: conn.accessToken,
-        version: '63.0',
-      };
-
-      mainWindow.webContents.send('response_login', {
-        status: true,
-        message: 'Login Successful',
-        response: userInfo,
-        limitInfo: conn.limitInfo,
-        request: {
-          username,
-          password: '********',
-          token: '********',
-          url,
-        },
-      });
+      handleLoginSuccess(conn, userInfo, {
+        mode: 'password',
+        username,
+        url,
+      }, 'Password Login Attempt');
     },
     (err) => {
-      mainWindow.webContents.send('response_login', {
-        status: false,
-        message: 'Login Failed',
-        response: err,
-        limitInfo: conn.limitInfo,
-        request: {
-          username,
-          password: '********',
-          token: '********',
-          url,
-        },
+      handleLoginFailure(err, conn, {
+        mode: 'password',
+        username,
+        url,
       });
     },
   );
 };
+
+const sfOAuthLogin = (url) => oauth.attemptLogin(url).then(
+  ({ conn, userInfo }) => {
+    handleLoginSuccess(conn, userInfo, {
+      mode: 'oauth',
+      url,
+    }, 'OAuth Login Attempt');
+  },
+  (err) => {
+    handleLoginFailure(err, null, {
+      mode: 'oauth',
+      url,
+      username: 'OAuth2',
+    });
+  },
+);
 
 /**
  * List of remote call handlers for using with IPC.
@@ -710,15 +762,15 @@ const handlers = {
    */
   sf_login: (event, args) => {
     if (args.mode === 'oauth') {
-      oauth.attemptLogin(args.url);
-    } else {
-      let { password } = args;
-      if (args.token && args.token.trim()) {
-        password = `${password.trim()}${args.token.trim()}`;
-      }
-      logMessage(event.sender.getTitle(), 'Info', 'Attempting Login with Basic Credentials');
-      sfPasswordLogin(args.url, args.username, password);
+      return sfOAuthLogin(args.url);
     }
+
+    let { password } = args;
+    if (args.token && args.token.trim()) {
+      password = `${(password || '').trim()}${args.token.trim()}`;
+    }
+    logMessage(event.sender.getTitle(), 'Info', 'Attempting Login with Basic Credentials');
+    return sfPasswordLogin(args.url, args.username, password);
   },
   /**
    * Logout of a specific Salesforce org.
@@ -726,7 +778,19 @@ const handlers = {
    * @param {*} args The connection to disable.
    */
   sf_logout: (event, args) => {
-    const conn = new jsforce.Connection(sfConnections[args.org]);
+    const conn = getActiveSalesforceConnection();
+
+    if (!conn) {
+      mainWindow.webContents.send('response_logout', {
+        status: false,
+        message: 'Logout Failed',
+        response: 'No active Salesforce connection.',
+        limitInfo: {},
+        request: args,
+      });
+      return;
+    }
+
     const fail = (err) => {
       mainWindow.webContents.send('response_logout', {
         status: false,
@@ -746,9 +810,10 @@ const handlers = {
         limitInfo: conn.limitInfo,
         request: args,
       });
-      sfConnections[args.org] = null;
+      activeConnection = null;
     };
-    conn.logout.then(success, fail);
+    const logoutAction = typeof conn.logout === 'function' ? conn.logout() : conn.logout;
+    Promise.resolve(logoutAction).then(success).catch(fail);
   },
   /**
    * Run a global describe.
@@ -757,7 +822,19 @@ const handlers = {
    * @returns True.
    */
   sf_describeGlobal: (event, args) => {
-    const conn = new jsforce.Connection(sfConnections[args.org]);
+    const conn = getActiveSalesforceConnection();
+
+    if (!conn) {
+      mainWindow.webContents.send('response_error', {
+        status: false,
+        message: 'Describe Global Failed',
+        response: 'No active Salesforce connection.',
+        limitInfo: {},
+        request: args,
+      });
+      return true;
+    }
+
     const fail = (err) => {
       mainWindow.webContents.send('response_error', {
         status: false,
@@ -766,6 +843,7 @@ const handlers = {
         limitInfo: conn.limitInfo,
         request: args,
       });
+      return false;
     };
     const success = (result) => {
       // Send records back to the interface.
@@ -781,7 +859,7 @@ const handlers = {
       return true;
     };
 
-    conn.describeGlobal().then(success, fail);
+    return conn.describeGlobal().then(success, fail);
   },
   /**
    * Get a list of all fields on a provided list of objects.
@@ -790,9 +868,20 @@ const handlers = {
    * @returns True.
    */
   sf_getObjectFields: (event, args) => {
-    const conn = new jsforce.Connection(sfConnections[args.org]);
+    const conn = getActiveSalesforceConnection();
     let completedObjects = 0;
     const allObjects = {};
+
+    if (!conn) {
+      mainWindow.webContents.send('response_error', {
+        status: false,
+        message: 'Field Fetch Failed',
+        response: 'No active Salesforce connection.',
+        limitInfo: {},
+        request: args,
+      });
+      return true;
+    }
 
     // Reset the proposed schema back to baseline.
     proposedSchema = {};
@@ -826,6 +915,7 @@ const handlers = {
         });
       }
     });
+    return true;
   },
   /**
    * Connect to a database and set the schema.

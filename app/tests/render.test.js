@@ -18,10 +18,13 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  jest.resetModules();
   // Load index.html since render.js assumes it's structures.
   const fs = require('fs');  // eslint-disable-line
   const indexHtml = fs.readFileSync('app/tests/minIndex.html');
   document.body.innerHTML = indexHtml.toString();
+  window.api.send.mockClear();
+  window.api.receive.mockClear();
   global.render = require('../render');  // eslint-disable-line
 });
 
@@ -145,20 +148,15 @@ test('fetchOrgUser returns empty string for an unknown org id', () => {
   expect(fetchOrgUser('unknown-org')).toEqual('');
 });
 
-test('fetchOrgUser returns the username text for a known org id', () => {
+test('fetchOrgUser returns the connected username when present', () => {
   const fetchOrgUser = render.__get__('fetchOrgUser');
-  const sel = document.getElementById('active-org');
-  const opt = document.createElement('option');
-  opt.value = 'abc123';
-  opt.text = 'user@example.com';
-  opt.id = 'sforg-abc123';
-  sel.appendChild(opt);
+  document.getElementById('active-org-user').innerText = 'user@example.com';
   expect(fetchOrgUser('abc123')).toEqual('user@example.com');
 });
 
 // ---- handleLogin ----
 
-test('handleLogin adds an option to the org dropdown, shows org-status, and enables fetch-objects', () => {
+test('handleLogin shows connection status and enables fetch-objects', () => {
   const handleLogin = render.__get__('handleLogin');
   const data = {
     message: 'Welcome',
@@ -167,9 +165,8 @@ test('handleLogin adds an option to the org dropdown, shows org-status, and enab
   };
   handleLogin(data);
 
-  const opt = document.getElementById('sforg-org001');
-  expect(opt).not.toBeNull();
-  expect(opt.value).toEqual('org001');
+  expect(document.getElementById('active-org-user').innerText).toEqual('admin@example.com');
+  expect(document.getElementById('active-org-id').innerText).toEqual('org001');
   expect(document.getElementById('org-status').style.display).toEqual('block');
   expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
 });
@@ -256,6 +253,18 @@ test('response_login success path updates login message and enables fetch-object
   });
   expect(document.getElementById('login-response-message').innerText).toEqual('Login successful');
   expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
+});
+
+test('login trigger sends the selected connection mode', () => {
+  document.getElementById('sfconnect-password').checked = true;
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).toHaveBeenCalledWith(
+    'sf_login',
+    expect.objectContaining({
+      mode: 'password',
+    }),
+  );
 });
 
 test('response_login error path logs an error row and updates status message', () => {
