@@ -7,7 +7,6 @@
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; img-src 'self' data:; object-src 'none'">
     <link rel="stylesheet" id="css-theme-link" href="../node_modules/bootswatch/dist/cyborg/bootstrap.min.css">
-    <link rel="stylesheet" href="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.css">
     <link rel="stylesheet" href="../node_modules/bootstrap-icons/font/bootstrap-icons.css">
     <link rel="stylesheet" href="dashboard.css">
     <title>Salesforce &#11000; Sql</title>
@@ -223,7 +222,8 @@
             <div class="col-md-8">
                 <div class="card bg-default" id=raw-response-wrapper>
                     <h2>Last Response:</h2>
-                    <pre id="raw-response" class="pre-scrollable"></pre>
+                    <andypf-json-viewer data="" theme="monokai" expanded="3" show-toolbar="false"
+                        id="raw-response"></andypf-json-viewer>
                     <button type="button" id="show-console" class="btn btn-info" value="Show Log Console"
                         data-bs-toggle="modal" data-bs-target="#consoleModal">Show Log Console</button>
                     <div class="text-center alert" id="loader-indicator">
@@ -329,7 +329,9 @@
                                 <h3></h3>
                                 <p></p>
                             </div>
-                            <div id="results-object-viewer"></div>
+                            <andypf-json-viewer indent="2" expanded="true" theme="monokai" show-data-types="false"
+                                show-toolbar="true" expand-icon-type="arrow" show-copy="false" show-size="true"
+                                data=''></andypf-json-viewer>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="nav-sql" role="tabpanel" aria-labelledby="nav-sql-tab">
@@ -354,7 +356,7 @@
 </body>
 <script src="../node_modules/jquery/dist/jquery.min.js"></script>
 <script src="../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../node_modules/jquery.json-viewer/json-viewer/jquery.json-viewer.js"></script>
+<script src="../node_modules/@andypf/json-viewer/dist/iife/index.js"></script>
 <script src="render.js"></script>
 
 </html>
