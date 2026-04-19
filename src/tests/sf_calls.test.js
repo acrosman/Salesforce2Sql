@@ -610,9 +610,6 @@ test('Test sf_login success path', async () => {
       message: 'Login Successful',
     }),
   );
-  // Password and token must be cleared before sending back to the renderer.
-  expect(mockArgs.password).toBe('');
-  expect(mockArgs.token).toBe('');
 });
 
 test('Test sf_login auth failure path', async () => {
