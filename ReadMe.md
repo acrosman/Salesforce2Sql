@@ -14,25 +14,21 @@ If you are looking for help migrating data between Salesforce Orgs you may want 
 
 ## Getting Started
 
-_There is a [longer getting started guide](https://spinningcode.org/2022/05/getting-started-with-salesforce2sql/) on SpinningCode.org._
+Read the full [Getting Started guide](documentation/GettingStarted.md).
+
+_There is also a [getting started guide](https://spinningcode.org/2022/05/getting-started-with-salesforce2sql/) on SpinningCode.org with a bit more commentary._
 
 You can either download the [latest release](https://github.com/acrosman/Salesforce2Sql/releases/latest) for your operating system or run from code.
 
-There should always be a release for Windows (the exe file is an installer), Mac (the dmg file is a standard disk image), and Linux (the zip file contains the executable and supporting materials). You can also download the source archives if you want to explore the version of the code that went into the release.
+To make this tool useful you will also need a Salesforce org you want to mirror, and a MySQL, Mariadb, or Postgres database you can create tables in.
 
-To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) 14 or later. To make it useful you will also need a Salesforce org you want to mirro, and a MySQL, Mariadb, or Postgres database you can create tables in.
+### Running From Code
+
+To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) 22 or later.
 
 1. Clone this repo (or create your own fork) to your local machine.
 1. Run: `npm install` from the project root directory, and wait for all the packages to load (this takes a few minutes).
 1. Run: `npm start`
-
-## Salesforce Login
-
-![Login Screen](documentation/InterfaceScreenshots/Login.PNG?raw=true)
-
-Currently only the username and password login system is supported, not OAuth2, so you likely will need your [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5).
-
-In the login fields provide your username, password, and security token. If you are logging into a production or trailhead instance you can use the default login URL. If you are logging into a Sandbox use: https://test.salesforce.com.
 
 ## Databases
 
