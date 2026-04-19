@@ -196,9 +196,13 @@ const loadSchemaFromFile = () => {
         return;
       }
 
-      // @TODO: Validate that schema is in a useable form.
-
-      proposedSchema = JSON.parse(data);
+      // @TODO: Further validate that schema is in a useable form.
+      try {
+        proposedSchema = JSON.parse(data);
+      } catch (parseErr) {
+        logMessage('File', 'Error', `Unable to parse schema file: ${parseErr.message}`);
+        return;
+      }
       logMessage('File', 'Info', `Loaded schema from file: ${fileName}`);
 
       // Send Schema to interface for review.
