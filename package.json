@@ -38,7 +38,7 @@
     "minimist": "^1.2.6",
     "mysql2": "^3.14.1",
     "pg": "^8.11",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7",
@@ -64,6 +64,6 @@
     "eslint-plugin-react": "^7.29.3",
     "eslint-plugin-react-hooks": "^4.3.0",
     "husky": "^8.0.0",
-    "jest": "^27.0.6"
+    "jest": "^30.4.2"
   }
 }
