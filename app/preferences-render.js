@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.api.send('preferences_load');
 
   // Add save listener for preference window.
-  document.getElementById('btn-preferences-save').addEventListener('click', () => {
+  document.getElementById('btn-preferences-save').addEventListener('click', (event) => {
+    event.preventDefault();
     window.api.send('preferences_save', {
       theme: document.getElementById('setting-theme-select').value,
       indexes: {
@@ -26,12 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
         suppressReadOnly: document.getElementById('hide-readonly-fields').checked,
         suppressAudit: document.getElementById('hide-audit-fields').checked,
       },
+      oauth: {
+        clientId: document.getElementById('oauth-client-id').value,
+        clientSecret: document.getElementById('oauth-client-secret').value,
+      },
     });
     window.api.send('preferences_close');
   });
 
   // Add click to close listener for preference window.
-  document.getElementById('btn-preferences-close').addEventListener('click', () => {
+  document.getElementById('btn-preferences-close').addEventListener('click', (event) => {
+    event.preventDefault();
     window.api.send('preferences_close');
   });
 
@@ -67,4 +73,12 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('default-checkbox').checked = data.defaults.checkboxDefaultFalse;
   document.getElementById('hide-readonly-fields').checked = data.defaults.suppressReadOnly;
   document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
+  document.getElementById('oauth-client-id').value = data.oauth?.clientId || '';
+  document.getElementById('oauth-client-secret').value = '';
+  document.getElementById('oauth-client-secret').placeholder = data.oauth?.hasClientSecret
+    ? 'Stored securely. Leave blank to keep the current secret.'
+    : 'Enter Salesforce OAuth client secret';
+  document.getElementById('oauth-credential-status').innerText = data.oauth?.hasClientSecret
+    ? 'OAuth client secret is stored securely.'
+    : 'No OAuth client secret stored yet.';
 });

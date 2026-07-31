@@ -56,6 +56,7 @@ function createWindow() {
     height: display.workArea.height,
     frame: true,
     webPreferences: {
+      partition: 'persist:secured-partition',
       devTools: isDev,
       nodeIntegration: false, // Disable nodeIntegration for security.
       nodeIntegrationInWorker: false,
@@ -90,7 +91,7 @@ function createWindow() {
   // https://www.electronjs.org/docs/tutorial/security#4-handle-session-permission-requests-from-remote-content
   // https://github.com/doyensec/electronegativity/wiki/PERMISSION_REQUEST_HANDLER_GLOBAL_CHECK
   session
-    .fromPartition('secured-partition')
+    .fromPartition('persist:secured-partition')
     .setPermissionRequestHandler((webContents, permission, callback) => {
       callback(false);
     });
@@ -167,5 +168,11 @@ ipcMain.on('find_text', (event, searchSettings) => {
 
 // Add Preference listeners.
 ipcMain.on('preferences_load', loadPreferences);
-ipcMain.on('preferences_save', savePreferences);
-ipcMain.on('preferences_close', closePreferences);
+ipcMain.on('preferences_save', (event, data) => {
+  savePreferences(event, data);
+  ipcFunctions.setPreferences(getCurrentPreferences());
+});
+ipcMain.on('preferences_close', () => {
+  ipcFunctions.setPreferences(getCurrentPreferences());
+  closePreferences();
+});

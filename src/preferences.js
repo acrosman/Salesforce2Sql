@@ -1,9 +1,17 @@
 const path = require('path');
-const { app, BrowserWindow, Menu } = require('electron');  // eslint-disable-line
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  safeStorage,
+} = require('electron');  // eslint-disable-line
 const fs = require('fs-extra');
+
+const config = require('./config');
 
 const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
+const oauthSettingsPath = path.join(app.getPath('userData'), 'oauth-preferences.bin');
 
 // A list of menu item IDs to disable when preference window is open.
 const nonPrefWindowItems = [
@@ -17,33 +25,136 @@ const setMainWindow = (win) => {
   mainWindow = win;
 };
 
+const defaultPreferences = () => ({
+  theme: 'Cyborg',
+  indexes: {
+    externalIds: true,
+    lookups: true,
+    picklists: true,
+  },
+  picklists: {
+    type: 'enum',
+    unrestricted: true,
+    ensureBlanks: true,
+  },
+  lookups: {
+    type: 'char(18)',
+  },
+  defaults: {
+    attemptSFValues: false,
+    textEmptyString: false,
+    checkboxDefaultFalse: true,
+    suppressReadOnly: false,
+    suppressAudit: false,
+  },
+  oauth: {
+    clientId: '',
+    hasClientSecret: false,
+  },
+});
+
+const getStoredOAuthSettings = () => {
+  const envClientId = process.env.SALESFORCE_CLIENT_ID || '';
+  const envClientSecret = process.env.SALESFORCE_CLIENT_SECRET || '';
+
+  if (envClientId || envClientSecret) {
+    return {
+      clientId: envClientId,
+      clientSecret: envClientSecret,
+      hasClientSecret: Boolean(envClientSecret),
+    };
+  }
+
+  if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
+    return {
+      clientId: '',
+      clientSecret: '',
+      hasClientSecret: false,
+    };
+  }
+
+  try {
+    if (!fs.existsSync(oauthSettingsPath)) {
+      return {
+        clientId: '',
+        clientSecret: '',
+        hasClientSecret: false,
+      };
+    }
+
+    const encryptedData = fs.readFileSync(oauthSettingsPath);
+    const rawData = safeStorage.decryptString(encryptedData);
+    const parsed = JSON.parse(rawData);
+
+    return {
+      clientId: parsed.clientId || '',
+      clientSecret: parsed.clientSecret || '',
+      hasClientSecret: Boolean(parsed.clientSecret),
+    };
+  } catch (err) {
+    return {
+      clientId: '',
+      clientSecret: '',
+      hasClientSecret: false,
+    };
+  }
+};
+
+const updateOAuthConfig = () => {
+  const oauthSettings = getStoredOAuthSettings();
+  config.updateOAuthCredentials(oauthSettings.clientId, oauthSettings.clientSecret);
+  return oauthSettings;
+};
+
+const saveSecureOAuthSettings = (oauthSettings = {}) => {
+  const existingSettings = getStoredOAuthSettings();
+  const clientId = (oauthSettings.clientId || '').trim();
+  let clientSecret = typeof oauthSettings.clientSecret === 'string'
+    ? oauthSettings.clientSecret.trim()
+    : '';
+
+  if (!clientSecret && existingSettings.hasClientSecret && clientId === existingSettings.clientId) {
+    clientSecret = existingSettings.clientSecret;
+  }
+
+  if (!clientId && !clientSecret) {
+    if (fs.existsSync(oauthSettingsPath)) {
+      fs.removeSync(oauthSettingsPath);
+    }
+    config.updateOAuthCredentials('', '');
+    return {
+      clientId: '',
+      hasClientSecret: false,
+    };
+  }
+
+  if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
+    config.updateOAuthCredentials(clientId, clientSecret);
+    return {
+      clientId,
+      hasClientSecret: Boolean(clientSecret),
+    };
+  }
+
+  const encryptedData = safeStorage.encryptString(JSON.stringify({
+    clientId,
+    clientSecret,
+  }));
+
+  fs.writeFileSync(oauthSettingsPath, encryptedData);
+  config.updateOAuthCredentials(clientId, clientSecret);
+
+  return {
+    clientId,
+    hasClientSecret: Boolean(clientSecret),
+  };
+};
+
 const getCurrentPreferences = () => {
   // Ensure we have the settings file created.
   fs.ensureFileSync(settingsPath);
 
-  const preferences = {
-    theme: 'Cyborg',
-    indexes: {
-      externalIds: true,
-      lookups: true,
-      picklists: true,
-    },
-    picklists: {
-      type: 'enum',
-      unrestricted: true,
-      ensureBlanks: true,
-    },
-    lookups: {
-      type: 'char(18)',
-    },
-    defaults: {
-      attemptSFValues: false,
-      textEmptyString: false,
-      checkboxDefaultFalse: true,
-      suppressReadOnly: false,
-      suppressAudit: false,
-    },
-  };
+  const preferences = defaultPreferences();
 
   // Load any existing values.
   let settingsData = {};
@@ -53,13 +164,20 @@ const getCurrentPreferences = () => {
     // Catch and release, we'll just use the defaults from there.
   }
 
-  // Merge in settings that in the file an we know how to use.
-  const values = Object.getOwnPropertyNames(preferences);
+  // Merge in settings that in the file and we know how to use.
+  const values = Object.getOwnPropertyNames(preferences).filter((value) => value !== 'oauth');
   for (let i = 0; i < values.length; i += 1) {
     if (Object.prototype.hasOwnProperty.call(settingsData, values[i])) {
       preferences[values[i]] = settingsData[values[i]];
     }
   }
+
+  const oauthSettings = updateOAuthConfig();
+  preferences.oauth = {
+    clientId: oauthSettings.clientId,
+    hasClientSecret: oauthSettings.hasClientSecret,
+  };
+
   return preferences;
 };
 
@@ -69,16 +187,18 @@ const loadPreferences = () => {
   prefWindow.webContents.send('preferences_data', preferences);
 };
 
-const savePreferences = (event, settingData) => {
+const savePreferences = (event, settingData = {}) => {
   const preferences = getCurrentPreferences();
 
-  // Merge in settings that in the file an we know how to use.
-  const values = Object.getOwnPropertyNames(preferences);
+  // Merge in settings that in the file and we know how to use.
+  const values = Object.getOwnPropertyNames(preferences).filter((value) => value !== 'oauth');
   for (let i = 0; i < values.length; i += 1) {
     if (Object.prototype.hasOwnProperty.call(settingData, values[i])) {
       preferences[values[i]] = settingData[values[i]];
     }
   }
+
+  preferences.oauth = saveSecureOAuthSettings(settingData.oauth);
   fs.writeFileSync(settingsPath, JSON.stringify(preferences));
 };
 
@@ -102,7 +222,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 730,
+      height: 820,
       resizable: false,
       frame: false,
       webPreferences: {
@@ -136,3 +256,4 @@ exports.openPreferences = openPreferences;
 exports.loadPreferences = loadPreferences;
 exports.savePreferences = savePreferences;
 exports.closePreferences = closePreferences;
+exports.updateOAuthConfig = updateOAuthConfig;

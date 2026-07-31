@@ -38,6 +38,7 @@ test('Check SetPreferences', () => {
   expect(testPrefs).toHaveProperty('picklists');
   expect(testPrefs).toHaveProperty('lookups');
   expect(testPrefs).toHaveProperty('defaults');
+  expect(testPrefs).toHaveProperty('oauth');
   expect(testPrefs.indexes).toHaveProperty('externalIds');
   expect(testPrefs.indexes).toHaveProperty('lookups');
   expect(testPrefs.indexes).toHaveProperty('picklists');
@@ -49,4 +50,6 @@ test('Check SetPreferences', () => {
   expect(testPrefs.defaults).toHaveProperty('textEmptyString');
   expect(testPrefs.defaults).toHaveProperty('suppressReadOnly');
   expect(testPrefs.defaults).toHaveProperty('suppressAudit');
+  expect(testPrefs.oauth).toHaveProperty('clientId');
+  expect(testPrefs.oauth).toHaveProperty('hasClientSecret');
 });

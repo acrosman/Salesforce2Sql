@@ -9,6 +9,10 @@ const jsforce = {
       execute: jest.fn().mockResolvedValue([]),
     }),
     describeGlobal: jest.fn().mockResolvedValue({ sobjects: [] }),
+    authorize: jest.fn().mockResolvedValue({ id: 'test-user-id' }),
+  })),
+  OAuth2: jest.fn().mockImplementation(() => ({
+    getAuthorizationUrl: jest.fn().mockReturnValue('https://login.salesforce.com/auth'),
   })),
 };
 

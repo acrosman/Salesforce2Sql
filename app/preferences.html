@@ -131,6 +131,29 @@
           </div>
         </div>
       </div>
+      <div class="row pb-2">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title h5">Salesforce OAuth Settings</h2>
+              <p class="card-text">These Connected App credentials are stored using Electron safeStorage so the secret
+                stays encrypted on your device.</p>
+              <div class="form-group pb-2">
+                <label for="oauth-client-id">OAuth Client ID</label>
+                <input type="text" class="form-control" id="oauth-client-id"
+                  placeholder="Enter Salesforce Connected App client ID">
+              </div>
+              <div class="form-group pb-2">
+                <label for="oauth-client-secret">OAuth Client Secret</label>
+                <input type="password" class="form-control" id="oauth-client-secret"
+                  placeholder="Enter Salesforce OAuth client secret">
+                <small id="oauth-credential-status" class="form-text text-muted">No OAuth client secret stored
+                  yet.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="row">
         <div class="col-12">
           <div class="form-group">

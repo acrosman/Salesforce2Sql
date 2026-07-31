@@ -43,5 +43,13 @@ module.exports = {
     handle: jest.fn(),
     send: jest.fn(),
   },
+  shell: {
+    openExternal: jest.fn().mockResolvedValue(true),
+  },
+  safeStorage: {
+    isEncryptionAvailable: jest.fn().mockReturnValue(true),
+    encryptString: jest.fn((value) => Buffer.from(value, 'utf8')),
+    decryptString: jest.fn((value) => value.toString('utf8')),
+  },
   mainWindow: mockWindow,
 };
