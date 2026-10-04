@@ -30,9 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
       oauth: {
         clientId: document.getElementById('oauth-client-id').value,
         clientSecret: document.getElementById('oauth-client-secret').value,
+        callbackPort: document.getElementById('oauth-callback-port').value,
       },
     });
     window.api.send('preferences_close');
+  });
+
+  // Keep the Callback URL hint in sync with the port.
+  document.getElementById('oauth-callback-port').addEventListener('input', (event) => {
+    document.getElementById('oauth-callback-port-display').innerText = event.target.value;
   });
 
   // Add click to close listener for preference window.
@@ -75,6 +81,8 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
   document.getElementById('oauth-client-id').value = data.oauth?.clientId || '';
   document.getElementById('oauth-client-secret').value = '';
+  document.getElementById('oauth-callback-port').value = data.oauth?.callbackPort || 3835;
+  document.getElementById('oauth-callback-port-display').innerText = data.oauth?.callbackPort || 3835;
   document.getElementById('oauth-client-secret').placeholder = data.oauth?.hasClientSecret
     ? 'Stored securely. Leave blank to keep the current secret.'
     : 'Enter Salesforce OAuth client secret';

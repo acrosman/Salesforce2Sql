@@ -136,12 +136,12 @@
           <div class="card">
             <div class="card-body">
               <h2 class="card-title h5">Salesforce OAuth Settings</h2>
-              <p class="card-text">These Connected App credentials are stored using Electron safeStorage so the secret
+              <p class="card-text">These External Client App credentials are stored using Electron safeStorage so the secret
                 stays encrypted on your device.</p>
               <div class="form-group pb-2">
                 <label for="oauth-client-id">OAuth Client ID</label>
                 <input type="text" class="form-control" id="oauth-client-id"
-                  placeholder="Enter Salesforce Connected App client ID">
+                  placeholder="Enter External Client App consumer key">
               </div>
               <div class="form-group pb-2">
                 <label for="oauth-client-secret">OAuth Client Secret</label>
@@ -149,6 +149,13 @@
                   placeholder="Enter Salesforce OAuth client secret">
                 <small id="oauth-credential-status" class="form-text text-muted">No OAuth client secret stored
                   yet.</small>
+              </div>
+              <div class="form-group pb-2">
+                <label for="oauth-callback-port">OAuth Callback Port</label>
+                <input type="number" class="form-control" id="oauth-callback-port" min="1" max="65535" value="3835"
+                  aria-describedby="oauth-callback-help">
+                <small id="oauth-callback-help" class="form-text text-muted">Your External Client App's Callback URL
+                  must be <code>http://localhost:<span id="oauth-callback-port-display">3835</span>/callback</code>.</small>
               </div>
             </div>
           </div>

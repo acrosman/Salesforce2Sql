@@ -53,3 +53,37 @@ test('Check SetPreferences', () => {
   expect(testPrefs.oauth).toHaveProperty('clientId');
   expect(testPrefs.oauth).toHaveProperty('hasClientSecret');
 });
+
+test('OAuth callback port defaults to 3835', () => {
+  const testPrefs = preferences.getCurrentPreferences();
+  expect(testPrefs.oauth.callbackPort).toBe(3835);
+});
+
+test('OAuth callback port is read from the settings file and applied to config', () => {
+  const fs = require('fs-extra'); // eslint-disable-line global-require
+  const config = require('../config'); // eslint-disable-line global-require
+  fs.readFileSync.mockReturnValueOnce(JSON.stringify({ oauth: { callbackPort: 4100 } }));
+
+  const testPrefs = preferences.getCurrentPreferences();
+
+  expect(testPrefs.oauth.callbackPort).toBe(4100);
+  expect(config.oauth.callbackPort).toBe(4100);
+  config.updateOAuthCallbackPort(3835);
+});
+
+test('savePreferences keeps client credentials out of preferences.json', () => {
+  const fs = require('fs-extra'); // eslint-disable-line global-require
+  fs.writeFileSync.mockClear();
+
+  preferences.savePreferences({}, {
+    theme: 'Cyborg',
+    oauth: { clientId: 'my-client-id', clientSecret: 'my-secret', callbackPort: 'not-a-port' },
+  });
+
+  const prefsWrite = fs.writeFileSync.mock.calls
+    .find((call) => `${call[0]}`.endsWith('preferences.json'));
+  const saved = JSON.parse(prefsWrite[1]);
+  expect(saved.oauth).toEqual({ callbackPort: 3835 });
+  expect(prefsWrite[1]).not.toContain('my-client-id');
+  expect(prefsWrite[1]).not.toContain('my-secret');
+});

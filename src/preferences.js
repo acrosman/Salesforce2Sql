@@ -50,6 +50,7 @@ const defaultPreferences = () => ({
   oauth: {
     clientId: '',
     hasClientSecret: false,
+    callbackPort: config.DEFAULT_CALLBACK_PORT,
   },
 });
 
@@ -172,10 +173,15 @@ const getCurrentPreferences = () => {
     }
   }
 
+  // The callback port isn't secret, so it lives in the regular settings file.
+  const callbackPort = config.normalizeCallbackPort(settingsData.oauth?.callbackPort);
+  config.updateOAuthCallbackPort(callbackPort);
+
   const oauthSettings = updateOAuthConfig();
   preferences.oauth = {
     clientId: oauthSettings.clientId,
     hasClientSecret: oauthSettings.hasClientSecret,
+    callbackPort,
   };
 
   return preferences;
@@ -198,7 +204,13 @@ const savePreferences = (event, settingData = {}) => {
     }
   }
 
-  preferences.oauth = saveSecureOAuthSettings(settingData.oauth);
+  const callbackPort = config.normalizeCallbackPort(settingData.oauth?.callbackPort);
+  config.updateOAuthCallbackPort(callbackPort);
+  saveSecureOAuthSettings(settingData.oauth);
+
+  // Client credentials are stored separately with safeStorage, so only the
+  // callback port is written to the plain settings file.
+  preferences.oauth = { callbackPort };
   fs.writeFileSync(settingsPath, JSON.stringify(preferences));
 };
 
@@ -222,7 +234,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 820,
+      height: 900,
       resizable: false,
       frame: false,
       webPreferences: {
