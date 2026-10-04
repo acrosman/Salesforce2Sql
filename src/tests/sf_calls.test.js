@@ -1,7 +1,7 @@
 const fs = require('fs');
 const electron = require('electron');
 const jsforce = require('jsforce');
-const oauth = require('../sf_oauth2');
+const oauth = require('../sf_oauth');
 
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');

@@ -59,16 +59,16 @@ test('OAuth callback port defaults to 3835', () => {
   expect(testPrefs.oauth.callbackPort).toBe(3835);
 });
 
-test('OAuth callback port is read from the settings file and applied to config', () => {
+test('OAuth callback port is read from the settings file and applied to the OAuth module', () => {
   const fs = require('fs-extra'); // eslint-disable-line global-require
-  const config = require('../config'); // eslint-disable-line global-require
+  const oauth = require('../sf_oauth'); // eslint-disable-line global-require
   fs.readFileSync.mockReturnValueOnce(JSON.stringify({ oauth: { callbackPort: 4100 } }));
 
   const testPrefs = preferences.getCurrentPreferences();
 
   expect(testPrefs.oauth.callbackPort).toBe(4100);
-  expect(config.oauth.callbackPort).toBe(4100);
-  config.updateOAuthCallbackPort(3835);
+  expect(oauth.__get__('oauthSettings').callbackPort).toBe(4100);
+  oauth.setCallbackPort(3835);
 });
 
 test('savePreferences keeps client credentials out of preferences.json', () => {
@@ -86,4 +86,27 @@ test('savePreferences keeps client credentials out of preferences.json', () => {
   expect(saved.oauth).toEqual({ callbackPort: 3835 });
   expect(prefsWrite[1]).not.toContain('my-client-id');
   expect(prefsWrite[1]).not.toContain('my-secret');
+});
+
+test('getCurrentPreferences ignores credentials left in the settings file', () => {
+  const fs = require('fs-extra'); // eslint-disable-line global-require
+  fs.readFileSync.mockReturnValueOnce(JSON.stringify({
+    oauth: { clientId: 'stale-id', clientSecret: 'stale-secret', callbackPort: 3835 },
+  }));
+
+  const testPrefs = preferences.getCurrentPreferences();
+
+  expect(testPrefs.oauth.clientId).not.toBe('stale-id');
+  expect(testPrefs.oauth).not.toHaveProperty('clientSecret');
+});
+
+test('savePreferences without oauth settings keeps stored credentials', () => {
+  const fs = require('fs-extra'); // eslint-disable-line global-require
+  fs.removeSync.mockClear();
+  fs.existsSync.mockReturnValue(true);
+
+  preferences.savePreferences({}, { theme: 'Cyborg' });
+
+  expect(fs.removeSync).not.toHaveBeenCalled();
+  fs.existsSync.mockReset();
 });

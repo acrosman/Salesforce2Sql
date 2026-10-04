@@ -4,7 +4,7 @@ const path = require('path');
 const electron = require('electron');
 const jsforce = require('jsforce');
 const knex = require('knex');
-const oauth = require('./sf_oauth2');
+const oauth = require('./sf_oauth');
 const constants = require('./constants');
 
 // Get the dialog library from Electron

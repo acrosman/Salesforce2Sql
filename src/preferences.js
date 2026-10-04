@@ -7,7 +7,7 @@ const {
 } = require('electron');  // eslint-disable-line
 const fs = require('fs-extra');
 
-const config = require('./config');
+const oauth = require('./sf_oauth');
 
 const appPath = app.getAppPath();
 const settingsPath = path.join(app.getPath('userData'), 'preferences.json');
@@ -50,7 +50,7 @@ const defaultPreferences = () => ({
   oauth: {
     clientId: '',
     hasClientSecret: false,
-    callbackPort: config.DEFAULT_CALLBACK_PORT,
+    callbackPort: oauth.DEFAULT_CALLBACK_PORT,
   },
 });
 
@@ -103,7 +103,7 @@ const getStoredOAuthSettings = () => {
 
 const updateOAuthConfig = () => {
   const oauthSettings = getStoredOAuthSettings();
-  config.updateOAuthCredentials(oauthSettings.clientId, oauthSettings.clientSecret);
+  oauth.setCredentials(oauthSettings.clientId, oauthSettings.clientSecret);
   return oauthSettings;
 };
 
@@ -122,7 +122,7 @@ const saveSecureOAuthSettings = (oauthSettings = {}) => {
     if (fs.existsSync(oauthSettingsPath)) {
       fs.removeSync(oauthSettingsPath);
     }
-    config.updateOAuthCredentials('', '');
+    oauth.setCredentials('', '');
     return {
       clientId: '',
       hasClientSecret: false,
@@ -130,7 +130,7 @@ const saveSecureOAuthSettings = (oauthSettings = {}) => {
   }
 
   if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
-    config.updateOAuthCredentials(clientId, clientSecret);
+    oauth.setCredentials(clientId, clientSecret);
     return {
       clientId,
       hasClientSecret: Boolean(clientSecret),
@@ -143,13 +143,25 @@ const saveSecureOAuthSettings = (oauthSettings = {}) => {
   }));
 
   fs.writeFileSync(oauthSettingsPath, encryptedData);
-  config.updateOAuthCredentials(clientId, clientSecret);
+  oauth.setCredentials(clientId, clientSecret);
 
   return {
     clientId,
     hasClientSecret: Boolean(clientSecret),
   };
 };
+
+/**
+ * Removes client credential fields so they never reach preferences.json.
+ * @param {*} oauthPrefs The oauth section of the preferences.
+ * @returns The oauth preferences without credentials.
+ */
+const withoutCredentials = ({
+  clientId,
+  clientSecret,
+  hasClientSecret,
+  ...oauthPrefs
+} = {}) => oauthPrefs;
 
 const getCurrentPreferences = () => {
   // Ensure we have the settings file created.
@@ -166,22 +178,23 @@ const getCurrentPreferences = () => {
   }
 
   // Merge in settings that in the file and we know how to use.
-  const values = Object.getOwnPropertyNames(preferences).filter((value) => value !== 'oauth');
+  const values = Object.getOwnPropertyNames(preferences);
   for (let i = 0; i < values.length; i += 1) {
     if (Object.prototype.hasOwnProperty.call(settingsData, values[i])) {
       preferences[values[i]] = settingsData[values[i]];
     }
   }
 
-  // The callback port isn't secret, so it lives in the regular settings file.
-  const callbackPort = config.normalizeCallbackPort(settingsData.oauth?.callbackPort);
-  config.updateOAuthCallbackPort(callbackPort);
-
-  const oauthSettings = updateOAuthConfig();
+  // The settings file holds only non-secret OAuth settings. Credentials come
+  // from encrypted storage.
+  const callbackPort = oauth.normalizeCallbackPort(preferences.oauth?.callbackPort);
+  oauth.setCallbackPort(callbackPort);
+  const oauthCredentials = updateOAuthConfig();
   preferences.oauth = {
-    clientId: oauthSettings.clientId,
-    hasClientSecret: oauthSettings.hasClientSecret,
+    ...withoutCredentials(preferences.oauth),
     callbackPort,
+    clientId: oauthCredentials.clientId,
+    hasClientSecret: oauthCredentials.hasClientSecret,
   };
 
   return preferences;
@@ -197,20 +210,23 @@ const savePreferences = (event, settingData = {}) => {
   const preferences = getCurrentPreferences();
 
   // Merge in settings that in the file and we know how to use.
-  const values = Object.getOwnPropertyNames(preferences).filter((value) => value !== 'oauth');
+  const values = Object.getOwnPropertyNames(preferences);
   for (let i = 0; i < values.length; i += 1) {
     if (Object.prototype.hasOwnProperty.call(settingData, values[i])) {
       preferences[values[i]] = settingData[values[i]];
     }
   }
 
-  const callbackPort = config.normalizeCallbackPort(settingData.oauth?.callbackPort);
-  config.updateOAuthCallbackPort(callbackPort);
-  saveSecureOAuthSettings(settingData.oauth);
-
-  // Client credentials are stored separately with safeStorage, so only the
-  // callback port is written to the plain settings file.
-  preferences.oauth = { callbackPort };
+  // Client credentials are only kept in encrypted storage.
+  if (settingData.oauth) {
+    saveSecureOAuthSettings(settingData.oauth);
+  }
+  const callbackPort = oauth.normalizeCallbackPort(preferences.oauth.callbackPort);
+  oauth.setCallbackPort(callbackPort);
+  preferences.oauth = {
+    ...withoutCredentials(preferences.oauth),
+    callbackPort,
+  };
   fs.writeFileSync(settingsPath, JSON.stringify(preferences));
 };
 

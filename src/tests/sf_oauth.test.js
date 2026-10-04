@@ -1,8 +1,14 @@
+// All external dependencies are mocked: electron and jsforce use the manual
+// mocks in src/tests/__mocks__, and http is auto-mocked so no real server
+// starts. Each test drives the captured request handler directly.
+jest.mock('electron');
+jest.mock('jsforce');
+jest.mock('http');
+
 const electron = require('electron');
 const jsforce = require('jsforce');
 const http = require('http');
-const oauth = require('../sf_oauth2');
-const config = require('../config');
+const oauth = require('../sf_oauth');
 
 const REDIRECT_URI = 'http://localhost:3835/callback';
 
@@ -39,7 +45,7 @@ describe('Salesforce OAuth2 Tests', () => {
     serverHandler = null;
     serverEvents = {};
 
-    jest.spyOn(http, 'createServer').mockImplementation((handler) => {
+    http.createServer.mockImplementation((handler) => {
       serverHandler = handler;
       mockServer = {
         listen: jest.fn(),
@@ -49,8 +55,8 @@ describe('Salesforce OAuth2 Tests', () => {
       return mockServer;
     });
 
-    config.updateOAuthCredentials('test-client-id', 'test-client-secret');
-    config.updateOAuthCallbackPort(3835);
+    oauth.setCredentials('test-client-id', 'test-client-secret');
+    oauth.setCallbackPort(3835);
     mockOAuth2();
   });
 
@@ -65,6 +71,16 @@ describe('Salesforce OAuth2 Tests', () => {
     });
   });
 
+  describe('normalizeCallbackPort', () => {
+    test('accepts valid ports and falls back to the default otherwise', () => {
+      expect(oauth.normalizeCallbackPort('4100')).toBe(4100);
+      expect(oauth.normalizeCallbackPort(65535)).toBe(65535);
+      [undefined, '', 'abc', 0, -1, 70000].forEach((port) => {
+        expect(oauth.normalizeCallbackPort(port)).toBe(oauth.DEFAULT_CALLBACK_PORT);
+      });
+    });
+  });
+
   describe('isValidSalesforceUrl', () => {
     test('accepts valid Salesforce URLs', () => {
       const validUrls = [
@@ -72,7 +88,6 @@ describe('Salesforce OAuth2 Tests', () => {
         'https://test.salesforce.com/services/oauth2/authorize',
         'https://myorg.my.salesforce.com/setup',
         'https://myorg--dev.sandbox.my.salesforce.com/services/oauth2/authorize',
-        'https://company.cloudforce.com/oauth',
       ];
 
       validUrls.forEach((url) => {
@@ -85,6 +100,10 @@ describe('Salesforce OAuth2 Tests', () => {
         'http://login.salesforce.com',
         'https://fake-salesforce.com',
         'https://salesforce.com',
+        'https://myorg.my.salesforce.com.evil.com',
+        // cloudforce.com domains are retired by Salesforce.
+        'https://login.cloudforce.com',
+        'https://company.cloudforce.com/oauth',
         'not-a-url',
       ];
 
@@ -228,7 +247,7 @@ describe('Salesforce OAuth2 Tests', () => {
     });
 
     test('uses the configured callback port', async () => {
-      config.updateOAuthCallbackPort(4000);
+      oauth.setCallbackPort(4000);
       const promise = oauth.attemptLogin('https://login.salesforce.com');
 
       expect(mockServer.listen).toHaveBeenCalledWith(4000, '127.0.0.1');
@@ -261,7 +280,7 @@ describe('Salesforce OAuth2 Tests', () => {
     });
 
     test('fails with missing credentials', async () => {
-      config.updateOAuthCredentials('', '');
+      oauth.setCredentials('', '');
 
       await expect(oauth.attemptLogin('https://login.salesforce.com'))
         .rejects

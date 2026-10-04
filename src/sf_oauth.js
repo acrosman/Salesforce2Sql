@@ -6,10 +6,21 @@ const crypto = require('crypto');
 const http = require('http');
 const jsforce = require('jsforce');
 
-const config = require('./config');
-
 const CALLBACK_PATH = '/callback';
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Default local port for the OAuth callback server. Matches ElectronForce so a
+// single External Client App can serve both tools.
+const DEFAULT_CALLBACK_PORT = 3835;
+
+// Connection settings for the External Client App. Credentials are loaded from
+// encrypted storage by the preferences module.
+const oauthSettings = {
+  clientId: process.env.SALESFORCE_CLIENT_ID || '',
+  clientSecret: process.env.SALESFORCE_CLIENT_SECRET || '',
+  callbackPort: DEFAULT_CALLBACK_PORT,
+  scopes: ['api', 'id', 'refresh_token'],
+};
 
 // The in-progress login, if any, so a new attempt can cancel a stale one.
 let activeLogin = null;
@@ -21,6 +32,37 @@ let activeLogin = null;
  * @returns {string} The redirect URI.
  */
 const buildRedirectUri = (port) => `http://localhost:${port}${CALLBACK_PATH}`;
+
+/**
+ * Normalizes a callback port value, falling back to the default when invalid.
+ * @param {*} port The requested port.
+ * @returns {number} A valid TCP port number.
+ */
+const normalizeCallbackPort = (port) => {
+  const parsed = Number.parseInt(port, 10);
+  if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) {
+    return parsed;
+  }
+  return DEFAULT_CALLBACK_PORT;
+};
+
+/**
+ * Sets the External Client App credentials used for login.
+ * @param {string} clientId The consumer key.
+ * @param {string} clientSecret The consumer secret.
+ */
+const setCredentials = (clientId, clientSecret) => {
+  oauthSettings.clientId = clientId;
+  oauthSettings.clientSecret = clientSecret;
+};
+
+/**
+ * Sets the local port for the OAuth callback server.
+ * @param {*} port The requested port. Invalid values fall back to the default.
+ */
+const setCallbackPort = (port) => {
+  oauthSettings.callbackPort = normalizeCallbackPort(port);
+};
 
 /**
  * Cancels the in-progress login attempt, if there is one.
@@ -135,12 +177,10 @@ function isValidSalesforceUrl(url) {
       'login.salesforce.com',
       'test.salesforce.com',
       'login.sandbox.salesforce.com',
-      'login.cloudforce.com',
     ];
 
-    return validDomains.some((domain) => parsedUrl.hostname === domain
-      || parsedUrl.hostname.endsWith('.my.salesforce.com')
-      || parsedUrl.hostname.endsWith('.cloudforce.com'));
+    return validDomains.includes(parsedUrl.hostname)
+      || parsedUrl.hostname.endsWith('.my.salesforce.com');
   } catch (err) {
     return false;
   }
@@ -157,7 +197,7 @@ async function attemptLogin(authDomain) {
     clientSecret,
     callbackPort,
     scopes,
-  } = config.oauth;
+  } = oauthSettings;
 
   if (!clientId || !clientSecret) {
     throw new Error('Missing OAuth credentials. Both Client ID and Client Secret are required.');
@@ -189,6 +229,8 @@ async function attemptLogin(authDomain) {
 
   const codePromise = createLocalServer(callbackPort, state);
 
+  // authUrl was checked by isValidSalesforceUrl() above, so only HTTPS
+  // Salesforce login URLs are ever opened in the browser.
   try {
     await shell.openExternal(authUrl);
   } catch (err) {
@@ -228,3 +270,7 @@ async function attemptLogin(authDomain) {
 
 exports.attemptLogin = attemptLogin;
 exports.buildRedirectUri = buildRedirectUri;
+exports.normalizeCallbackPort = normalizeCallbackPort;
+exports.setCredentials = setCredentials;
+exports.setCallbackPort = setCallbackPort;
+exports.DEFAULT_CALLBACK_PORT = DEFAULT_CALLBACK_PORT;
