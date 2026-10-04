@@ -46,6 +46,8 @@ $.when($.ready).then(() => {
   });
 
   // Setup login radio behaviors.
+  // DEPRECATED(password-login): remove the radio toggle when #290 is done and
+  // always show the OAuth details.
   $('#login-password-wrapper').hide();
   $('#login-oauth-wrapper').show();
   $('input[type=radio][name=sfconnect-radio-selectors]').on('change', (event) => {
@@ -59,10 +61,13 @@ $.when($.ready).then(() => {
     }
   });
 
-  // Get the current application preferences.
-  window.api.send('get_preferences');
-
   // Setup Object Select All
+  $('#btn-select-all-objects').on('click', (event) => {
+    event.preventDefault();
+    $('#results-table input[type=checkbox]').prop('checked', true);
+  });
+
+  // Setup Object Deselect All
   $('#btn-deselect-all-objects').on('click', (event) => {
     event.preventDefault();
     $('#results-table input[type=checkbox]').prop('checked', false);
@@ -668,10 +673,13 @@ const updateSqlite3Path = (filePath) => {
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
   const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  // DEPRECATED(password-login): when #290 is done, always use 'oauth' and drop the
+  // username, password, and token fields from the payload.
+  const mode = modeRadio ? modeRadio.value : 'oauth';
   $('#login-modal-message').addClass('d-none').text('');
-  showLoader('Attempting Login');
+  showLoader(mode === 'oauth' ? 'Waiting for browser sign-in…' : 'Attempting Login');
   window.api.send('sf_login', {
-    mode: modeRadio ? modeRadio.value : 'oauth',
+    mode,
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,

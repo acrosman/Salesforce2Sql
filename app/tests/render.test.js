@@ -5,6 +5,9 @@
 
 beforeAll(() => {
   global.$ = require('../../node_modules/jquery/dist/jquery.min'); // eslint-disable-line
+  // jsdom never triggers jQuery's ready event, so fire it to run the
+  // document-ready setup in render.js.
+  global.$.ready();
   global.window = window;
   // Electron IPC Mock
   global.window.api = {
@@ -255,6 +258,7 @@ test('response_login success path updates login message and enables fetch-object
   expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
 });
 
+// DEPRECATED(password-login): remove this test when #290 is done.
 test('login trigger sends the selected connection mode', () => {
   document.getElementById('sfconnect-password').checked = true;
   document.getElementById('login-trigger').click();
@@ -265,6 +269,65 @@ test('login trigger sends the selected connection mode', () => {
       mode: 'password',
     }),
   );
+});
+
+test('OAuth login trigger waits for the browser sign-in', () => {
+  document.getElementById('login-url').value = 'https://myco.my.salesforce.com';
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).toHaveBeenCalledWith(
+    'sf_login',
+    expect.objectContaining({
+      mode: 'oauth',
+      url: 'https://myco.my.salesforce.com',
+    }),
+  );
+  expect(document.querySelector('#loader-indicator .loader-message').textContent)
+    .toEqual('Waiting for browser sign-in…');
+});
+
+test('login modal includes the SSO My Domain hint', () => {
+  expect(document.getElementById('oauth-sso-hint').textContent).toContain('My Domain');
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('Username/Password option is labeled deprecated with a warning', () => {
+  expect(document.querySelector('label[for=sfconnect-password]').textContent)
+    .toContain('(deprecated)');
+  expect(document.getElementById('login-password-deprecated').textContent)
+    .toContain('will be removed in a future version');
+});
+
+// jQuery runs the document-ready setup through nested timers.
+const waitForReady = () => new Promise((resolve) => { setTimeout(resolve, 10); });
+
+test('preferences are requested once on load', async () => {
+  // Flush setup queued by earlier tests, then load render.js exactly once.
+  await waitForReady();
+  window.api.send.mockClear();
+  jest.resetModules();
+  require('../render'); // eslint-disable-line
+  await waitForReady();
+
+  const prefCalls = window.api.send.mock.calls.filter((c) => c[0] === 'get_preferences');
+  expect(prefCalls).toHaveLength(1);
+});
+
+test('Select All and Clear toggle every object checkbox', async () => {
+  await waitForReady();
+  const displayObjectList = render.__get__('displayObjectList');
+  displayObjectList('', [
+    { name: 'Account', label: 'Account', createable: true },
+    { name: 'Contact', label: 'Contact', createable: true },
+  ], []);
+  const boxes = () => Array.from(document.querySelectorAll('#results-table input[type=checkbox]'));
+  expect(boxes().length).toBeGreaterThan(0);
+
+  document.getElementById('btn-select-all-objects').click();
+  expect(boxes().every((box) => box.checked)).toBe(true);
+
+  document.getElementById('btn-deselect-all-objects').click();
+  expect(boxes().some((box) => box.checked)).toBe(false);
 });
 
 test('response_login error path logs an error row and updates status message', () => {
