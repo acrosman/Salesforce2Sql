@@ -40,7 +40,14 @@ const setPreferences = (prefs) => {
   preferences = prefs;
 };
 
+/**
+ * Builds a copy of a login request that is safe to send back to the interface.
+ * @param {*} request The login request details.
+ * @returns A copy of the request with secrets masked.
+ */
 const buildMaskedRequest = (request = {}) => ({
+  // DEPRECATED(password-login): remove when #290 is done. Default to 'oauth' and
+  // drop the username, password, and token fields.
   mode: request.mode || 'password',
   username: request.username || '',
   password: '********',
@@ -48,27 +55,59 @@ const buildMaskedRequest = (request = {}) => ({
   url: request.url || '',
 });
 
-const setActiveSalesforceConnection = (conn, userInfo = {}) => {
+/**
+ * Stores the details needed to rebuild the active Salesforce connection.
+ * @param {*} conn The authenticated jsforce connection.
+ * @param {*} userInfo Details about the logged in user.
+ * @param {*} options Login mode, login URL, and OAuth client config (OAuth only).
+ * @returns The stored connection details.
+ */
+const setActiveSalesforceConnection = (conn, userInfo = {}, options = {}) => {
   activeConnection = {
+    mode: options.mode || 'oauth',
+    loginUrl: options.loginUrl,
     instanceUrl: conn.instanceUrl,
     accessToken: conn.accessToken,
-    refreshToken: conn.refreshToken,
+    refreshToken: options.oauth2Config ? conn.refreshToken : undefined,
+    oauth2Config: options.oauth2Config,
     version: '63.0',
     userInfo,
   };
   return activeConnection;
 };
 
+/**
+ * Builds a jsforce connection from the stored active connection. OAuth sessions
+ * include the refresh token so jsforce can renew an expired access token.
+ * @returns A jsforce connection, or null when not logged in.
+ */
 const getActiveSalesforceConnection = () => {
   if (!activeConnection) {
     return null;
   }
 
-  return new jsforce.Connection({
+  const connConfig = {
+    loginUrl: activeConnection.loginUrl,
     instanceUrl: activeConnection.instanceUrl,
     accessToken: activeConnection.accessToken,
     version: activeConnection.version,
+  };
+
+  // jsforce rejects a refresh token without OAuth client details.
+  if (activeConnection.oauth2Config && activeConnection.refreshToken) {
+    connConfig.oauth2 = activeConnection.oauth2Config;
+    connConfig.refreshToken = activeConnection.refreshToken;
+  }
+
+  const conn = new jsforce.Connection(connConfig);
+
+  // Keep the stored token current so later connections use the new one.
+  const stored = activeConnection;
+  conn.on('refresh', (newAccessToken) => {
+    stored.accessToken = newAccessToken;
   });
+
+  return conn;
 };
 
 /**
@@ -682,6 +721,14 @@ const buildDatabase = (settings) => {
   });
 };
 
+/**
+ * Sends the result of a login attempt to the interface.
+ * @param {*} conn The jsforce connection, if one was created.
+ * @param {boolean} status True on success.
+ * @param {string} message Summary message.
+ * @param {*} response User details on success, error text on failure.
+ * @param {*} request The original login request (secrets are masked).
+ */
 const sendLoginResponse = (conn, status, message, response, request) => {
   mainWindow.webContents.send('response_login', {
     status,
@@ -692,10 +739,20 @@ const sendLoginResponse = (conn, status, message, response, request) => {
   });
 };
 
-const handleLoginSuccess = (conn, userInfo, request, context) => {
+/**
+ * Records a successful login and notifies the interface.
+ * @param {*} conn The authenticated jsforce connection.
+ * @param {*} userInfo User details returned by the login.
+ * @param {*} request The original login request.
+ * @param {string} context Title used for log messages.
+ * @param {*} oauth2Config OAuth client config, so the session can be refreshed.
+ */
+const handleLoginSuccess = (conn, userInfo, request, context, oauth2Config) => {
   const response = {
     ...userInfo,
     organizationId: userInfo.organizationId || userInfo.organization_id || '',
+    // DEPRECATED(password-login): remove when #290 is done. Drop the
+    // request.username fallback, since OAuth gets the username from identity().
     username: request.username || userInfo.username || userInfo.preferred_username || userInfo.id || 'OAuth2',
   };
 
@@ -704,14 +761,34 @@ const handleLoginSuccess = (conn, userInfo, request, context) => {
     'Info',
     `Connection Org ${response.organizationId || 'Unknown'} for User ${response.username}`,
   );
-  setActiveSalesforceConnection(conn, response);
+  setActiveSalesforceConnection(conn, response, {
+    mode: request.mode,
+    loginUrl: request.url,
+    oauth2Config,
+  });
   sendLoginResponse(conn, true, 'Login Successful', response, request);
 };
 
+/**
+ * Notifies the interface that a login attempt failed.
+ * @param {*} err The error raised by the login.
+ * @param {*} conn The jsforce connection, if one was created.
+ * @param {*} request The original login request.
+ */
 const handleLoginFailure = (err, conn, request) => {
+  // DEPRECATED(password-login): remove when #290 is done. The request shape
+  // (username, password, token) can shrink to mode and url.
   sendLoginResponse(conn, false, 'Login Failed', err.message || `${err}`, request);
 };
 
+/**
+ * Login with username, password, and security token via the SOAP API.
+ * DEPRECATED(password-login): remove this function when #290 is done.
+ * @param {string} url The login URL.
+ * @param {string} username Salesforce username.
+ * @param {string} password Password with the security token appended.
+ * @returns A promise that settles after the interface is notified.
+ */
 const sfPasswordLogin = (url, username, password) => {
   const conn = new jsforce.Connection({
     loginUrl: url,
@@ -735,12 +812,17 @@ const sfPasswordLogin = (url, username, password) => {
   );
 };
 
+/**
+ * Login using the OAuth web server flow in the user's browser.
+ * @param {string} url The login URL (login, test, or My Domain for SSO).
+ * @returns A promise that settles after the interface is notified.
+ */
 const sfOAuthLogin = (url) => oauth.attemptLogin(url).then(
-  ({ conn, userInfo }) => {
+  ({ conn, userInfo, oauth2Config }) => {
     handleLoginSuccess(conn, userInfo, {
       mode: 'oauth',
       url,
-    }, 'OAuth Login Attempt');
+    }, 'OAuth Login Attempt', oauth2Config);
   },
   (err) => {
     handleLoginFailure(err, null, {
@@ -765,11 +847,18 @@ const handlers = {
       return sfOAuthLogin(args.url);
     }
 
-    let { password } = args;
+    // DEPRECATED(password-login): remove this branch, including token handling
+    // and the deprecation warning, when #290 is done.
+    // Only the token is trimmed. Passwords are used exactly as entered.
+    let password = args.password || '';
     if (args.token && args.token.trim()) {
-      password = `${(password || '').trim()}${args.token.trim()}`;
+      password = `${password}${args.token.trim()}`;
     }
-    logMessage(event.sender.getTitle(), 'Info', 'Attempting Login with Basic Credentials');
+    logMessage(
+      event.sender.getTitle(),
+      'Warn',
+      'Username/Password login is deprecated and will be removed in a future version. Please switch to OAuth.',
+    );
     return sfPasswordLogin(args.url, args.username, password);
   },
   /**
@@ -812,7 +901,9 @@ const handlers = {
       });
       activeConnection = null;
     };
-    const logoutAction = typeof conn.logout === 'function' ? conn.logout() : conn.logout;
+    // For OAuth, revoke the refresh token (which also ends the access token).
+    const revoke = Boolean(activeConnection.oauth2Config);
+    const logoutAction = typeof conn.logout === 'function' ? conn.logout(revoke) : conn.logout;
     Promise.resolve(logoutAction).then(success).catch(fail);
   },
   /**
