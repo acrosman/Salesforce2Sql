@@ -84,9 +84,9 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('oauth-callback-port').value = data.oauth?.callbackPort || 3835;
   document.getElementById('oauth-callback-port-display').innerText = data.oauth?.callbackPort || 3835;
   document.getElementById('oauth-client-secret').placeholder = data.oauth?.hasClientSecret
-    ? 'Stored securely. Leave blank to keep the current secret.'
+    ? 'Stored encrypted. Leave blank to keep the current secret.'
     : 'Enter Salesforce OAuth client secret';
   document.getElementById('oauth-credential-status').innerText = data.oauth?.hasClientSecret
-    ? 'OAuth client secret is stored securely.'
+    ? 'OAuth client secret is stored encrypted.'
     : 'No OAuth client secret stored yet.';
 });

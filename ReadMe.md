@@ -68,7 +68,7 @@ Salesforce2Sql uses the same default callback URL as [ElectronForce](https://git
 4. Optionally change the **OAuth Callback Port** (default `3835`). It must match the port in the External Client App's Callback URL.
 5. Save your changes.
 
-The client ID and secret are encrypted with [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), which uses the operating system's credential store (Keychain on macOS, DPAPI on Windows, the secret service on Linux). If OS encryption is unavailable, the credentials are kept only in memory for the current session and must be re-entered after a restart.
+The client ID and secret are stored encrypted. If your system doesn't support encrypted storage, they are kept only for the current session and must be re-entered after a restart.
 
 ### Log In
 
