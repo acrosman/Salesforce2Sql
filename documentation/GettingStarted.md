@@ -14,11 +14,14 @@ You will need API access to a Salesforce org and a database to create your schem
 
 ### Login
 
-Click "Create New Connection" to open the login screen. In the login fields provide your username, password, and security token. If you are logging into a production or trailhead instance you can use the default login URL. If you are logging into a Sandbox use: https://test.salesforce.com. You can also enter the [Salesforce My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) of your org.
+Salesforce2Sql connects with OAuth through your web browser, which supports single sign-on (SSO). Before your first login, set up an External Client App and enter its credentials in Preferences. Follow [Connecting to Salesforce](../ReadMe.md#connecting-to-salesforce) in the ReadMe.
+
+Click the big "Create New Connection" button on the left side of the main interface to open the login screen. Leave **OAuth2** selected. If you are logging into a production or Trailhead org you can use the default login URL. If you are logging into a Sandbox use: https://test.salesforce.com. To use SSO, enter your org's [Salesforce My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL instead. Click **Connect** and finish signing in in the browser window that opens.
 
 ![Login Screen](InterfaceScreenshots/Login.PNG?raw=true)
 
-As of this writing Salesforce2Sql uses the old security token connection method. [OAuth2 support is under development](https://github.com/acrosman/Salesforce2Sql/pull/52). So with the application running, and your [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5) in hand, click the big “Create New Connection” button on the left side of the main interface.
+<!-- DEPRECATED(password-login): remove this paragraph when #290 is done. -->
+The older username, password, and [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5) login is still available as **Username/Password (deprecated)**, but it will be removed in a future version.
 
 ### Step 1: Fetch Objects
 

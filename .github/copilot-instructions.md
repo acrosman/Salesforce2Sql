@@ -12,8 +12,10 @@ Electron desktop app that connects to a Salesforce org and generates a SQL schem
 | `app/render.js`             | Dashboard renderer: schema generation UI                       |
 | `app/preferences-render.js` | Preferences renderer: settings UI                              |
 | `src/sf_calls.js`           | Salesforce API calls, field-type resolution, schema generation |
+| `src/sf_oauth2.js`          | OAuth web server flow (PKCE) and local callback server         |
+| `src/config.js`             | Runtime OAuth config (client credentials, callback port)       |
 | `src/constants.js`          | Field-type→SQL mappings, standard object lists, audit fields   |
-| `src/preferences.js`        | Read/write `preferences.json` user settings                    |
+| `src/preferences.js`        | Read/write `preferences.json`; OAuth secrets via safeStorage   |
 | `src/menu.js`               | Application menu template                                      |
 | `src/find.js`               | In-window content search                                       |
 | `src/tests/`, `app/tests/`  | Jest unit tests                                                |

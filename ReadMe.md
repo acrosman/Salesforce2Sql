@@ -30,6 +30,71 @@ To run the project from code you will need a working copy of [NodeJS](https://no
 1. Run: `npm install` from the project root directory, and wait for all the packages to load (this takes a few minutes).
 1. Run: `npm start`
 
+When running from code you can also provide OAuth credentials through environment variables exported in your shell. If they are set, they take precedence over the values saved in Preferences:
+
+```sh
+export SALESFORCE_CLIENT_ID=your_consumer_key
+export SALESFORCE_CLIENT_SECRET=your_consumer_secret
+npm start
+```
+
+## Connecting to Salesforce
+
+Salesforce2Sql connects to Salesforce with OAuth. Sign-in happens in your default web browser, so it supports single sign-on (SSO) and multi-factor authentication. To use OAuth you create an External Client App in your org once, then enter its credentials in Salesforce2Sql.
+
+### Set Up an External Client App in Salesforce
+
+1. In Salesforce, go to **Setup → App Manager** (use Quick Find if needed).
+2. Click **New External Client App**.
+3. Enter a **Name**, accept or edit the generated **API Name**, and enter a **Contact Email**.
+4. Save the app, then edit it and enable **OAuth**.
+5. Set the **Callback URL** to `http://localhost:3835/callback`. If you change the callback port in Salesforce2Sql Preferences, use that port here instead.
+6. Add these **OAuth Scopes**:
+   - **Manage user data via APIs (api)**
+   - **Access the identity URL service (id, profile, email, address, phone)**
+   - **Perform requests at any time (refresh_token, offline_access)**
+7. Leave **Require Proof Key for Code Exchange (PKCE)** enabled. Salesforce2Sql uses PKCE.
+8. Save. Copy the **Consumer Key** and **Consumer Secret** from the OAuth settings.
+
+For full details see the Salesforce Help article [Create an External Client App](https://help.salesforce.com/s/articleView?id=xcloud.create_a_local_external_client_app.htm&type=5).
+
+Salesforce2Sql uses the same default callback URL as [ElectronForce](https://github.com/acrosman/electronForce), so one External Client App can serve both tools.
+
+### Configure Salesforce2Sql
+
+1. Open the Preferences window.
+2. Scroll to **Salesforce OAuth Settings**.
+3. Paste in the **Consumer Key** as the **OAuth Client ID**, and the **Consumer Secret** as the **OAuth Client Secret**.
+4. Optionally change the **OAuth Callback Port** (default `3835`). It must match the port in the External Client App's Callback URL.
+5. Save your changes.
+
+The client ID and secret are encrypted with [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), which uses the operating system's credential store (Keychain on macOS, DPAPI on Windows, the secret service on Linux). If OS encryption is unavailable, the credentials are kept only in memory for the current session and must be re-entered after a restart.
+
+### Log In
+
+1. Click **Create New Connection**.
+2. Leave **OAuth2** selected.
+3. Set the **Login URL**:
+   - Production and Trailhead orgs: `https://login.salesforce.com`
+   - Sandboxes: `https://test.salesforce.com`
+   - **Single sign-on (SSO):** use your org's [My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL, for example `https://yourcompany.my.salesforce.com` or `https://yourcompany--sandboxname.sandbox.my.salesforce.com`. Your identity provider's login button only appears on the My Domain login page.
+4. Click **Connect**, then sign in and approve access in the browser window that opens.
+5. When the browser shows "Authentication successful", close the tab and return to Salesforce2Sql.
+
+If you don't finish signing in within five minutes, the attempt times out and you can try again.
+
+### Username/Password (deprecated)
+
+<!-- DEPRECATED(password-login): remove this section when #290 is done. -->
+
+Logging in with a username, password, and security token is still available by choosing **Username/Password (deprecated)** in the login window. **This option is deprecated and will be removed in a future version** (see [#290](https://github.com/acrosman/Salesforce2Sql/issues/290)). Please switch to OAuth.
+
+### Security Notes
+
+- Do not commit real OAuth secrets to the repository.
+- Do not share Consumer Secrets in screenshots or issue comments.
+- Use a sandbox External Client App for development whenever possible.
+
 ## Databases
 
 Currently Salesforce2Sql supports MySQL, MariaDB, and Postgres. Other databases supported by [KNEX.JS](https://knexjs.org/) can be added upon request.
@@ -41,64 +106,3 @@ This project has no direct association with Salesforce except the use of the API
 ## Getting Involved
 
 If you would like to contribute to this project please feel invited to do so. Feel free to review open [issues](issues) and read the [contributing guide](contributing.md).
-
-## OAuth Setup
-
-Salesforce2Sql supports OAuth2 for connecting to Salesforce. To use it you will need to configure a Salesforce Connected App and then enter the client credentials into Salesforce2Sql.
-
-### Set Up OAuth in Salesforce2Sql
-
-1. Launch Salesforce2Sql.
-2. Open the Preferences window.
-3. Scroll to **Salesforce OAuth Settings**.
-4. Paste in your **OAuth Client ID** and **OAuth Client Secret**.
-5. Save your changes.
-
-The client secret is stored using Electron safeStorage so it stays encrypted on your local machine.
-
-After saving your credentials:
-
-1. Return to the main screen.
-2. Click **Create New Connection**.
-3. Leave **OAuth2** selected.
-4. Confirm the login URL:
-   - Production orgs usually use `https://login.salesforce.com`
-   - Sandboxes usually use `https://test.salesforce.com`
-5. Click **Connect**.
-6. Sign in to Salesforce in the browser and approve access when prompted.
-
-### Set Up the Connected App in Salesforce
-
-If you do not already have a Connected App for this tool:
-
-1. In Salesforce, go to **Setup**.
-2. Open **App Manager**.
-3. Click **New Connected App**.
-4. Enter the basic app details.
-5. Enable **OAuth Settings**.
-6. Set the callback URL to `http://localhost/completesetup`.
-7. Add the OAuth scopes needed by Salesforce2Sql:
-   - **Access and manage your data (api)**
-   - **Access your basic information (id, profile, email, address, phone)**
-   - **Perform requests on your behalf at any time (refresh_token, offline_access)**
-   - **Provide access to your data via the Web (web)**
-8. Save the Connected App.
-9. After Salesforce finishes provisioning it, copy the **Consumer Key** and **Consumer Secret**.
-10. Paste those values into the Salesforce2Sql Preferences window.
-
-### Development and CI Option
-
-For local development or CI, you can also provide the OAuth credentials through environment variables:
-
-```env
-SALESFORCE_CLIENT_ID=your_client_id_here
-SALESFORCE_CLIENT_SECRET=your_client_secret_here
-```
-
-If both stored preferences and environment variables are present, the environment variables are used.
-
-### Security Notes
-
-- Do not commit real OAuth secrets to the repository.
-- Do not share production Connected App secrets in screenshots or issue comments.
-- Use a sandbox Connected App for development whenever possible.
