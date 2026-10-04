@@ -12,9 +12,6 @@ jobs:
       - name: install dependencies
         run: npm install
       - name: build
-        env:
-          SALESFORCE_CLIENT_ID: ${{ secrets.SALESFORCE_CLIENT_ID }}
-          SALESFORCE_CLIENT_SECRET: ${{ secrets.SALESFORCE_CLIENT_SECRET }}
         run: npm run make
 
   build_on_mac:
@@ -30,9 +27,6 @@ jobs:
       - name: install dependencies
         run: npm install
       - name: build
-        env:
-          SALESFORCE_CLIENT_ID: ${{ secrets.SALESFORCE_CLIENT_ID }}
-          SALESFORCE_CLIENT_SECRET: ${{ secrets.SALESFORCE_CLIENT_SECRET }}
         run: npm run make
 
   build_on_win:
@@ -45,7 +39,4 @@ jobs:
       - name: install dependencies
         run: npm install
       - name: build
-        env:
-          SALESFORCE_CLIENT_ID: ${{ secrets.SALESFORCE_CLIENT_ID }}
-          SALESFORCE_CLIENT_SECRET: ${{ secrets.SALESFORCE_CLIENT_SECRET }}
         run: npm run make
