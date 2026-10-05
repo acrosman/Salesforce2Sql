@@ -52,8 +52,8 @@
                         <p class="card-text">
                             Create a SQL-based database from a Salesforce Org's schema.
                         </p>
-                        <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal"
-                            data-bs-target="#loginModal">Create New Connection</button>
+                        <button type="button" id="btn-new-connection" class="btn btn-info btn-lg"
+                            data-bs-toggle="modal" data-bs-target="#loginModal">Create New Connection</button>
                     </div>
                     <div class="card-footer" id="org-status">
                         <p class="mb-1">Connected User: <span id="active-org-user"></span></p>
@@ -92,15 +92,19 @@
                                         <div class="form-group">
                                             <label for="login-url">Login URL</label>
                                             <input type="url" id="login-url" class="form-control"
-                                                value="https://login.salesforce.com">
+                                                placeholder="https://yourcompany.my.salesforce.com">
                                         </div>
-                                        <div class="alert alert-info mt-3 mb-3" id="login-oauth-wrapper">
-                                            OAuth uses the External Client App values saved in Preferences.
-                                            <div id="oauth-config-status" class="small mt-2">Set the OAuth client ID and
-                                                secret in Preferences before connecting.</div>
-                                            <div id="oauth-sso-hint" class="small mt-2">For single sign-on (SSO), use
-                                                your My Domain URL as the Login URL, for example
-                                                <code>https://yourcompany.my.salesforce.com</code>.</div>
+                                        <div class="login-help border rounded p-3 mt-3 mb-3" id="login-oauth-wrapper">
+                                            <p class="mb-2">OAuth uses the External Client App values saved in
+                                                Preferences.</p>
+                                            <p class="mb-2 fw-bold" id="oauth-config-status">Set the OAuth client ID and
+                                                secret in Preferences before connecting.</p>
+                                            <p class="mb-0" id="oauth-my-domain-note"><strong>Always use your My Domain
+                                                    URL.</strong> <code>https://login.salesforce.com</code> and
+                                                <code>https://test.salesforce.com</code> can't be used with OAuth and
+                                                External Client Apps. Enter your org's My Domain, for example
+                                                <code>https://yourcompany.my.salesforce.com</code>. My Domain login also
+                                                supports single sign-on (SSO).</p>
                                         </div>
                                         <div class="alert alert-warning d-none" id="login-modal-message"></div>
                                         <!-- DEPRECATED(password-login): remove this wrapper and its fields when #290 is done. -->

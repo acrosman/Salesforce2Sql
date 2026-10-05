@@ -2,3 +2,9 @@
   max-height: 340px;
   overflow-y: scroll;
 }
+
+/* Keep inline code readable on any theme's modal background. */
+.login-help code {
+  color: inherit;
+  font-weight: bold;
+}

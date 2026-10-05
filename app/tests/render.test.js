@@ -271,7 +271,14 @@ test('login trigger sends the selected connection mode', () => {
   );
 });
 
+// Simulates the main process reporting the OAuth setup status.
+const sendPreferences = (oauth) => {
+  getReceiveCallback('current_preferences')({ theme: 'Cyborg', oauth });
+};
+const configuredOAuth = { clientId: 'cid', hasClientSecret: true, callbackPort: 3835 };
+
 test('OAuth login trigger waits for the browser sign-in', () => {
+  sendPreferences(configuredOAuth);
   document.getElementById('login-url').value = 'https://myco.my.salesforce.com';
   document.getElementById('login-trigger').click();
 
@@ -286,8 +293,90 @@ test('OAuth login trigger waits for the browser sign-in', () => {
     .toEqual('Waiting for browser sign-in…');
 });
 
-test('login modal includes the SSO My Domain hint', () => {
-  expect(document.getElementById('oauth-sso-hint').textContent).toContain('My Domain');
+test('OAuth login is refused until the External Client App is set up', () => {
+  sendPreferences({ clientId: '', hasClientSecret: false, callbackPort: 3835 });
+  expect(document.getElementById('login-trigger').disabled).toBe(true);
+  expect(document.getElementById('oauth-config-status').innerText).toContain('not set up');
+
+  // The click handler also refuses, in case the button state is stale.
+  document.getElementById('login-trigger').disabled = false;
+  document.getElementById('login-url').value = 'https://myco.my.salesforce.com';
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).not.toHaveBeenCalledWith('sf_login', expect.anything());
+  const message = document.getElementById('login-modal-message');
+  expect(message.classList.contains('d-none')).toBe(false);
+  expect(message.textContent).toContain('Preferences');
+});
+
+test('OAuth login is refused for login and test URLs', () => {
+  sendPreferences(configuredOAuth);
+  expect(document.getElementById('login-trigger').disabled).toBe(false);
+
+  ['https://login.salesforce.com', 'https://test.salesforce.com', 'not-a-url'].forEach((url) => {
+    window.api.send.mockClear();
+    document.getElementById('login-url').value = url;
+    document.getElementById('login-trigger').click();
+
+    expect(window.api.send).not.toHaveBeenCalledWith('sf_login', expect.anything());
+    expect(document.getElementById('login-modal-message').textContent).toContain('My Domain');
+  });
+});
+
+test('isMyDomainUrl only accepts HTTPS My Domain URLs', () => {
+  const isMyDomainUrl = render.__get__('isMyDomainUrl');
+  expect(isMyDomainUrl('https://myco.my.salesforce.com')).toBe(true);
+  expect(isMyDomainUrl('https://myco--dev.sandbox.my.salesforce.com')).toBe(true);
+  expect(isMyDomainUrl('http://myco.my.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('https://login.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('https://test.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('')).toBe(false);
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('password login is not blocked by missing OAuth setup', () => {
+  sendPreferences({ clientId: '', hasClientSecret: false, callbackPort: 3835 });
+  const passwordRadio = document.getElementById('sfconnect-password');
+  passwordRadio.checked = true;
+  passwordRadio.dispatchEvent(new Event('change'));
+
+  expect(document.getElementById('login-trigger').disabled).toBe(false);
+  expect(document.getElementById('login-url').value).toBe('https://login.salesforce.com');
+
+  // Switching back to OAuth drops the login URL, since OAuth can't use it.
+  const oauthRadio = document.getElementById('sfconnect-oauth');
+  oauthRadio.checked = true;
+  oauthRadio.dispatchEvent(new Event('change'));
+  expect(document.getElementById('login-url').value).toBe('');
+  expect(document.getElementById('login-trigger').disabled).toBe(true);
+});
+
+test('opening the login window refreshes the OAuth setup status', () => {
+  window.api.send.mockClear();
+  document.getElementById('loginModal').dispatchEvent(new Event('show.bs.modal'));
+  expect(window.api.send).toHaveBeenCalledWith('get_preferences');
+});
+
+test('login modal notes that OAuth requires the My Domain URL', () => {
+  const note = document.getElementById('oauth-my-domain-note').textContent;
+  expect(note).toContain('My Domain');
+  expect(note).toContain('https://login.salesforce.com');
+  expect(note).toContain('https://test.salesforce.com');
+});
+
+test('Create New Connection is hidden while connected and restored on logout', () => {
+  const newConnection = document.getElementById('btn-new-connection');
+  getReceiveCallback('response_login')({
+    status: true,
+    message: 'Login Successful',
+    request: { mode: 'oauth' },
+    response: { organizationId: 'org1', username: 'user@example.com' },
+  });
+  expect(newConnection.style.display).toBe('none');
+
+  document.getElementById('logout-trigger').click();
+  expect(newConnection.style.display).toBe('');
+  expect(window.api.send).toHaveBeenCalledWith('sf_logout', {});
 });
 
 // DEPRECATED(password-login): remove this test when #290 is done.

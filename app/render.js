@@ -45,21 +45,11 @@ $.when($.ready).then(() => {
     }
   });
 
-  // Setup login radio behaviors.
-  // DEPRECATED(password-login): remove the radio toggle when #290 is done and
-  // always show the OAuth details.
+  // Show the OAuth login details by default.
+  // DEPRECATED(password-login): remove the password wrapper toggle when #290 is
+  // done and always show the OAuth details.
   $('#login-password-wrapper').hide();
   $('#login-oauth-wrapper').show();
-  $('input[type=radio][name=sfconnect-radio-selectors]').on('change', (event) => {
-    $('#login-modal-message').addClass('d-none').text('');
-    if ($(event.target).val() === 'oauth') {
-      $('#login-password-wrapper').hide();
-      $('#login-oauth-wrapper').show();
-    } else {
-      $('#login-password-wrapper').show();
-      $('#login-oauth-wrapper').hide();
-    }
-  });
 
   // Setup Object Select All
   $('#btn-select-all-objects').on('click', (event) => {
@@ -411,11 +401,83 @@ document.getElementsByName('db-radio-selectors').forEach((el) => {
  * Handles interface adjustments after login is complete.
  * @param {*} responseData The data sent from the main process.
  */
+// True once the External Client App client ID and secret are saved.
+let oauthConfigured = false;
+
+/**
+ * Checks that a URL is an HTTPS Salesforce My Domain login URL, which OAuth
+ * with External Client Apps requires.
+ * @param {string} url The login URL entered by the user.
+ * @returns {boolean} True for a My Domain URL.
+ */
+const isMyDomainUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.my.salesforce.com');
+  } catch (err) {
+    return false;
+  }
+};
+
+/**
+ * Shows a warning inside the login window.
+ * @param {string} message The text to show.
+ */
+const showLoginModalMessage = (message) => {
+  $('#login-modal-message').removeClass('d-none').text(message);
+};
+
+/**
+ * Updates the OAuth setup status, and disables Connect while OAuth is selected
+ * but not yet set up.
+ */
+const updateLoginControls = () => {
+  const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  const isOAuth = !modeRadio || modeRadio.value === 'oauth';
+
+  replaceText('oauth-config-status', oauthConfigured
+    ? 'OAuth client credentials are configured and ready to use.'
+    : 'OAuth is not set up. Enter the External Client App client ID and secret in Preferences before connecting.');
+  $('#login-trigger').prop('disabled', isOAuth && !oauthConfigured);
+};
+
+// Setup login radio behaviors.
+// DEPRECATED(password-login): remove the radio toggle when #290 is done.
+document.getElementsByName('sfconnect-radio-selectors').forEach((el) => {
+  el.addEventListener('change', (event) => {
+    $('#login-modal-message').addClass('d-none').text('');
+    const urlField = document.getElementById('login-url');
+    if (event.target.value === 'oauth') {
+      $('#login-password-wrapper').hide();
+      $('#login-oauth-wrapper').show();
+      // login/test URLs don't work with OAuth, so don't carry them over.
+      if (!isMyDomainUrl(urlField.value)) {
+        urlField.value = '';
+      }
+    } else {
+      $('#login-password-wrapper').show();
+      $('#login-oauth-wrapper').hide();
+      if (urlField.value.trim() === '') {
+        urlField.value = 'https://login.salesforce.com';
+      }
+    }
+    updateLoginControls();
+  });
+});
+
+// Refresh the OAuth setup status each time the login window opens, in case
+// Preferences changed since the last check.
+document.getElementById('loginModal').addEventListener('show.bs.modal', () => {
+  window.api.send('get_preferences');
+});
+
 const handleLogin = (responseData) => {
   const activeUser = responseData.request?.username || responseData.response?.username || 'Authenticated User';
 
-  // Shuffle what's shown.
+  // Shuffle what's shown. Only one connection is allowed at a time, so hide
+  // the new connection button until the user logs out.
   document.getElementById('org-status').style.display = 'block';
+  document.getElementById('btn-new-connection').style.display = 'none';
   replaceText('active-org-user', activeUser);
   replaceText('active-org-id', responseData.response.organizationId || 'Connected');
   replaceText('login-response-message', responseData.message);
@@ -676,14 +738,29 @@ document.getElementById('login-trigger').addEventListener('click', () => {
   // DEPRECATED(password-login): when #290 is done, always use 'oauth' and drop the
   // username, password, and token fields from the payload.
   const mode = modeRadio ? modeRadio.value : 'oauth';
+  const url = document.getElementById('login-url').value.trim();
   $('#login-modal-message').addClass('d-none').text('');
+
+  // Refuse to start OAuth until the External Client App is set up and a My
+  // Domain URL is entered.
+  if (mode === 'oauth') {
+    if (!oauthConfigured) {
+      showLoginModalMessage('OAuth is not set up yet. Enter your External Client App client ID and secret in Preferences, then try again.');
+      return;
+    }
+    if (!isMyDomainUrl(url)) {
+      showLoginModalMessage('OAuth requires your My Domain URL, for example https://yourcompany.my.salesforce.com. https://login.salesforce.com and https://test.salesforce.com can\'t be used with OAuth and External Client Apps.');
+      return;
+    }
+  }
+
   showLoader(mode === 'oauth' ? 'Waiting for browser sign-in…' : 'Attempting Login');
   window.api.send('sf_login', {
     mode,
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,
-    url: document.getElementById('login-url').value,
+    url,
   });
 });
 
@@ -691,6 +768,7 @@ document.getElementById('login-trigger').addEventListener('click', () => {
 document.getElementById('logout-trigger').addEventListener('click', () => {
   window.api.send('sf_logout', {});
   document.getElementById('org-status').style.display = 'none';
+  document.getElementById('btn-new-connection').style.display = '';
   replaceText('active-org-user', '');
   replaceText('active-org-id', '');
   replaceText('login-response-message', '');
@@ -864,12 +942,8 @@ window.api.receive('current_preferences', (data) => {
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
 
-  const oauthStatus = document.getElementById('oauth-config-status');
-  if (oauthStatus) {
-    oauthStatus.innerText = data.oauth?.hasClientSecret
-      ? 'OAuth client credentials are configured and ready to use.'
-      : 'Set the OAuth client ID and secret in Preferences before connecting.';
-  }
+  oauthConfigured = Boolean(data.oauth?.clientId && data.oauth?.hasClientSecret);
+  updateLoginControls();
 });
 
 // Start the find process by activating the controls and scrolling there.
