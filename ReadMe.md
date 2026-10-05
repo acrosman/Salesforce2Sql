@@ -47,18 +47,17 @@ Salesforce2Sql connects to Salesforce with OAuth. Sign-in happens in your defaul
 1. In Salesforce, go to **Setup → App Manager** (use Quick Find if needed).
 2. Click **New External Client App**.
 3. Enter a **Name**, accept or edit the generated **API Name**, and enter a **Contact Email**.
-4. Save the app, then edit it and enable **OAuth**.
+4. Under API check the box to **Enable OAuth**.
 5. Set the **Callback URL** to `http://localhost:3835/callback`. If you change the callback port in Salesforce2Sql Preferences, use that port here instead.
 6. Add these **OAuth Scopes**:
    - **Manage user data via APIs (api)**
    - **Access the identity URL service (id, profile, email, address, phone)**
    - **Perform requests at any time (refresh_token, offline_access)**
-7. Leave **Require Proof Key for Code Exchange (PKCE)** enabled. Salesforce2Sql uses PKCE.
-8. Save. Copy the **Consumer Key** and **Consumer Secret** from the OAuth settings.
+7. Click Create, and then view the app's details.
+8. Open the settings tab, expand OAuth settings, and click the Consumer Key and Secret button.
+9. Save the **Consumer Key** and **Consumer Secret** from the OAuth settings to Salesforce2Sql settings (or a temporary location).
 
 For full details see the Salesforce Help article [Create an External Client App](https://help.salesforce.com/s/articleView?id=xcloud.create_a_local_external_client_app.htm&type=5).
-
-Salesforce2Sql uses the same default callback URL as [ElectronForce](https://github.com/acrosman/electronForce), so one External Client App can serve both tools.
 
 ### Configure Salesforce2Sql
 
@@ -67,6 +66,7 @@ Salesforce2Sql uses the same default callback URL as [ElectronForce](https://git
 3. Paste in the **Consumer Key** as the **OAuth Client ID**, and the **Consumer Secret** as the **OAuth Client Secret**.
 4. Optionally change the **OAuth Callback Port** (default `3835`). It must match the port in the External Client App's Callback URL.
 5. Save your changes.
+6. Delete any other local copy of the OAuth keys.
 
 The client ID and secret are stored encrypted. If your system doesn't support encrypted storage, they are kept only for the current session and must be re-entered after a restart.
 
@@ -74,10 +74,7 @@ The client ID and secret are stored encrypted. If your system doesn't support en
 
 1. Click **Create New Connection**.
 2. Leave **OAuth2** selected.
-3. Set the **Login URL**:
-   - Production and Trailhead orgs: `https://login.salesforce.com`
-   - Sandboxes: `https://test.salesforce.com`
-   - **Single sign-on (SSO):** use your org's [My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL, for example `https://yourcompany.my.salesforce.com` or `https://yourcompany--sandboxname.sandbox.my.salesforce.com`. Your identity provider's login button only appears on the My Domain login page.
+3. Set the **Login URL**: Use your org's [My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL, for example `https://yourcompany.my.salesforce.com` or `https://yourcompany--sandboxname.sandbox.my.salesforce.com`.
 4. Click **Connect**, then sign in and approve access in the browser window that opens.
 5. When the browser shows "Authentication successful", close the tab and return to Salesforce2Sql.
 
