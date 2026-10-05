@@ -52,8 +52,8 @@
                         <p class="card-text">
                             Create a SQL-based database from a Salesforce Org's schema.
                         </p>
-                        <button type="button" id="btn-new-connection" class="btn btn-info btn-lg"
-                            data-bs-toggle="modal" data-bs-target="#loginModal">Create New Connection</button>
+                        <button type="button" id="btn-new-connection" class="btn btn-info btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#loginModal">Create New Connection</button>
                     </div>
                     <div class="card-footer" id="org-status">
                         <p class="mb-1">Connected User: <span id="active-org-user"></span></p>
@@ -90,7 +90,8 @@
                                             </div>
                                         </div>
                                         <div class="form-group">
-                                            <label for="login-url">Login URL</label>
+                                            <label for="login-url">Login URL (use my domain for OAuth
+                                                connections):</label>
                                             <input type="url" id="login-url" class="form-control"
                                                 placeholder="https://yourcompany.my.salesforce.com">
                                         </div>
@@ -99,12 +100,10 @@
                                                 Preferences.</p>
                                             <p class="mb-2 fw-bold" id="oauth-config-status">Set the OAuth client ID and
                                                 secret in Preferences before connecting.</p>
-                                            <p class="mb-0" id="oauth-my-domain-note"><strong>Always use your My Domain
-                                                    URL.</strong> <code>https://login.salesforce.com</code> and
-                                                <code>https://test.salesforce.com</code> can't be used with OAuth and
-                                                External Client Apps. Enter your org's My Domain, for example
-                                                <code>https://yourcompany.my.salesforce.com</code>. My Domain login also
-                                                supports single sign-on (SSO).</p>
+                                            <p class="mb-0" id="oauth-my-domain-note">Always use your My Domain
+                                                URL, for example <code>https://yourcompany.my.salesforce.com</code>. My
+                                                Domain login also supports single sign-on (SSO).
+                                            </p>
                                         </div>
                                         <div class="alert alert-warning d-none" id="login-modal-message"></div>
                                         <!-- DEPRECATED(password-login): remove this wrapper and its fields when #290 is done. -->
@@ -120,8 +119,7 @@
                                                     aria-describedby="usernameHelp"
                                                     placeholder="Enter Salesforce Username">
                                                 <small id="usernameHelp" class="form-text">Your Salesforce username must
-                                                    be
-                                                    in the form of an email address.</small>
+                                                    be in the form of an email address.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label for="login-password">Password</label>
@@ -132,8 +130,7 @@
                                                 <input type="password" class="form-control" aria-describedby="tokenHelp"
                                                     id="login-token">
                                                 <small id="tokenHelp" class="form-text">Likely you will need your
-                                                    Salesforce
-                                                    Security token. If you do not have it follow <a
+                                                    Salesforce Security token. If you do not have it follow <a
                                                         href='https://help.salesforce.com/articleView?id=user_security_token.htm&type=5'>these
                                                         reset instructions.</a></small>
                                             </div>

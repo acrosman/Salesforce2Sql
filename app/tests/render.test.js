@@ -357,13 +357,6 @@ test('opening the login window refreshes the OAuth setup status', () => {
   expect(window.api.send).toHaveBeenCalledWith('get_preferences');
 });
 
-test('login modal notes that OAuth requires the My Domain URL', () => {
-  const note = document.getElementById('oauth-my-domain-note').textContent;
-  expect(note).toContain('My Domain');
-  expect(note).toContain('https://login.salesforce.com');
-  expect(note).toContain('https://test.salesforce.com');
-});
-
 test('Create New Connection is hidden while connected and restored on logout', () => {
   const newConnection = document.getElementById('btn-new-connection');
   getReceiveCallback('response_login')({
