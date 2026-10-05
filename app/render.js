@@ -45,13 +45,19 @@ $.when($.ready).then(() => {
     }
   });
 
+  // Show the OAuth login details by default.
+  // DEPRECATED(password-login): remove the password wrapper toggle when #290 is
+  // done and always show the OAuth details.
+  $('#login-password-wrapper').hide();
+  $('#login-oauth-wrapper').show();
+
   // Setup Object Select All
   $('#btn-select-all-objects').on('click', (event) => {
     event.preventDefault();
     $('#results-table input[type=checkbox]').prop('checked', true);
   });
 
-  // Setup Object Select All
+  // Setup Object Deselect All
   $('#btn-deselect-all-objects').on('click', (event) => {
     event.preventDefault();
     $('#results-table input[type=checkbox]').prop('checked', false);
@@ -152,6 +158,15 @@ function logMessage(context, importance, message, data) {
  * @returns User name for requested org
  */
 function fetchOrgUser(orgId) {
+  const activeUser = document.getElementById('active-org-user');
+  const activeUserText = activeUser
+    ? (activeUser.innerText || activeUser.textContent || '')
+    : '';
+
+  if (activeUserText.trim() !== '') {
+    return activeUserText;
+  }
+
   const orgRecord = document.getElementById(`sforg-${orgId}`);
   if (orgRecord === null) {
     return '';
@@ -386,17 +401,97 @@ document.getElementsByName('db-radio-selectors').forEach((el) => {
  * Handles interface adjustments after login is complete.
  * @param {*} responseData The data sent from the main process.
  */
-const handleLogin = (responseData) => {
-  // Add the new connection to the list of options.
-  const opt = document.createElement('option');
-  opt.value = responseData.response.organizationId;
-  opt.innerHTML = responseData.request.username;
-  opt.id = `sforg-${opt.value}`;
-  document.getElementById('active-org').appendChild(opt);
+// True once the External Client App client ID and secret are saved.
+let oauthConfigured = false;
 
-  // Shuffle what's shown.
+/**
+ * Checks that a URL is an HTTPS Salesforce My Domain login URL, which OAuth
+ * with External Client Apps requires.
+ * @param {string} url The login URL entered by the user.
+ * @returns {boolean} True for a My Domain URL.
+ */
+const isMyDomainUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.my.salesforce.com');
+  } catch (err) {
+    return false;
+  }
+};
+
+/**
+ * Shows a warning inside the login window.
+ * @param {string} message The text to show.
+ */
+const showLoginModalMessage = (message) => {
+  $('#login-modal-message').removeClass('d-none').text(message);
+};
+
+/**
+ * Updates the OAuth setup status, and disables Connect while OAuth is selected
+ * but not yet set up.
+ */
+const updateLoginControls = () => {
+  const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  const isOAuth = !modeRadio || modeRadio.value === 'oauth';
+
+  replaceText('oauth-config-status', oauthConfigured
+    ? 'OAuth client credentials are configured and ready to use.'
+    : 'OAuth is not set up. Enter the External Client App client ID and secret in Preferences before connecting.');
+
+  // Show missing setup as an error, not plain status text.
+  const status = document.getElementById('oauth-config-status');
+  if (status) {
+    status.classList.toggle('alert', !oauthConfigured);
+    status.classList.toggle('alert-danger', !oauthConfigured);
+    if (oauthConfigured) {
+      status.removeAttribute('role');
+    } else {
+      status.setAttribute('role', 'alert');
+    }
+  }
+  $('#login-trigger').prop('disabled', isOAuth && !oauthConfigured);
+};
+
+// Setup login radio behaviors.
+// DEPRECATED(password-login): remove the radio toggle when #290 is done.
+document.getElementsByName('sfconnect-radio-selectors').forEach((el) => {
+  el.addEventListener('change', (event) => {
+    $('#login-modal-message').addClass('d-none').text('');
+    const urlField = document.getElementById('login-url');
+    if (event.target.value === 'oauth') {
+      $('#login-password-wrapper').hide();
+      $('#login-oauth-wrapper').show();
+      // login/test URLs don't work with OAuth, so don't carry them over.
+      if (!isMyDomainUrl(urlField.value)) {
+        urlField.value = '';
+      }
+    } else {
+      $('#login-password-wrapper').show();
+      $('#login-oauth-wrapper').hide();
+      if (urlField.value.trim() === '') {
+        urlField.value = 'https://login.salesforce.com';
+      }
+    }
+    updateLoginControls();
+  });
+});
+
+// Refresh the OAuth setup status each time the login window opens, in case
+// Preferences changed since the last check.
+document.getElementById('loginModal').addEventListener('show.bs.modal', () => {
+  window.api.send('get_preferences');
+});
+
+const handleLogin = (responseData) => {
+  const activeUser = responseData.request?.username || responseData.response?.username || 'Authenticated User';
+
+  // Shuffle what's shown. Only one connection is allowed at a time, so hide
+  // the new connection button until the user logs out.
   document.getElementById('org-status').style.display = 'block';
-  replaceText('active-org-id', responseData.response.organizationId);
+  document.getElementById('btn-new-connection').style.display = 'none';
+  replaceText('active-org-user', activeUser);
+  replaceText('active-org-id', responseData.response.organizationId || 'Connected');
   replaceText('login-response-message', responseData.message);
 
   // Enable the button to fetch object list.
@@ -651,37 +746,52 @@ const updateSqlite3Path = (filePath) => {
 // ========= Messages to the main process ===============
 // Login
 document.getElementById('login-trigger').addEventListener('click', () => {
-  showLoader('Attempting Login');
+  const modeRadio = document.querySelector('input[type=radio][name="sfconnect-radio-selectors"]:checked');
+  // DEPRECATED(password-login): when #290 is done, always use 'oauth' and drop the
+  // username, password, and token fields from the payload.
+  const mode = modeRadio ? modeRadio.value : 'oauth';
+  const url = document.getElementById('login-url').value.trim();
+  $('#login-modal-message').addClass('d-none').text('');
+
+  // Refuse to start OAuth until the External Client App is set up and a My
+  // Domain URL is entered.
+  if (mode === 'oauth') {
+    if (!oauthConfigured) {
+      showLoginModalMessage('OAuth is not set up yet. Enter your External Client App client ID and secret in Preferences, then try again.');
+      return;
+    }
+    if (!isMyDomainUrl(url)) {
+      showLoginModalMessage('OAuth requires your My Domain URL, for example https://yourcompany.my.salesforce.com. https://login.salesforce.com and https://test.salesforce.com can\'t be used with OAuth and External Client Apps.');
+      return;
+    }
+  }
+
+  showLoader(mode === 'oauth' ? 'Waiting for browser sign-in…' : 'Attempting Login');
   window.api.send('sf_login', {
+    mode,
     username: document.getElementById('login-username').value,
     password: document.getElementById('login-password').value,
     token: document.getElementById('login-token').value,
-    url: document.getElementById('login-url').value,
+    url,
   });
 });
 
 // Logout
 document.getElementById('logout-trigger').addEventListener('click', () => {
-  const { value } = document.getElementById('active-org');
-  window.api.send('sf_logout', {
-    org: value,
-  });
-  // Remove from interface:
-  const selectObject = document.getElementById('active-org');
-  for (let i = 0; i < selectObject.length; i += 1) {
-    if (selectObject.options[i].value === value) {
-      selectObject.remove(i);
-    }
-  }
+  window.api.send('sf_logout', {});
   document.getElementById('org-status').style.display = 'none';
+  document.getElementById('btn-new-connection').style.display = '';
+  replaceText('active-org-user', '');
+  replaceText('active-org-id', '');
+  replaceText('login-response-message', '');
+  $('#btn-fetch-objects').prop('disabled', true);
+  $('#btn-fetch-details').prop('disabled', true);
 });
 
 // Fetch Org Objects
 document.getElementById('btn-fetch-objects').addEventListener('click', () => {
   showLoader('Loading Object List');
-  window.api.send('sf_describeGlobal', {
-    org: document.getElementById('active-org').value,
-  });
+  window.api.send('sf_describeGlobal', {});
 });
 
 // Fetch Object Field lists
@@ -693,7 +803,6 @@ document.getElementById('btn-fetch-details').addEventListener('click', () => {
   }
   showLoader('Loading Object Fields');
   window.api.send('sf_getObjectFields', {
-    org: document.getElementById('active-org').value,
     objects: selectedObjects,
   });
 });
@@ -767,21 +876,32 @@ document.getElementById('btn-sqlite3-file').addEventListener('click', () => {
 // Login response.
 window.api.receive('response_login', (data) => {
   hideLoader();
+  replaceText('login-response-message', data.message);
+
   if (data.status) {
     logMessage('Salesforce', 'Success', data.message, data.response);
     updateMessage('Login Successful');
     handleLogin(data, data.status);
+
+    if (window.bootstrap && window.bootstrap.Modal) {
+      const modalElement = document.getElementById('loginModal');
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+      modal.hide();
+    }
   } else {
     logMessage('Salesforce', 'Error', data.message, data.response);
     displayRawResponse(data);
     updateMessage('Login Error');
+    $('#login-modal-message').removeClass('d-none').text(data.response || data.message);
   }
 });
 
 // Logout Response.
 window.api.receive('response_logout', (data) => {
+  hideLoader();
   logMessage('Salesforce', 'Info', 'Log out complete', data);
   updateMessage('Salesforce connection removed.');
+  document.getElementById('org-status').style.display = 'none';
 });
 
 // Generic Response.
@@ -833,6 +953,9 @@ window.api.receive('current_preferences', (data) => {
   // Update the theme:
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
+
+  oauthConfigured = Boolean(data.oauth?.hasCredentials);
+  updateLoginControls();
 });
 
 // Start the find process by activating the controls and scrolling there.

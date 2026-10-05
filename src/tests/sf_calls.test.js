@@ -1,6 +1,7 @@
 const fs = require('fs');
 const electron = require('electron');
 const jsforce = require('jsforce');
+const oauth = require('../sf_oauth');
 
 // The actual module we're testing.
 const sfcalls = require('../sf_calls');
@@ -33,7 +34,7 @@ test('Validate exports', () => {
 // Several are assumed and leveraged in later tests.
 test('Validate existence of assumed internals', () => {
   // Checking the existing of the four main variables.
-  expect(sfcalls.__get__('sfConnections')).toStrictEqual({});
+  expect(sfcalls.__get__('activeConnection')).toBe(null);
   expect(sfcalls.__get__('proposedSchema')).toStrictEqual({});
   expect(sfcalls.__get__('mainWindow')).toBe(null);
   expect(sfcalls.__get__('preferences')).toBe(null);
@@ -588,12 +589,14 @@ test('Test loadSchemaFromFile logs error when file contains invalid JSON', async
   expect(responseSchemaCalls).toHaveLength(0);
 });
 
+// DEPRECATED(password-login): remove or convert to OAuth when #290 is done.
 test('Test sf_login success path', async () => {
   jest.clearAllMocks();
   sfcalls.setwindow(electron.mainWindow);
 
   const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
   const mockArgs = {
+    mode: 'password',
     url: 'https://test.salesforce.com',
     username: 'test@test.com',
     password: 'testpassword',
@@ -610,14 +613,14 @@ test('Test sf_login success path', async () => {
       message: 'Login Successful',
     }),
   );
-  // Password and token must be cleared before sending back to the renderer.
-  expect(mockArgs.password).toBe('');
-  expect(mockArgs.token).toBe('');
+  expect(sfcalls.__get__('activeConnection')).not.toBeNull();
 });
 
+// DEPRECATED(password-login): remove or convert to OAuth when #290 is done.
 test('Test sf_login auth failure path', async () => {
   jest.clearAllMocks();
   jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
     login: jest.fn().mockRejectedValue(new Error('INVALID_LOGIN: Invalid username, password, security token')),
     limitInfo: {},
   }));
@@ -625,6 +628,7 @@ test('Test sf_login auth failure path', async () => {
 
   const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
   const mockArgs = {
+    mode: 'password',
     url: 'https://test.salesforce.com',
     username: 'wrong@test.com',
     password: 'wrongpassword',
@@ -643,19 +647,200 @@ test('Test sf_login auth failure path', async () => {
   );
 });
 
-test('Test sf_logout success path', async () => {
+test('Test sf_login oauth failure path returns renderer error instead of unhandled rejection', async () => {
   jest.clearAllMocks();
-  sfcalls.__set__('sfConnections', {
-    testOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
+  const mockAttemptLogin = jest.spyOn(oauth, 'attemptLogin')
+    .mockRejectedValue(new Error('Missing OAuth credentials. Both Client ID and Client Secret are required.'));
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {
+    mode: 'oauth',
+    url: 'https://login.salesforce.com',
+  };
+
+  sfcalls.handlers.sf_login(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(mockAttemptLogin).toHaveBeenCalledWith('https://login.salesforce.com');
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: false,
+      message: 'Login Failed',
+    }),
+  );
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('Test sf_login password path trims the token but not the password', async () => {
+  jest.clearAllMocks();
+  const mockLogin = jest.fn().mockResolvedValue({ organizationId: 'testOrgId', id: 'testUserId' });
+  jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
+    login: mockLogin,
+    limitInfo: {},
+  }));
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  sfcalls.handlers.sf_login(mockEvent, {
+    mode: 'password',
+    url: 'https://test.salesforce.com',
+    username: 'test@test.com',
+    password: ' pass word ',
+    token: '  tok123 ',
+  });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(mockLogin).toHaveBeenCalledWith('test@test.com', ' pass word tok123');
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('Test sf_login password path logs a deprecation warning', async () => {
+  jest.clearAllMocks();
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  sfcalls.handlers.sf_login(mockEvent, {
+    mode: 'password',
+    url: 'https://test.salesforce.com',
+    username: 'test@test.com',
+    password: 'testpassword',
+    token: '',
+  });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      channel: 'Warn',
+      message: expect.stringContaining('deprecated'),
+    }),
+  );
+});
+
+test('Test sf_login oauth success stores refreshable connection and username', async () => {
+  jest.clearAllMocks();
+  const oauth2Config = {
+    loginUrl: 'https://login.salesforce.com',
+    clientId: 'cid',
+    clientSecret: 'secret',
+    redirectUri: 'http://localhost:3835/callback',
+  };
+  const mockAttemptLogin = jest.spyOn(oauth, 'attemptLogin').mockResolvedValue({
+    conn: {
+      instanceUrl: 'https://na1.salesforce.com',
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      limitInfo: {},
     },
+    userInfo: { id: '005xx', organizationId: '00Dxx', username: 'oauth.user@example.com' },
+    oauth2Config,
   });
   sfcalls.setwindow(electron.mainWindow);
 
   const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
-  const mockArgs = { org: 'testOrgId' };
+  sfcalls.handlers.sf_login(mockEvent, { mode: 'oauth', url: 'https://login.salesforce.com' });
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  const stored = sfcalls.__get__('activeConnection');
+  expect(stored.mode).toBe('oauth');
+  expect(stored.refreshToken).toBe('refresh');
+  expect(stored.oauth2Config).toEqual(oauth2Config);
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'response_login',
+    expect.objectContaining({
+      status: true,
+      response: expect.objectContaining({ username: 'oauth.user@example.com' }),
+    }),
+  );
+
+  // Rebuilt connections carry the OAuth client config so jsforce can refresh.
+  jsforce.Connection.mockClear();
+  sfcalls.__get__('getActiveSalesforceConnection')();
+  expect(jsforce.Connection).toHaveBeenCalledWith(expect.objectContaining({
+    loginUrl: 'https://login.salesforce.com',
+    oauth2: oauth2Config,
+    refreshToken: 'refresh',
+  }));
+  mockAttemptLogin.mockRestore();
+});
+
+test('Test getActiveSalesforceConnection omits refresh token without OAuth config', () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('activeConnection', {
+    mode: 'password',
+    loginUrl: 'https://test.salesforce.com',
+    instanceUrl: 'https://na1.salesforce.com',
+    accessToken: 'session',
+    refreshToken: 'should-not-be-used',
+    version: '63.0',
+  });
+
+  sfcalls.__get__('getActiveSalesforceConnection')();
+
+  const connConfig = jsforce.Connection.mock.calls[0][0];
+  expect(connConfig.refreshToken).toBeUndefined();
+  expect(connConfig.oauth2).toBeUndefined();
+});
+
+test('Test getActiveSalesforceConnection keeps refreshed access token', () => {
+  jest.clearAllMocks();
+  const mockOn = jest.fn();
+  jsforce.Connection.mockImplementationOnce(() => ({ on: mockOn }));
+  sfcalls.__set__('activeConnection', {
+    mode: 'oauth',
+    instanceUrl: 'https://na1.salesforce.com',
+    accessToken: 'old-token',
+    refreshToken: 'refresh',
+    oauth2Config: { clientId: 'cid' },
+    version: '63.0',
+  });
+
+  sfcalls.__get__('getActiveSalesforceConnection')();
+  const refreshHandler = mockOn.mock.calls.find((c) => c[0] === 'refresh')[1];
+  refreshHandler('new-token');
+
+  expect(sfcalls.__get__('activeConnection').accessToken).toBe('new-token');
+});
+
+test('Test sf_logout revokes the refresh token for OAuth sessions', async () => {
+  jest.clearAllMocks();
+  const mockLogout = jest.fn().mockResolvedValue({});
+  jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
+    logout: mockLogout,
+    limitInfo: {},
+  }));
+  sfcalls.__set__('activeConnection', {
+    mode: 'oauth',
+    instanceUrl: 'https://na1.salesforce.com',
+    accessToken: 'access',
+    refreshToken: 'refresh',
+    oauth2Config: { clientId: 'cid' },
+    version: '63.0',
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  sfcalls.handlers.sf_logout({ sender: { getTitle: jest.fn() } }, {});
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(mockLogout).toHaveBeenCalledWith(true);
+  expect(sfcalls.__get__('activeConnection')).toBeNull();
+});
+
+test('Test sf_logout success path', async () => {
+  jest.clearAllMocks();
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
+  });
+  sfcalls.setwindow(electron.mainWindow);
+
+  const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
+  const mockArgs = {};
 
   sfcalls.handlers.sf_logout(mockEvent, mockArgs);
   await new Promise((resolve) => { process.nextTick(resolve); });
@@ -667,28 +852,28 @@ test('Test sf_logout success path', async () => {
       message: 'Logout Successful',
     }),
   );
-  expect(sfcalls.__get__('sfConnections').testOrgId).toBeNull();
+  expect(sfcalls.__get__('activeConnection')).toBeNull();
 });
 
-test('Test sf_logout error path', () => {
+test('Test sf_logout error path', async () => {
   jest.clearAllMocks();
   jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
     logout: { then: (_onFulfilled, onRejected) => onRejected(new Error('Logout requested for unknown user')) },
     limitInfo: {},
   }));
-  sfcalls.__set__('sfConnections', {
-    errorOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
-    },
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
   });
   sfcalls.setwindow(electron.mainWindow);
 
   const mockEvent = { sender: { getTitle: jest.fn().mockReturnValue('Test Window') } };
-  const mockArgs = { org: 'errorOrgId' };
+  const mockArgs = {};
 
   sfcalls.handlers.sf_logout(mockEvent, mockArgs);
+  await new Promise((resolve) => { process.nextTick(resolve); });
 
   expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
     'response_logout',
@@ -701,18 +886,16 @@ test('Test sf_logout error path', () => {
 
 test('Test sf_describeGlobal success path', async () => {
   jest.clearAllMocks();
-  sfcalls.__set__('sfConnections', {
-    testOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
-    },
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
   });
   sfcalls.setwindow(electron.mainWindow);
   sfcalls.setPreferences(samplePrefs);
 
   const mockEvent = { sender: electron.mainWindow.webContents };
-  const mockArgs = { org: 'testOrgId' };
+  const mockArgs = {};
 
   sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
   await new Promise((resolve) => { process.nextTick(resolve); });
@@ -733,20 +916,19 @@ test('Test sf_describeGlobal success path', async () => {
 test('Test sf_describeGlobal error path', async () => {
   jest.clearAllMocks();
   jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
     describeGlobal: jest.fn().mockRejectedValue(new Error('Connection timed out')),
     limitInfo: {},
   }));
-  sfcalls.__set__('sfConnections', {
-    errorOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
-    },
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
   });
   sfcalls.setwindow(electron.mainWindow);
 
   const mockEvent = { sender: electron.mainWindow.webContents };
-  const mockArgs = { org: 'errorOrgId' };
+  const mockArgs = {};
 
   sfcalls.handlers.sf_describeGlobal(mockEvent, mockArgs);
   await new Promise((resolve) => { process.nextTick(resolve); });
@@ -790,23 +972,22 @@ test('Test sf_getObjectFields success path', async () => {
   ];
 
   jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
     sobject: jest.fn().mockReturnValue({
       describe: jest.fn().mockResolvedValue({ name: 'Account', fields: mockFields }),
     }),
     limitInfo: {},
   }));
-  sfcalls.__set__('sfConnections', {
-    testOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
-    },
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
   });
   sfcalls.setwindow(electron.mainWindow);
   sfcalls.setPreferences(samplePrefs);
 
   const mockEvent = { sender: electron.mainWindow.webContents };
-  const mockArgs = { org: 'testOrgId', objects: ['Account'] };
+  const mockArgs = { objects: ['Account'] };
 
   sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
   await new Promise((resolve) => { process.nextTick(resolve); });
@@ -833,23 +1014,22 @@ test('Test sf_getObjectFields success path', async () => {
 test('Test sf_getObjectFields error path', async () => {
   jest.clearAllMocks();
   jsforce.Connection.mockImplementationOnce(() => ({
+    on: jest.fn(),
     sobject: jest.fn().mockReturnValue({
       describe: jest.fn().mockRejectedValue(new Error('Object not found')),
     }),
     limitInfo: {},
   }));
-  sfcalls.__set__('sfConnections', {
-    testOrgId: {
-      instanceUrl: 'https://test.salesforce.com',
-      accessToken: 'testToken',
-      version: '63.0',
-    },
+  sfcalls.__set__('activeConnection', {
+    instanceUrl: 'https://test.salesforce.com',
+    accessToken: 'testToken',
+    version: '63.0',
   });
   sfcalls.setwindow(electron.mainWindow);
   sfcalls.setPreferences(samplePrefs);
 
   const mockEvent = { sender: electron.mainWindow.webContents };
-  const mockArgs = { org: 'testOrgId', objects: ['NonExistentObject__c'] };
+  const mockArgs = { objects: ['NonExistentObject__c'] };
 
   sfcalls.handlers.sf_getObjectFields(mockEvent, mockArgs);
   await new Promise((resolve) => { process.nextTick(resolve); });

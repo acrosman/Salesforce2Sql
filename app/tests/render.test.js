@@ -5,6 +5,9 @@
 
 beforeAll(() => {
   global.$ = require('../../node_modules/jquery/dist/jquery.min'); // eslint-disable-line
+  // jsdom never triggers jQuery's ready event, so fire it to run the
+  // document-ready setup in render.js.
+  global.$.ready();
   global.window = window;
   // Electron IPC Mock
   global.window.api = {
@@ -18,10 +21,13 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  jest.resetModules();
   // Load index.html since render.js assumes it's structures.
   const fs = require('fs');  // eslint-disable-line
   const indexHtml = fs.readFileSync('app/tests/minIndex.html');
   document.body.innerHTML = indexHtml.toString();
+  window.api.send.mockClear();
+  window.api.receive.mockClear();
   global.render = require('../render');  // eslint-disable-line
 });
 
@@ -145,20 +151,15 @@ test('fetchOrgUser returns empty string for an unknown org id', () => {
   expect(fetchOrgUser('unknown-org')).toEqual('');
 });
 
-test('fetchOrgUser returns the username text for a known org id', () => {
+test('fetchOrgUser returns the connected username when present', () => {
   const fetchOrgUser = render.__get__('fetchOrgUser');
-  const sel = document.getElementById('active-org');
-  const opt = document.createElement('option');
-  opt.value = 'abc123';
-  opt.text = 'user@example.com';
-  opt.id = 'sforg-abc123';
-  sel.appendChild(opt);
+  document.getElementById('active-org-user').innerText = 'user@example.com';
   expect(fetchOrgUser('abc123')).toEqual('user@example.com');
 });
 
 // ---- handleLogin ----
 
-test('handleLogin adds an option to the org dropdown, shows org-status, and enables fetch-objects', () => {
+test('handleLogin shows connection status and enables fetch-objects', () => {
   const handleLogin = render.__get__('handleLogin');
   const data = {
     message: 'Welcome',
@@ -167,9 +168,8 @@ test('handleLogin adds an option to the org dropdown, shows org-status, and enab
   };
   handleLogin(data);
 
-  const opt = document.getElementById('sforg-org001');
-  expect(opt).not.toBeNull();
-  expect(opt.value).toEqual('org001');
+  expect(document.getElementById('active-org-user').innerText).toEqual('admin@example.com');
+  expect(document.getElementById('active-org-id').innerText).toEqual('org001');
   expect(document.getElementById('org-status').style.display).toEqual('block');
   expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
 });
@@ -256,6 +256,174 @@ test('response_login success path updates login message and enables fetch-object
   });
   expect(document.getElementById('login-response-message').innerText).toEqual('Login successful');
   expect(document.getElementById('btn-fetch-objects').disabled).toBe(false);
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('login trigger sends the selected connection mode', () => {
+  document.getElementById('sfconnect-password').checked = true;
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).toHaveBeenCalledWith(
+    'sf_login',
+    expect.objectContaining({
+      mode: 'password',
+    }),
+  );
+});
+
+// Simulates the main process reporting the OAuth setup status.
+const sendPreferences = (oauth) => {
+  getReceiveCallback('current_preferences')({ theme: 'Cyborg', oauth });
+};
+const configuredOAuth = { hasCredentials: true, callbackPort: 3835 };
+
+test('OAuth login trigger waits for the browser sign-in', () => {
+  sendPreferences(configuredOAuth);
+  document.getElementById('login-url').value = 'https://myco.my.salesforce.com';
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).toHaveBeenCalledWith(
+    'sf_login',
+    expect.objectContaining({
+      mode: 'oauth',
+      url: 'https://myco.my.salesforce.com',
+    }),
+  );
+  expect(document.querySelector('#loader-indicator .loader-message').textContent)
+    .toEqual('Waiting for browser sign-in…');
+});
+
+test('OAuth login is refused until the External Client App is set up', () => {
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
+  expect(document.getElementById('login-trigger').disabled).toBe(true);
+  const status = document.getElementById('oauth-config-status');
+  expect(status.innerText).toContain('not set up');
+  expect(status.classList.contains('alert-danger')).toBe(true);
+  expect(status.getAttribute('role')).toBe('alert');
+
+  // The click handler also refuses, in case the button state is stale.
+  document.getElementById('login-trigger').disabled = false;
+  document.getElementById('login-url').value = 'https://myco.my.salesforce.com';
+  document.getElementById('login-trigger').click();
+
+  expect(window.api.send).not.toHaveBeenCalledWith('sf_login', expect.anything());
+  const message = document.getElementById('login-modal-message');
+  expect(message.classList.contains('d-none')).toBe(false);
+  expect(message.textContent).toContain('Preferences');
+});
+
+test('OAuth setup status returns to plain text once credentials are saved', () => {
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
+  sendPreferences(configuredOAuth);
+
+  const status = document.getElementById('oauth-config-status');
+  expect(status.innerText).toContain('ready to use');
+  expect(status.classList.contains('alert')).toBe(false);
+  expect(status.classList.contains('alert-danger')).toBe(false);
+  expect(status.hasAttribute('role')).toBe(false);
+});
+
+test('OAuth login is refused for login and test URLs', () => {
+  sendPreferences(configuredOAuth);
+  expect(document.getElementById('login-trigger').disabled).toBe(false);
+
+  ['https://login.salesforce.com', 'https://test.salesforce.com', 'not-a-url'].forEach((url) => {
+    window.api.send.mockClear();
+    document.getElementById('login-url').value = url;
+    document.getElementById('login-trigger').click();
+
+    expect(window.api.send).not.toHaveBeenCalledWith('sf_login', expect.anything());
+    expect(document.getElementById('login-modal-message').textContent).toContain('My Domain');
+  });
+});
+
+test('isMyDomainUrl only accepts HTTPS My Domain URLs', () => {
+  const isMyDomainUrl = render.__get__('isMyDomainUrl');
+  expect(isMyDomainUrl('https://myco.my.salesforce.com')).toBe(true);
+  expect(isMyDomainUrl('https://myco--dev.sandbox.my.salesforce.com')).toBe(true);
+  expect(isMyDomainUrl('http://myco.my.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('https://login.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('https://test.salesforce.com')).toBe(false);
+  expect(isMyDomainUrl('')).toBe(false);
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('password login is not blocked by missing OAuth setup', () => {
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
+  const passwordRadio = document.getElementById('sfconnect-password');
+  passwordRadio.checked = true;
+  passwordRadio.dispatchEvent(new Event('change'));
+
+  expect(document.getElementById('login-trigger').disabled).toBe(false);
+  expect(document.getElementById('login-url').value).toBe('https://login.salesforce.com');
+
+  // Switching back to OAuth drops the login URL, since OAuth can't use it.
+  const oauthRadio = document.getElementById('sfconnect-oauth');
+  oauthRadio.checked = true;
+  oauthRadio.dispatchEvent(new Event('change'));
+  expect(document.getElementById('login-url').value).toBe('');
+  expect(document.getElementById('login-trigger').disabled).toBe(true);
+});
+
+test('opening the login window refreshes the OAuth setup status', () => {
+  window.api.send.mockClear();
+  document.getElementById('loginModal').dispatchEvent(new Event('show.bs.modal'));
+  expect(window.api.send).toHaveBeenCalledWith('get_preferences');
+});
+
+test('Create New Connection is hidden while connected and restored on logout', () => {
+  const newConnection = document.getElementById('btn-new-connection');
+  getReceiveCallback('response_login')({
+    status: true,
+    message: 'Login Successful',
+    request: { mode: 'oauth' },
+    response: { organizationId: 'org1', username: 'user@example.com' },
+  });
+  expect(newConnection.style.display).toBe('none');
+
+  document.getElementById('logout-trigger').click();
+  expect(newConnection.style.display).toBe('');
+  expect(window.api.send).toHaveBeenCalledWith('sf_logout', {});
+});
+
+// DEPRECATED(password-login): remove this test when #290 is done.
+test('Username/Password option is labeled deprecated with a warning', () => {
+  expect(document.querySelector('label[for=sfconnect-password]').textContent)
+    .toContain('(deprecated)');
+  expect(document.getElementById('login-password-deprecated').textContent)
+    .toContain('will be removed in a future version');
+});
+
+// jQuery runs the document-ready setup through nested timers.
+const waitForReady = () => new Promise((resolve) => { setTimeout(resolve, 10); });
+
+test('preferences are requested once on load', async () => {
+  // Flush setup queued by earlier tests, then load render.js exactly once.
+  await waitForReady();
+  window.api.send.mockClear();
+  jest.resetModules();
+  require('../render'); // eslint-disable-line
+  await waitForReady();
+
+  const prefCalls = window.api.send.mock.calls.filter((c) => c[0] === 'get_preferences');
+  expect(prefCalls).toHaveLength(1);
+});
+
+test('Select All and Clear toggle every object checkbox', async () => {
+  await waitForReady();
+  const displayObjectList = render.__get__('displayObjectList');
+  displayObjectList('', [
+    { name: 'Account', label: 'Account', createable: true },
+    { name: 'Contact', label: 'Contact', createable: true },
+  ], []);
+  const boxes = () => Array.from(document.querySelectorAll('#results-table input[type=checkbox]'));
+  expect(boxes().length).toBeGreaterThan(0);
+
+  document.getElementById('btn-select-all-objects').click();
+  expect(boxes().every((box) => box.checked)).toBe(true);
+
+  document.getElementById('btn-deselect-all-objects').click();
+  expect(boxes().some((box) => box.checked)).toBe(false);
 });
 
 test('response_login error path logs an error row and updates status message', () => {

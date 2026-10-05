@@ -12,8 +12,9 @@ Electron desktop app that connects to a Salesforce org and generates a SQL schem
 | `app/render.js`             | Dashboard renderer: schema generation UI                       |
 | `app/preferences-render.js` | Preferences renderer: settings UI                              |
 | `src/sf_calls.js`           | Salesforce API calls, field-type resolution, schema generation |
+| `src/sf_oauth.js`           | OAuth settings, web server flow (PKCE), local callback server  |
 | `src/constants.js`          | Field-type→SQL mappings, standard object lists, audit fields   |
-| `src/preferences.js`        | Read/write `preferences.json` user settings                    |
+| `src/preferences.js`        | Read/write `preferences.json`; OAuth secrets via safeStorage   |
 | `src/menu.js`               | Application menu template                                      |
 | `src/find.js`               | In-window content search                                       |
 | `src/tests/`, `app/tests/`  | Jest unit tests                                                |
@@ -31,6 +32,12 @@ To auto fix linting errors, run:
 ```sh
 npm run lint:fix   #eslint src app --ignore-path .gitignore --fix`
 ```
+
+### Security Notes
+
+- Do not commit real OAuth secrets to the repository.
+- Do not share Consumer Secrets in screenshots or issue comments.
+- Use a sandbox External Client App for development whenever possible.
 
 ## Testing
 
