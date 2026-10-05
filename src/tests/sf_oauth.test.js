@@ -11,6 +11,7 @@ const http = require('http');
 const oauth = require('../sf_oauth');
 
 const REDIRECT_URI = 'http://localhost:3835/callback';
+const MY_DOMAIN = 'https://myorg.my.salesforce.com';
 
 describe('Salesforce OAuth2 Tests', () => {
   let serverHandler = null;
@@ -84,9 +85,8 @@ describe('Salesforce OAuth2 Tests', () => {
   describe('isValidSalesforceUrl', () => {
     test('accepts valid Salesforce URLs', () => {
       const validUrls = [
-        'https://login.salesforce.com/auth',
-        'https://test.salesforce.com/services/oauth2/authorize',
         'https://myorg.my.salesforce.com/setup',
+        'https://myorg.my.salesforce.com/services/oauth2/authorize',
         'https://myorg--dev.sandbox.my.salesforce.com/services/oauth2/authorize',
       ];
 
@@ -97,7 +97,10 @@ describe('Salesforce OAuth2 Tests', () => {
 
     test('rejects invalid URLs', () => {
       const invalidUrls = [
-        'http://login.salesforce.com',
+        'http://myorg.my.salesforce.com',
+        // External Client Apps can't use the generic login or test domains.
+        'https://login.salesforce.com/services/oauth2/authorize',
+        'https://test.salesforce.com/services/oauth2/authorize',
         'https://fake-salesforce.com',
         'https://salesforce.com',
         'https://myorg.my.salesforce.com.evil.com',
@@ -212,13 +215,13 @@ describe('Salesforce OAuth2 Tests', () => {
 
   describe('attemptLogin', () => {
     test('successful login flow uses PKCE, state, and a matching redirect URI', async () => {
-      const promise = oauth.attemptLogin('https://login.salesforce.com');
+      const promise = oauth.attemptLogin(MY_DOMAIN);
 
       sendCallback(`/callback?code=test-auth-code&state=${lastState()}`);
       const result = await promise;
 
       expect(jsforce.OAuth2).toHaveBeenCalledWith({
-        loginUrl: 'https://login.salesforce.com',
+        loginUrl: MY_DOMAIN,
         clientId: 'test-client-id',
         clientSecret: 'test-client-secret',
         redirectUri: REDIRECT_URI,
@@ -228,7 +231,7 @@ describe('Salesforce OAuth2 Tests', () => {
       // The URL opened in the browser must carry the same redirect URI that is
       // used at token exchange, or Salesforce rejects the callback.
       const authUrl = new URL(electron.shell.openExternal.mock.calls[0][0]);
-      expect(authUrl.hostname).toBe('login.salesforce.com');
+      expect(authUrl.hostname).toBe('myorg.my.salesforce.com');
       expect(authUrl.searchParams.get('redirect_uri')).toBe(REDIRECT_URI);
       expect(authUrl.searchParams.get('scope')).toBe('api id refresh_token');
       expect(authUrl.searchParams.get('state')).toMatch(/^[0-9a-f]{32}$/);
@@ -239,7 +242,7 @@ describe('Salesforce OAuth2 Tests', () => {
         username: 'oauth.user@example.com',
       }));
       expect(result.oauth2Config).toEqual({
-        loginUrl: 'https://login.salesforce.com',
+        loginUrl: MY_DOMAIN,
         clientId: 'test-client-id',
         clientSecret: 'test-client-secret',
         redirectUri: REDIRECT_URI,
@@ -248,7 +251,7 @@ describe('Salesforce OAuth2 Tests', () => {
 
     test('uses the configured callback port', async () => {
       oauth.setCallbackPort(4000);
-      const promise = oauth.attemptLogin('https://login.salesforce.com');
+      const promise = oauth.attemptLogin(MY_DOMAIN);
 
       expect(mockServer.listen).toHaveBeenCalledWith(4000, '127.0.0.1');
       sendCallback(`/callback?code=test-auth-code&state=${lastState()}`);
@@ -262,7 +265,7 @@ describe('Salesforce OAuth2 Tests', () => {
         authorize: jest.fn().mockResolvedValue({ id: 'uid', organizationId: 'oid' }),
         identity: jest.fn().mockRejectedValue(new Error('Bad_OAuth_Token')),
       }));
-      const promise = oauth.attemptLogin('https://login.salesforce.com');
+      const promise = oauth.attemptLogin(MY_DOMAIN);
 
       sendCallback(`/callback?code=test-auth-code&state=${lastState()}`);
       const result = await promise;
@@ -273,7 +276,7 @@ describe('Salesforce OAuth2 Tests', () => {
     test('fails when the browser cannot be opened', async () => {
       electron.shell.openExternal.mockRejectedValueOnce(new Error('No browser available'));
 
-      await expect(oauth.attemptLogin('https://login.salesforce.com'))
+      await expect(oauth.attemptLogin(MY_DOMAIN))
         .rejects
         .toThrow('No browser available');
       expect(mockServer.close).toHaveBeenCalled();
@@ -282,7 +285,7 @@ describe('Salesforce OAuth2 Tests', () => {
     test('fails with missing credentials', async () => {
       oauth.setCredentials('', '');
 
-      await expect(oauth.attemptLogin('https://login.salesforce.com'))
+      await expect(oauth.attemptLogin(MY_DOMAIN))
         .rejects
         .toThrow('Missing OAuth credentials');
       expect(http.createServer).not.toHaveBeenCalled();
@@ -292,6 +295,13 @@ describe('Salesforce OAuth2 Tests', () => {
       await expect(oauth.attemptLogin('https://not-salesforce.com'))
         .rejects
         .toThrow('Invalid Salesforce authentication URL');
+      expect(http.createServer).not.toHaveBeenCalled();
+    });
+
+    test('rejects the generic login URL because OAuth needs My Domain', async () => {
+      await expect(oauth.attemptLogin('https://login.salesforce.com'))
+        .rejects
+        .toThrow('OAuth requires your My Domain URL');
       expect(http.createServer).not.toHaveBeenCalled();
     });
   });

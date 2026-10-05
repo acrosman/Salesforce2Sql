@@ -159,7 +159,7 @@ function createLocalServer(port, expectedState, timeoutMs = LOGIN_TIMEOUT_MS) {
 }
 
 /**
- * Checks that a URL points at a Salesforce login domain over HTTPS.
+ * Checks that a URL points at a Salesforce My Domain over HTTPS.
  * @param {string} url The URL to check.
  * @returns {boolean} True when the URL is a valid Salesforce login URL.
  */
@@ -172,15 +172,9 @@ function isValidSalesforceUrl(url) {
       return false;
     }
 
-    // List of valid Salesforce login domains
-    const validDomains = [
-      'login.salesforce.com',
-      'test.salesforce.com',
-      'login.sandbox.salesforce.com',
-    ];
-
-    return validDomains.includes(parsedUrl.hostname)
-      || parsedUrl.hostname.endsWith('.my.salesforce.com');
+    // External Client Apps require the org's My Domain. The generic login and
+    // test domains can't be used with OAuth.
+    return parsedUrl.hostname.endsWith('.my.salesforce.com');
   } catch (err) {
     return false;
   }
@@ -188,7 +182,7 @@ function isValidSalesforceUrl(url) {
 
 /**
  * Runs the OAuth web server flow (with PKCE) in the user's default browser.
- * @param {string} authDomain The Salesforce login URL (login, test, or My Domain).
+ * @param {string} authDomain The org's My Domain login URL.
  * @returns {Promise<{conn: jsforce.Connection, userInfo: object, oauth2Config: object}>}
  */
 async function attemptLogin(authDomain) {
@@ -224,7 +218,7 @@ async function attemptLogin(authDomain) {
   });
 
   if (!isValidSalesforceUrl(authUrl)) {
-    throw new Error('Invalid Salesforce authentication URL');
+    throw new Error('Invalid Salesforce authentication URL. OAuth requires your My Domain URL, for example https://yourcompany.my.salesforce.com.');
   }
 
   const codePromise = createLocalServer(callbackPort, state);
