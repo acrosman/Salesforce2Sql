@@ -72,19 +72,22 @@ The client ID and secret are stored encrypted. If your system doesn't support en
 
 ### Log In
 
-1. Click **Create New Connection**.
+1. Click **Create New Connection**. Salesforce2Sql won't attempt an OAuth login until the client ID and secret are saved in Preferences.
 2. Leave **OAuth2** selected.
 3. Set the **Login URL**: Use your org's [My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL, for example `https://yourcompany.my.salesforce.com` or `https://yourcompany--sandboxname.sandbox.my.salesforce.com`.
+   `https://login.salesforce.com` and `https://test.salesforce.com` can't be used with OAuth and External Client Apps, so always use your My Domain URL. My Domain login also supports single sign-on (SSO).
 4. Click **Connect**, then sign in and approve access in the browser window that opens.
 5. When the browser shows "Authentication successful", close the tab and return to Salesforce2Sql.
 
 If you don't finish signing in within five minutes, the attempt times out and you can try again.
 
+While connected, the **Create New Connection** button is hidden. Click **Logout** to disconnect and connect to a different org.
+
 ### Username/Password (deprecated)
 
 <!-- DEPRECATED(password-login): remove this section when #290 is done. -->
 
-Logging in with a username, password, and security token is still available by choosing **Username/Password (deprecated)** in the login window. **This option is deprecated and will be removed in a future version** (see [#290](https://github.com/acrosman/Salesforce2Sql/issues/290)). Please switch to OAuth.
+Logging in with a username, password, and security token is still available by choosing **Username/Password (deprecated)** in the login window. This option can use `https://login.salesforce.com` or `https://test.salesforce.com`. **This option is deprecated and will be removed in a future version** (see [#290](https://github.com/acrosman/Salesforce2Sql/issues/290)). Please switch to OAuth.
 
 ## Databases
 

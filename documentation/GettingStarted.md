@@ -16,7 +16,9 @@ You will need API access to a Salesforce org and a database to create your schem
 
 Salesforce2Sql connects with OAuth through your web browser, which supports single sign-on (SSO). Before your first login, set up an External Client App and enter its credentials in Preferences. Follow [Connecting to Salesforce](../ReadMe.md#connecting-to-salesforce) in the ReadMe.
 
-Click the big "Create New Connection" button on the left side of the main interface to open the login screen. Leave **OAuth2** selected. If you are logging into a production or Trailhead org you can use the default login URL. If you are logging into a Sandbox use: https://test.salesforce.com. To use SSO, enter your org's [Salesforce My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL instead. Click **Connect** and finish signing in in the browser window that opens.
+Click the big "Create New Connection" button on the left side of the main interface to open the login screen. Leave **OAuth2** selected and enter your org's [Salesforce My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL as the Login URL, for example `https://yourcompany.my.salesforce.com`. `https://login.salesforce.com` and `https://test.salesforce.com` can't be used with OAuth and External Client Apps, so always use your My Domain URL. This also works with single sign-on (SSO). Click **Connect** and finish signing in in the browser window that opens.
+
+Once connected, the "Create New Connection" button is hidden until you click **Logout**.
 
 ![Login Screen](InterfaceScreenshots/Login.PNG?raw=true)
 
