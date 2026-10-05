@@ -438,6 +438,18 @@ const updateLoginControls = () => {
   replaceText('oauth-config-status', oauthConfigured
     ? 'OAuth client credentials are configured and ready to use.'
     : 'OAuth is not set up. Enter the External Client App client ID and secret in Preferences before connecting.');
+
+  // Show missing setup as an error, not plain status text.
+  const status = document.getElementById('oauth-config-status');
+  if (status) {
+    status.classList.toggle('alert', !oauthConfigured);
+    status.classList.toggle('alert-danger', !oauthConfigured);
+    if (oauthConfigured) {
+      status.removeAttribute('role');
+    } else {
+      status.setAttribute('role', 'alert');
+    }
+  }
   $('#login-trigger').prop('disabled', isOAuth && !oauthConfigured);
 };
 

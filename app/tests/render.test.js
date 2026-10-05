@@ -296,7 +296,10 @@ test('OAuth login trigger waits for the browser sign-in', () => {
 test('OAuth login is refused until the External Client App is set up', () => {
   sendPreferences({ hasCredentials: false, callbackPort: 3835 });
   expect(document.getElementById('login-trigger').disabled).toBe(true);
-  expect(document.getElementById('oauth-config-status').innerText).toContain('not set up');
+  const status = document.getElementById('oauth-config-status');
+  expect(status.innerText).toContain('not set up');
+  expect(status.classList.contains('alert-danger')).toBe(true);
+  expect(status.getAttribute('role')).toBe('alert');
 
   // The click handler also refuses, in case the button state is stale.
   document.getElementById('login-trigger').disabled = false;
@@ -307,6 +310,17 @@ test('OAuth login is refused until the External Client App is set up', () => {
   const message = document.getElementById('login-modal-message');
   expect(message.classList.contains('d-none')).toBe(false);
   expect(message.textContent).toContain('Preferences');
+});
+
+test('OAuth setup status returns to plain text once credentials are saved', () => {
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
+  sendPreferences(configuredOAuth);
+
+  const status = document.getElementById('oauth-config-status');
+  expect(status.innerText).toContain('ready to use');
+  expect(status.classList.contains('alert')).toBe(false);
+  expect(status.classList.contains('alert-danger')).toBe(false);
+  expect(status.hasAttribute('role')).toBe(false);
 });
 
 test('OAuth login is refused for login and test URLs', () => {
