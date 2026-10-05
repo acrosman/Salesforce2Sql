@@ -4,6 +4,8 @@ Electron desktop app that connects to a Salesforce org, reads its object and fie
 
 Directory-specific guidance lives in [src/CLAUDE.md](src/CLAUDE.md) (main process) and [app/CLAUDE.md](app/CLAUDE.md) (renderer).
 
+Do not attempt to edit files outside this project. Do not seek full disk access for any reason.
+
 ## Structure
 
 | Path                        | Role                                                                          |
