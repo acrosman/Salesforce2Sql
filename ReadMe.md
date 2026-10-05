@@ -89,12 +89,6 @@ If you don't finish signing in within five minutes, the attempt times out and yo
 
 Logging in with a username, password, and security token is still available by choosing **Username/Password (deprecated)** in the login window. **This option is deprecated and will be removed in a future version** (see [#290](https://github.com/acrosman/Salesforce2Sql/issues/290)). Please switch to OAuth.
 
-### Security Notes
-
-- Do not commit real OAuth secrets to the repository.
-- Do not share Consumer Secrets in screenshots or issue comments.
-- Use a sandbox External Client App for development whenever possible.
-
 ## Databases
 
 Currently Salesforce2Sql supports MySQL, MariaDB, and Postgres. Other databases supported by [KNEX.JS](https://knexjs.org/) can be added upon request.

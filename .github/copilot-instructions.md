@@ -33,6 +33,12 @@ To auto fix linting errors, run:
 npm run lint:fix   #eslint src app --ignore-path .gitignore --fix`
 ```
 
+### Security Notes
+
+- Do not commit real OAuth secrets to the repository.
+- Do not share Consumer Secrets in screenshots or issue comments.
+- Use a sandbox External Client App for development whenever possible.
+
 ## Testing
 
 Use VS Code's built-in test runner (Jest integration) to run tests. Test files live in `src/tests/` and `app/tests/`.
