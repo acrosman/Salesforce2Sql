@@ -23,39 +23,42 @@ Once connected, the "Create New Connection" button is hidden until you click **L
 ![Login Screen](InterfaceScreenshots/Login.PNG?raw=true)
 
 <!-- DEPRECATED(password-login): remove this paragraph when #290 is done. -->
+
 The older username, password, and [security token](https://help.salesforce.com/articleView?id=user_security_token.htm&type=5) login is still available as **Username/Password (deprecated)**, but it will be removed in a future version.
 
 ### Step 1: Fetch Objects
 
 Once connected click “Fetch Objects”, and the tool will download a list of every object in your org. There may be several hundred. From those you will select which objects you want to mirror by setting the checkbox for each object you want to include in your schema.
 
-Salesforce2Sql selects some objects by default for you based on common data patterns. It will select all custom objects. Additionally, based on your org’s structure, Salesforce2Sql guesses which standard objects are likely in use. There is a search box at the top right to help you find any others you’d like to add. You can uncheck the box for any object you are not interested in including in your schema clone.
+Salesforce2Sql selects some objects by default for you based on common data patterns. It will select all custom objects. Additionally, based on your org’s structure, Salesforce2Sql guesses which standard objects are likely in use. There is a search box (this is case sensitive) at the top right to help you find any others you’d like to add. You can uncheck the box for any object you are not interested in including in your schema clone.
 
 ### Step 2: Fetch Fields
 
 Click the next button to move to the Proposed Schema tab, and then the “Fetch Details” button.
 
-Salesforce2Sql will query every field on every object you just selected (this may take a few moments). Once that is complete you can either save that schema to JSON for later re-use, or click Next to move to the “Generated Database” tab.
+Salesforce2Sql will query every field on every object you just selected (this may take a few moments). Once that is complete you can either save that schema to JSON for later re-use, or click Next to move to the “Generate Database” tab.
 
 ### Step 3: Generate Database Tables
 
 This is the last step. Click “Create Tables” and Salesforce2Sql will ask you for your database credentials.
 
-Once you click okay on this final screen Salesforce2Sql will attempt to create all those tables for you. Again this will take a couple minutes if you have a large schema. Once the process is complete you can also save the SQL statements for editing and/or later re-use.
+Once you click `Connect & Build` on this final screen Salesforce2Sql will attempt to create all those tables for you. Again this will take a couple minutes if you have a large schema. Once the process is complete you can also save the SQL statements for editing and/or later re-use.
 
 That’s it, you now have a database with a schema that matches your org’s structure.
+
+If you'd like, once the database generation has finished you can also save the SQL statements using the `Save SQL to File` button.
 
 ## Preferences
 
 There are a few preferences you might want to experiment with when building mirrors. As with so many things the right choices depend on use case.
 
-Preference screen from the application with sections for picklist settings, index settings, other defaults, and theme.
+Preference screen from the application with sections for picklist settings, index settings, other defaults, and theme:
 
 ![Preference pane showing sections described above.](InterfaceScreenshots/Sf2SqlPreferences.png?raw=true)
 
 #### Picklists
 
-Salesforce Picklists are a bit of a special beast. The obvious choice is to make a picklist into a SQL Enum to support validation of data. But not all picklists are restricted in Salesforce and aren’t always required. By default the tool will use `enum` for restricted picklists with add a blank value included for optional fields. The default for unrestricted picklists is `varchar`.
+Salesforce Picklists are a bit of a special beast. The obvious choice is to make a picklist into a SQL Enum to support validation of data. But not all picklists are restricted in Salesforce and aren’t always required. By default the tool will use `enum` for restricted picklists with a blank value included for optional fields. Unrestricted picklists default to `varchar(255)`.
 
 If the picklist values in your org are pretty much set, the default settings make a lot of sense. If the picklist values in your org are likely to change you might want to use this preference to set them all into regular `varchar` columns.
 
@@ -76,6 +79,12 @@ Salesforce also has two categories of fields that are common to ignore in a migr
 The middle two fields control the behavior of field defaults.
 
 Salesforce2Sql uses [Bootswatch themes](https://bootswatch.com/) for design elements. The preference pane also lets you pick a different look-and-feel from their theme list.
+
+#### OAuth Settings
+
+To support OAuth connections, the preferences allow users to securely save Client Ids and secrets. You can clear them out with the checkbox after the settings. It also allows you to set the callback port if needed.
+
+Setup instructions for the required External Client App are in the main project Readme.
 
 ## Additional Notes
 

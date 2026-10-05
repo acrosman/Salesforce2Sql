@@ -13,19 +13,21 @@ I want to contributors provide the best work they can, so I may provide you feed
 Salesforce2Sql is an Electron app built using Node.js. If you are familiar with this environment there shouldn't be any surprises here.
 
 You need to have:
-* Node.js (Current LTS versions supported by Electron on supported)
-* Git, and a little experience with basic use.
-* A good editor (VSCode, Atom, etc).
+
+- Node.js (Current LTS versions supported by Electron on supported)
+- Git, and a little experience with basic use.
+- A good editor (VSCode, Atom, etc).
 
 Steps for your first contribution:
+
 1. [Fork the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) in github.
 1. Clone your fork to your local machine.
 1. Run `npm install` on your terminal.
 1. Run `npm start` to make sure everything is working.
 1. Create a new branch for your work.
 1. Make the changes to address the issue you are working on.
-1. Run `npm test` to make sure all existing and new automated tests pass.
-1. Run `npm lint` to make sure your new code conforms to project standards.
+1. Run `npm run test` to make sure all existing and new automated tests pass.
+1. Run `npm run lint` to make sure your new code conforms to project standards.
 1. Commit your changes, and push the branch to github.
 1. Open a Pull Request against the main project. _Please note which issue you are fixing by putting `fixes #[issue-number]` into the comment._
 
