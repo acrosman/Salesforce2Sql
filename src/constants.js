@@ -252,7 +252,7 @@ exports.standardObjectsByFeature = {
 exports.indicatorObjects = {
   AcademicTerm: ['educationCloud', 'industryCloudBase'],
   CarePlan: ['caseManagement', 'industryCloudBase'],
-  FundingAward: ['grantmaking', 'industryCloudBase'],
+  FundingAward: ['grantsManagement', 'industryCloudBase'],
   GiftCommitment: ['fundraising', 'industryCloudBase'],
   Outcome: ['outcomeManagement', 'industryCloudBase'],
   ProgramEnrollment: ['programManagement', 'industryCloudBase'],
