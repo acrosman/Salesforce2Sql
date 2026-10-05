@@ -17,6 +17,7 @@ describe('Salesforce OAuth2 Tests', () => {
   let serverHandler = null;
   let serverEvents = {};
   let mockServer = null;
+  let credentialProvider = null;
 
   const mockResponse = () => ({ writeHead: jest.fn(), end: jest.fn() });
 
@@ -56,7 +57,11 @@ describe('Salesforce OAuth2 Tests', () => {
       return mockServer;
     });
 
-    oauth.setCredentials('test-client-id', 'test-client-secret');
+    credentialProvider = jest.fn(() => ({
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+    }));
+    oauth.setCredentialProvider(credentialProvider);
     oauth.setCallbackPort(3835);
     mockOAuth2();
   });
@@ -249,6 +254,16 @@ describe('Salesforce OAuth2 Tests', () => {
       });
     });
 
+    test('loads credentials only when the login starts', async () => {
+      expect(credentialProvider).not.toHaveBeenCalled();
+
+      const promise = oauth.attemptLogin(MY_DOMAIN);
+      expect(credentialProvider).toHaveBeenCalledTimes(1);
+
+      sendCallback(`/callback?code=test-auth-code&state=${lastState()}`);
+      await promise;
+    });
+
     test('uses the configured callback port', async () => {
       oauth.setCallbackPort(4000);
       const promise = oauth.attemptLogin(MY_DOMAIN);
@@ -283,7 +298,7 @@ describe('Salesforce OAuth2 Tests', () => {
     });
 
     test('fails with missing credentials', async () => {
-      oauth.setCredentials('', '');
+      credentialProvider.mockReturnValue({ clientId: '', clientSecret: '' });
 
       await expect(oauth.attemptLogin(MY_DOMAIN))
         .rejects

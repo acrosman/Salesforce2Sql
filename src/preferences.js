@@ -48,107 +48,105 @@ const defaultPreferences = () => ({
     suppressAudit: false,
   },
   oauth: {
-    clientId: '',
-    hasClientSecret: false,
+    hasCredentials: false,
     callbackPort: oauth.DEFAULT_CALLBACK_PORT,
   },
 });
 
-const getStoredOAuthSettings = () => {
-  const envClientId = process.env.SALESFORCE_CLIENT_ID || '';
-  const envClientSecret = process.env.SALESFORCE_CLIENT_SECRET || '';
+// Credentials kept for this session only, when OS encryption is unavailable.
+let sessionCredentials = null;
 
-  if (envClientId || envClientSecret) {
-    return {
-      clientId: envClientId,
-      clientSecret: envClientSecret,
-      hasClientSecret: Boolean(envClientSecret),
-    };
+/**
+ * Reads client credentials from environment variables, if both are set.
+ * @returns {{clientId: string, clientSecret: string}|null} The credentials, or null.
+ */
+const getEnvCredentials = () => {
+  const clientId = process.env.SALESFORCE_CLIENT_ID || '';
+  const clientSecret = process.env.SALESFORCE_CLIENT_SECRET || '';
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+};
+
+/**
+ * Reports whether OAuth client credentials have been saved, without decrypting
+ * anything. Decrypting can prompt for OS keychain access, so status checks
+ * only look for the encrypted file.
+ * @returns {boolean} True when credentials are available.
+ */
+const hasOAuthCredentials = () => Boolean(getEnvCredentials())
+  || Boolean(sessionCredentials)
+  || fs.existsSync(oauthSettingsPath);
+
+/**
+ * Loads the OAuth client credentials, decrypting them if needed. Only call
+ * this when the credentials are about to be used.
+ * @returns {{clientId: string, clientSecret: string}} The credentials (empty when unavailable).
+ */
+const loadOAuthCredentials = () => {
+  const empty = { clientId: '', clientSecret: '' };
+  const envCredentials = getEnvCredentials();
+  if (envCredentials) {
+    return envCredentials;
   }
-
-  if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
-    return {
-      clientId: '',
-      clientSecret: '',
-      hasClientSecret: false,
-    };
+  if (sessionCredentials) {
+    return sessionCredentials;
   }
 
   try {
-    if (!fs.existsSync(oauthSettingsPath)) {
-      return {
-        clientId: '',
-        clientSecret: '',
-        hasClientSecret: false,
-      };
+    if (!fs.existsSync(oauthSettingsPath) || !safeStorage || !safeStorage.isEncryptionAvailable()) {
+      return empty;
     }
-
-    const encryptedData = fs.readFileSync(oauthSettingsPath);
-    const rawData = safeStorage.decryptString(encryptedData);
-    const parsed = JSON.parse(rawData);
-
+    const parsed = JSON.parse(safeStorage.decryptString(fs.readFileSync(oauthSettingsPath)));
     return {
       clientId: parsed.clientId || '',
       clientSecret: parsed.clientSecret || '',
-      hasClientSecret: Boolean(parsed.clientSecret),
     };
   } catch (err) {
-    return {
-      clientId: '',
-      clientSecret: '',
-      hasClientSecret: false,
-    };
+    return empty;
   }
 };
 
-const updateOAuthConfig = () => {
-  const oauthSettings = getStoredOAuthSettings();
-  oauth.setCredentials(oauthSettings.clientId, oauthSettings.clientSecret);
-  return oauthSettings;
-};
+// The OAuth module asks for credentials only when a login starts.
+oauth.setCredentialProvider(loadOAuthCredentials);
 
+/**
+ * Saves OAuth client credentials entered in Preferences. Blank fields keep the
+ * stored values, so saving other preferences never touches encrypted storage.
+ * @param {*} oauthSettings The oauth values from the Preferences window.
+ */
 const saveSecureOAuthSettings = (oauthSettings = {}) => {
-  const existingSettings = getStoredOAuthSettings();
-  const clientId = (oauthSettings.clientId || '').trim();
-  let clientSecret = typeof oauthSettings.clientSecret === 'string'
-    ? oauthSettings.clientSecret.trim()
-    : '';
-
-  if (!clientSecret && existingSettings.hasClientSecret && clientId === existingSettings.clientId) {
-    clientSecret = existingSettings.clientSecret;
-  }
-
-  if (!clientId && !clientSecret) {
+  if (oauthSettings.clearCredentials) {
+    sessionCredentials = null;
     if (fs.existsSync(oauthSettingsPath)) {
       fs.removeSync(oauthSettingsPath);
     }
-    oauth.setCredentials('', '');
-    return {
-      clientId: '',
-      hasClientSecret: false,
-    };
+    return;
+  }
+
+  let clientId = (oauthSettings.clientId || '').trim();
+  let clientSecret = (oauthSettings.clientSecret || '').trim();
+
+  // Nothing entered: keep what is stored without reading it.
+  if (!clientId && !clientSecret) {
+    return;
+  }
+
+  // Only one field entered: merge with the stored values, which requires
+  // decrypting them.
+  if (!clientId || !clientSecret) {
+    const existing = loadOAuthCredentials();
+    clientId = clientId || existing.clientId;
+    clientSecret = clientSecret || existing.clientSecret;
   }
 
   if (!safeStorage || !safeStorage.isEncryptionAvailable()) {
-    oauth.setCredentials(clientId, clientSecret);
-    return {
-      clientId,
-      hasClientSecret: Boolean(clientSecret),
-    };
+    sessionCredentials = { clientId, clientSecret };
+    return;
   }
 
-  const encryptedData = safeStorage.encryptString(JSON.stringify({
+  fs.writeFileSync(oauthSettingsPath, safeStorage.encryptString(JSON.stringify({
     clientId,
     clientSecret,
-  }));
-
-  fs.writeFileSync(oauthSettingsPath, encryptedData);
-  oauth.setCredentials(clientId, clientSecret);
-
-  return {
-    clientId,
-    hasClientSecret: Boolean(clientSecret),
-  };
+  })));
 };
 
 /**
@@ -160,6 +158,8 @@ const withoutCredentials = ({
   clientId,
   clientSecret,
   hasClientSecret,
+  hasCredentials,
+  clearCredentials,
   ...oauthPrefs
 } = {}) => oauthPrefs;
 
@@ -185,16 +185,14 @@ const getCurrentPreferences = () => {
     }
   }
 
-  // The settings file holds only non-secret OAuth settings. Credentials come
-  // from encrypted storage.
+  // The settings file holds only non-secret OAuth settings. Credentials stay
+  // in encrypted storage and are only reported as present or not.
   const callbackPort = oauth.normalizeCallbackPort(preferences.oauth?.callbackPort);
   oauth.setCallbackPort(callbackPort);
-  const oauthCredentials = updateOAuthConfig();
   preferences.oauth = {
     ...withoutCredentials(preferences.oauth),
     callbackPort,
-    clientId: oauthCredentials.clientId,
-    hasClientSecret: oauthCredentials.hasClientSecret,
+    hasCredentials: hasOAuthCredentials(),
   };
 
   return preferences;
@@ -250,7 +248,7 @@ const openPreferences = () => {
   if (!prefWindow || prefWindow.isDestroyed()) {
     prefWindow = new BrowserWindow({
       width: 550,
-      height: 900,
+      height: 940,
       resizable: false,
       frame: false,
       webPreferences: {
@@ -284,4 +282,4 @@ exports.openPreferences = openPreferences;
 exports.loadPreferences = loadPreferences;
 exports.savePreferences = savePreferences;
 exports.closePreferences = closePreferences;
-exports.updateOAuthConfig = updateOAuthConfig;
+exports.loadOAuthCredentials = loadOAuthCredentials;

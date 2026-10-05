@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
       oauth: {
         clientId: document.getElementById('oauth-client-id').value,
         clientSecret: document.getElementById('oauth-client-secret').value,
+        clearCredentials: document.getElementById('oauth-clear-credentials').checked,
         callbackPort: document.getElementById('oauth-callback-port').value,
       },
     });
@@ -79,14 +80,22 @@ window.api.receive('preferences_data', (data) => {
   document.getElementById('default-checkbox').checked = data.defaults.checkboxDefaultFalse;
   document.getElementById('hide-readonly-fields').checked = data.defaults.suppressReadOnly;
   document.getElementById('hide-audit-fields').checked = data.defaults.suppressAudit;
-  document.getElementById('oauth-client-id').value = data.oauth?.clientId || '';
+  // Saved credentials are never sent here, so the keychain isn't touched just
+  // to open Preferences. Blank fields keep the saved values.
+  const hasCredentials = Boolean(data.oauth?.hasCredentials);
+  document.getElementById('oauth-client-id').value = '';
   document.getElementById('oauth-client-secret').value = '';
+  document.getElementById('oauth-clear-credentials').checked = false;
+  document.getElementById('oauth-clear-credentials').disabled = !hasCredentials;
+  document.getElementById('oauth-client-id').placeholder = hasCredentials
+    ? 'Saved. Leave blank to keep the current client ID.'
+    : 'Enter External Client App consumer key';
+  document.getElementById('oauth-client-secret').placeholder = hasCredentials
+    ? 'Saved. Leave blank to keep the current secret.'
+    : 'Enter External Client App consumer secret';
+  document.getElementById('oauth-credential-status').innerText = hasCredentials
+    ? 'OAuth credentials are saved and stored encrypted.'
+    : 'No OAuth credentials saved yet.';
   document.getElementById('oauth-callback-port').value = data.oauth?.callbackPort || 3835;
   document.getElementById('oauth-callback-port-display').innerText = data.oauth?.callbackPort || 3835;
-  document.getElementById('oauth-client-secret').placeholder = data.oauth?.hasClientSecret
-    ? 'Stored encrypted. Leave blank to keep the current secret.'
-    : 'Enter Salesforce OAuth client secret';
-  document.getElementById('oauth-credential-status').innerText = data.oauth?.hasClientSecret
-    ? 'OAuth client secret is stored encrypted.'
-    : 'No OAuth client secret stored yet.';
 });

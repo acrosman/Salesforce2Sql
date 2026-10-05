@@ -942,7 +942,7 @@ window.api.receive('current_preferences', (data) => {
   const cssPath = `../node_modules/bootswatch/dist/${data.theme.toLowerCase()}/bootstrap.min.css`;
   document.getElementById('css-theme-link').href = cssPath;
 
-  oauthConfigured = Boolean(data.oauth?.clientId && data.oauth?.hasClientSecret);
+  oauthConfigured = Boolean(data.oauth?.hasCredentials);
   updateLoginControls();
 });
 

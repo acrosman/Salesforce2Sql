@@ -275,7 +275,7 @@ test('login trigger sends the selected connection mode', () => {
 const sendPreferences = (oauth) => {
   getReceiveCallback('current_preferences')({ theme: 'Cyborg', oauth });
 };
-const configuredOAuth = { clientId: 'cid', hasClientSecret: true, callbackPort: 3835 };
+const configuredOAuth = { hasCredentials: true, callbackPort: 3835 };
 
 test('OAuth login trigger waits for the browser sign-in', () => {
   sendPreferences(configuredOAuth);
@@ -294,7 +294,7 @@ test('OAuth login trigger waits for the browser sign-in', () => {
 });
 
 test('OAuth login is refused until the External Client App is set up', () => {
-  sendPreferences({ clientId: '', hasClientSecret: false, callbackPort: 3835 });
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
   expect(document.getElementById('login-trigger').disabled).toBe(true);
   expect(document.getElementById('oauth-config-status').innerText).toContain('not set up');
 
@@ -335,7 +335,7 @@ test('isMyDomainUrl only accepts HTTPS My Domain URLs', () => {
 
 // DEPRECATED(password-login): remove this test when #290 is done.
 test('password login is not blocked by missing OAuth setup', () => {
-  sendPreferences({ clientId: '', hasClientSecret: false, callbackPort: 3835 });
+  sendPreferences({ hasCredentials: false, callbackPort: 3835 });
   const passwordRadio = document.getElementById('sfconnect-password');
   passwordRadio.checked = true;
   passwordRadio.dispatchEvent(new Event('change'));

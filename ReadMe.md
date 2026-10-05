@@ -68,6 +68,8 @@ For full details see the Salesforce Help article [Create an External Client App]
 5. Save your changes.
 6. Delete any other local copy of the OAuth keys.
 
+Saved credentials aren't shown again in Preferences. To keep them, leave the fields blank; to replace them, enter new values; to delete them, check **Remove saved OAuth credentials** and save. Your operating system may ask for permission to access the stored credentials the first time you connect.
+
 The client ID and secret are stored encrypted. If your system doesn't support encrypted storage, they are kept only for the current session and must be re-entered after a restart.
 
 ### Log In

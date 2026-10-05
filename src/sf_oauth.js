@@ -13,14 +13,19 @@ const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 // single External Client App can serve both tools.
 const DEFAULT_CALLBACK_PORT = 3835;
 
-// Connection settings for the External Client App. Credentials are loaded from
-// encrypted storage by the preferences module.
+// Connection settings for the External Client App.
 const oauthSettings = {
-  clientId: process.env.SALESFORCE_CLIENT_ID || '',
-  clientSecret: process.env.SALESFORCE_CLIENT_SECRET || '',
   callbackPort: DEFAULT_CALLBACK_PORT,
   scopes: ['api', 'id', 'refresh_token'],
 };
+
+// Supplies the client credentials when a login starts. Credentials live in
+// encrypted storage, and reading them can prompt for OS keychain access, so
+// they are only loaded when actually needed.
+let credentialProvider = () => ({
+  clientId: process.env.SALESFORCE_CLIENT_ID || '',
+  clientSecret: process.env.SALESFORCE_CLIENT_SECRET || '',
+});
 
 // The in-progress login, if any, so a new attempt can cancel a stale one.
 let activeLogin = null;
@@ -47,13 +52,12 @@ const normalizeCallbackPort = (port) => {
 };
 
 /**
- * Sets the External Client App credentials used for login.
- * @param {string} clientId The consumer key.
- * @param {string} clientSecret The consumer secret.
+ * Sets the function that supplies the External Client App credentials. It is
+ * called once per login attempt, never ahead of time.
+ * @param {Function} provider Returns {clientId, clientSecret}.
  */
-const setCredentials = (clientId, clientSecret) => {
-  oauthSettings.clientId = clientId;
-  oauthSettings.clientSecret = clientSecret;
+const setCredentialProvider = (provider) => {
+  credentialProvider = provider;
 };
 
 /**
@@ -186,12 +190,8 @@ function isValidSalesforceUrl(url) {
  * @returns {Promise<{conn: jsforce.Connection, userInfo: object, oauth2Config: object}>}
  */
 async function attemptLogin(authDomain) {
-  const {
-    clientId,
-    clientSecret,
-    callbackPort,
-    scopes,
-  } = oauthSettings;
+  const { callbackPort, scopes } = oauthSettings;
+  const { clientId, clientSecret } = credentialProvider() || {};
 
   if (!clientId || !clientSecret) {
     throw new Error('Missing OAuth credentials. Both Client ID and Client Secret are required.');
@@ -265,6 +265,6 @@ async function attemptLogin(authDomain) {
 exports.attemptLogin = attemptLogin;
 exports.buildRedirectUri = buildRedirectUri;
 exports.normalizeCallbackPort = normalizeCallbackPort;
-exports.setCredentials = setCredentials;
+exports.setCredentialProvider = setCredentialProvider;
 exports.setCallbackPort = setCallbackPort;
 exports.DEFAULT_CALLBACK_PORT = DEFAULT_CALLBACK_PORT;
