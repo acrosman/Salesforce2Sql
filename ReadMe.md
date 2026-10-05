@@ -1,6 +1,8 @@
 # Salesforce2Sql
 
-![Lint Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/lint.yml/badge.svg) ![CodeQL Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/codeql-analysis.yml/badge.svg) ![Electronegativity Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/electronegativity.yml/badge.svg) ![Test Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/tests.yml/badge.svg)
+![Lint Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/lint.yml/badge.svg)
+![CodeQL Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/codeql-analysis.yml/badge.svg)
+![Test Status](https://github.com/acrosman/Salesforce2Sql/actions/workflows/tests.yml/badge.svg)
 
 This is a tool to generate a SQL schema to match a Salesforce Org Schema.
 
@@ -20,31 +22,23 @@ _There is also a [getting started guide](https://spinningcode.org/2022/05/gettin
 
 You can either download the [latest release](https://github.com/acrosman/Salesforce2Sql/releases/latest) for your operating system or run from code.
 
-To make this tool useful you will also need a Salesforce org you want to mirror, and a MySQL, Mariadb, or Postgres database you can create tables in.
+To make this tool useful you will also need a Salesforce org you want to mirror, and a supported database you can create tables in. Currently we support MySql, MariaDB, Postgres, and Sqlite3. SQL Server support is planned.
 
 ### Running From Code
 
-To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) 22 or later.
+To run the project from code you will need a working copy of [NodeJS](https://nodejs.org) (currently mostly tested against Node v24).
 
 1. Clone this repo (or create your own fork) to your local machine.
 1. Run: `npm install` from the project root directory, and wait for all the packages to load (this takes a few minutes).
 1. Run: `npm start`
 
-When running from code you can also provide OAuth credentials through environment variables exported in your shell. If they are set, they take precedence over the values saved in Preferences:
-
-```sh
-export SALESFORCE_CLIENT_ID=your_consumer_key
-export SALESFORCE_CLIENT_SECRET=your_consumer_secret
-npm start
-```
-
 ## Connecting to Salesforce
 
-Salesforce2Sql connects to Salesforce with OAuth. Sign-in happens in your default web browser, so it supports single sign-on (SSO) and multi-factor authentication. To use OAuth you create an External Client App in your org once, then enter its credentials in Salesforce2Sql.
+As of version 0.13.0 Salesforce2Sql connects to Salesforce with OAuth. Sign-in happens in your default web browser. This allows it supports single sign-on (SSO), multi-factor authentication, and the future restrictions Salesforce is imposing on remote tools. To use OAuth you must create an External Client App in your org and enter its credentials in Salesforce2Sql.
 
 ### Set Up an External Client App in Salesforce
 
-1. In Salesforce, go to **Setup → App Manager** (use Quick Find if needed).
+1. In Salesforce, go to **Setup → External Client App Manager** (use Quick Find).
 2. Click **New External Client App**.
 3. Enter a **Name**, accept or edit the generated **API Name**, and enter a **Contact Email**.
 4. Under API check the box to **Enable OAuth**.
@@ -72,12 +66,22 @@ Saved credentials aren't shown again in Preferences. To keep them, leave the fie
 
 The client ID and secret are stored encrypted. If your system doesn't support encrypted storage, they are kept only for the current session and must be re-entered after a restart.
 
+#### Optional Environment Settings
+
+When running from code you can also provide OAuth credentials through environment variables exported in your shell. If they are set, they take precedence over the values saved in Preferences:
+
+```sh
+export SALESFORCE_CLIENT_ID=your_consumer_key
+export SALESFORCE_CLIENT_SECRET=your_consumer_secret
+npm start
+```
+
 ### Log In
 
 1. Click **Create New Connection**. Salesforce2Sql won't attempt an OAuth login until the client ID and secret are saved in Preferences.
 2. Leave **OAuth2** selected.
 3. Set the **Login URL**: Use your org's [My Domain](https://help.salesforce.com/s/articleView?id=xcloud.domain_name_overview.htm&type=5) URL, for example `https://yourcompany.my.salesforce.com` or `https://yourcompany--sandboxname.sandbox.my.salesforce.com`.
-   `https://login.salesforce.com` and `https://test.salesforce.com` can't be used with OAuth and External Client Apps, so always use your My Domain URL. My Domain login also supports single sign-on (SSO).
+   `https://login.salesforce.com` and `https://test.salesforce.com` can't be used with OAuth and External Client Apps, so always use your My Domain URL.
 4. Click **Connect**, then sign in and approve access in the browser window that opens.
 5. When the browser shows "Authentication successful", close the tab and return to Salesforce2Sql.
 
