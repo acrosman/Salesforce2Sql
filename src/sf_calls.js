@@ -160,25 +160,12 @@ const updateLoader = (message) => {
 };
 
 /**
- * Extracts the list of field values from a picklist value set.
+ * Extracts the list of field values from a picklist value set. Values are kept
+ * raw; they are escaped for the target database when the DDL is built.
  * @param {Array} valueList list of values from a Salesforce describe response.
- * @returns the actual list of values.
+ * @returns the actual list of de-duplicated values.
  */
-const extractPicklistValues = (valueList) => {
-  let values = [];
-  let val;
-  for (let i = 0; i < valueList.length; i += 1) {
-    val = valueList[i].value;
-    // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
-    if (val.includes("'")) {
-      // When Node 14 support is dropped this can be switched to replaceAll().
-      val = val.replace(/'/g, '\\\'');
-    }
-    values.push(val);
-  }
-  values = [...new Set(values)];
-  return values;
-};
+const extractPicklistValues = (valueList) => [...new Set(valueList.map((item) => item.value))];
 
 /**
  * Generates the details of all the fields in the schema.
@@ -242,6 +229,129 @@ const buildFields = (fieldList, allText = false) => {
   return objFields;
 };
 
+// Field types a loaded schema may use: the Salesforce types, plus the types
+// buildFields and buildDatabase substitute for long strings.
+const validSchemaTypes = [...Object.keys(typeResolverBases), 'text'];
+
+// Inclusive upper bounds for the numeric properties of a loaded schema field.
+const maxSchemaFieldSize = 2147483647;
+const maxSchemaFieldPrecision = 65;
+const maxSchemaFieldScale = 30;
+
+// The number of schema validation errors to show before summarizing the rest.
+const maxReportedSchemaErrors = 5;
+
+/**
+ * Checks if a value is a plain object, as opposed to an array, null, or a primitive.
+ * @param {*} value the value to check.
+ * @returns {Boolean} true when the value is a plain object.
+ */
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Checks if a value is an array that contains only strings.
+ * @param {*} value the value to check.
+ * @returns {Boolean} true when the value is an array of strings.
+ */
+const isStringArray = (value) => Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/**
+ * Checks if a value is an integer from 0 to a maximum, inclusive.
+ * @param {*} value the value to check.
+ * @param {Number} max the largest allowed value.
+ * @returns {Boolean} true when the value is an integer in range.
+ */
+const isIntegerInRange = (value, max) => Number.isInteger(value) && value >= 0 && value <= max;
+
+/**
+ * Validates a single field of a loaded schema.
+ * @param {String} tableName the name of the table the field belongs to.
+ * @param {String} key the key the field is stored under.
+ * @param {*} field the field details to validate.
+ * @returns {Array} a list of error messages, empty when the field is valid.
+ */
+const validateSchemaField = (tableName, key, field) => {
+  const where = `${tableName}.${key}`;
+  if (!isPlainObject(field)) {
+    return [`${where}: field must be an object.`];
+  }
+
+  const errors = [];
+  if (typeof field.name !== 'string' || field.name === '' || field.name !== key) {
+    errors.push(`${where}: name must be a string matching its key.`);
+  }
+  if (!validSchemaTypes.includes(field.type)) {
+    errors.push(`${where}: type ${JSON.stringify(field.type)} is not a known field type.`);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(field, 'size') && !isIntegerInRange(field.size, maxSchemaFieldSize)) {
+    errors.push(`${where}: size must be an integer from 0 to ${maxSchemaFieldSize}.`);
+  }
+  if (Object.prototype.hasOwnProperty.call(field, 'precision') && !isIntegerInRange(field.precision, maxSchemaFieldPrecision)) {
+    errors.push(`${where}: precision must be an integer from 0 to ${maxSchemaFieldPrecision}.`);
+  }
+  if (Object.prototype.hasOwnProperty.call(field, 'scale') && !isIntegerInRange(field.scale, maxSchemaFieldScale)) {
+    errors.push(`${where}: scale must be an integer from 0 to ${maxSchemaFieldScale}.`);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(field, 'values') && !isStringArray(field.values)) {
+    errors.push(`${where}: values must be an array of strings.`);
+  }
+  if (field.type === 'picklist' && !Object.prototype.hasOwnProperty.call(field, 'values')) {
+    errors.push(`${where}: picklist fields must have values.`);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(field, 'defaultValue')) {
+    const { defaultValue } = field;
+    if (defaultValue !== null && !['string', 'number', 'boolean'].includes(typeof defaultValue)) {
+      errors.push(`${where}: defaultValue must be a string, number, boolean, or null.`);
+    }
+  }
+
+  ['externalId', 'isRestricted'].forEach((prop) => {
+    if (Object.prototype.hasOwnProperty.call(field, prop) && typeof field[prop] !== 'boolean') {
+      errors.push(`${where}: ${prop} must be a boolean.`);
+    }
+  });
+
+  if (Object.prototype.hasOwnProperty.call(field, 'label') && typeof field.label !== 'string') {
+    errors.push(`${where}: label must be a string.`);
+  }
+  if (Object.prototype.hasOwnProperty.call(field, 'target') && !isStringArray(field.target)) {
+    errors.push(`${where}: target must be an array of strings.`);
+  }
+
+  return errors;
+};
+
+/**
+ * Validates a schema loaded from a file before it is used to build a database.
+ * @param {*} schema the parsed schema to validate.
+ * @returns {Object} valid is true when the schema is usable; errors lists every problem found.
+ */
+const validateSchema = (schema) => {
+  if (!isPlainObject(schema)) {
+    return { valid: false, errors: ['Schema must be an object of tables.'] };
+  }
+
+  const errors = [];
+  Object.keys(schema).forEach((tableName) => {
+    const fields = schema[tableName];
+    if (tableName === '') {
+      errors.push('Table names must not be empty.');
+    }
+    if (!isPlainObject(fields)) {
+      errors.push(`${tableName}: table must be an object of fields.`);
+      return;
+    }
+    Object.keys(fields).forEach((key) => {
+      errors.push(...validateSchemaField(tableName, key, fields[key]));
+    });
+  });
+
+  return { valid: errors.length === 0, errors };
+};
+
 /**
  * Opens a dialog and starts the schema load process with the result.
  */
@@ -250,7 +360,7 @@ const loadSchemaFromFile = () => {
     title: 'Load Schema',
     message: 'Load schema from JSON previously saved by Salesforce2Sql',
     filters: [
-      { name: JSON, extensions: ['json'] },
+      { name: 'JSON', extensions: ['json'] },
     ],
     properties: ['openFile'],
   };
@@ -266,13 +376,25 @@ const loadSchemaFromFile = () => {
         return;
       }
 
-      // @TODO: Further validate that schema is in a useable form.
+      let loadedSchema;
       try {
-        proposedSchema = JSON.parse(data);
+        loadedSchema = JSON.parse(data);
       } catch (parseErr) {
         logMessage('File', 'Error', `Unable to parse schema file: ${parseErr.message}`);
         return;
       }
+
+      // Reject files that would crash or misbuild the database, keeping the current schema.
+      const { valid, errors } = validateSchema(loadedSchema);
+      if (!valid) {
+        const shown = errors.slice(0, maxReportedSchemaErrors);
+        const hidden = errors.length - shown.length;
+        const more = hidden > 0 ? `\n...and ${hidden} more.` : '';
+        logMessage('File', 'Error', `Schema file ${fileName} is not a valid schema:\n${shown.join('\n')}${more}`);
+        return;
+      }
+
+      proposedSchema = loadedSchema;
       logMessage('File', 'Info', `Loaded schema from file: ${fileName}`);
 
       // Send Schema to interface for review.
@@ -284,14 +406,38 @@ const loadSchemaFromFile = () => {
         },
       });
     });
+  }).catch((err) => {
+    logMessage('File', 'Error', `Unable to open schema file: ${err.message}`);
   });
+};
+
+/**
+ * Adds a column restricted to a list of values, escaping each value for the
+ * database dialect in use. Knex's enu() quotes values without escaping them,
+ * so it must not be used with picklist values.
+ * @param {object} table the table builder to add the column to.
+ * @param {*} db the knex instance the table is built with.
+ * @param {String} name the column name.
+ * @param {Array} values the raw, unescaped list of allowed values.
+ * @returns the new column builder.
+ */
+const addRestrictedValueColumn = (table, db, name, values) => {
+  // An empty value list is not valid SQL, so allow only a blank value.
+  const allowed = values.length ? values : [''];
+  if (db.client.dialect === 'mysql') {
+    const literals = allowed.map((value) => db.raw('?', [value]).toQuery());
+    return table.specificType(name, `enum(${literals.join(', ')})`);
+  }
+  // checkIn() escapes through the client's own literal escaper.
+  return table.text(name).checkIn(allowed);
 };
 
 /**
  * A callback to build out tables.
  * @param {object} table the table we're building out.
+ * @param {*} db the knex instance the table is built with, used to escape values.
  */
-const buildTable = (table) => {
+const buildTable = (table, db) => {
   const fields = proposedSchema[table._tableName];
   let field;
   let fieldType;
@@ -357,7 +503,7 @@ const buildTable = (table) => {
         if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
           field.values.push('');
         }
-        column = table.enu(field.name, field.values);
+        column = addRestrictedValueColumn(table, db, field.name, field.values);
         break;
       case 'float':
         column = table.float(field.name, field.precision, field.scale);
@@ -596,7 +742,8 @@ const saveSchemaToSql = (settings) => {
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Simple callback used to generate the DDL statements.
-  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+  const createDbTable = (schema, table) => schema
+    .createTable(table, (tableBuilder) => buildTable(tableBuilder, db))
     .generateDdlCommands();
 
   const dialogOptions = {
@@ -638,7 +785,8 @@ const buildDatabase = (settings) => {
 
   // Helper to keep one line of logic for creating the tables.
   const tableStatuses = {};
-  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+  const createDbTable = (schema, table) => schema
+    .createTable(table, (tableBuilder) => buildTable(tableBuilder, db))
     .then(() => {
       tableStatuses[table] = true;
       if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {

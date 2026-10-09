@@ -141,7 +141,7 @@ test('Test Picklist Value Extraction', () => {
   const testResult = extractPicklistValues(sampleValues);
   expect(testResult).toHaveLength(3);
   expect(testResult[0]).toBe('Prospect');
-  expect(testResult[1]).toBe('Test\\\'s');
+  expect(testResult[1]).toBe('Test\'s');
   expect(testResult[2]).toBe('Duplicate');
 });
 
@@ -491,6 +491,7 @@ test('Test loadSchemaFromFile calls showOpenDialog with correct options', async 
     electron.mainWindow,
     expect.objectContaining({
       title: 'Load Schema',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],
     }),
   );
@@ -587,6 +588,186 @@ test('Test loadSchemaFromFile logs error when file contains invalid JSON', async
   const { calls } = electron.mainWindow.webContents.send.mock;
   const responseSchemaCalls = calls.filter((c) => c[0] === 'response_schema');
   expect(responseSchemaCalls).toHaveLength(0);
+});
+
+test('Test loadSchemaFromFile rejects an invalid schema and keeps the current one', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const currentSchema = { Account: { Id: { name: 'Id', type: 'id', size: 18 } } };
+  sfcalls.__set__('proposedSchema', currentSchema);
+
+  const badSchema = {
+    Survey: {
+      Answer: { name: 'Answer', type: 'picklist', size: 255 },
+    },
+  };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(badSchema)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(sfcalls.__get__('proposedSchema')).toBe(currentSchema);
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Survey.Answer: picklist fields must have values.'),
+    }),
+  );
+
+  const { calls } = electron.mainWindow.webContents.send.mock;
+  expect(calls.filter((c) => c[0] === 'response_schema')).toHaveLength(0);
+});
+
+test('Test loadSchemaFromFile reports only the first few schema errors', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Seven tables that are not objects: five errors shown, two summarized.
+  const badSchema = {
+    T1: 1, T2: 2, T3: 3, T4: 4, T5: 5, T6: 6, T7: 7,
+  };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(badSchema)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  const errorCalls = electron.mainWindow.webContents.send.mock.calls
+    .filter((c) => c[0] === 'log_message' && c[1].channel === 'Error');
+  expect(errorCalls).toHaveLength(1);
+  const { message } = errorCalls[0][1];
+  expect(message).toContain('T5: table must be an object of fields.');
+  expect(message).not.toContain('T6');
+  expect(message).toContain('...and 2 more.');
+});
+
+test('Test loadSchemaFromFile logs error when the open dialog fails', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showOpenDialog.mockRejectedValueOnce(new Error('dialog failed'));
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: 'Unable to open schema file: dialog failed',
+    }),
+  );
+});
+
+// ==========================================
+// validateSchema tests
+// ==========================================
+
+// A schema that uses every property validateSchema checks.
+const makeValidSchema = () => ({
+  Opportunity: {
+    Id: {
+      name: 'Id', label: 'Opportunity ID', type: 'id', size: 18, defaultValue: null, externalId: false,
+    },
+    AccountId: {
+      name: 'AccountId', label: 'Account ID', type: 'reference', size: 18, defaultValue: null, externalId: false, target: ['Account'],
+    },
+    StageName: {
+      name: 'StageName', label: 'Stage', type: 'picklist', size: 255, defaultValue: 'Prospecting', externalId: false, values: ["Don't know", ''], isRestricted: true,
+    },
+    Amount: {
+      name: 'Amount', label: 'Amount', type: 'currency', size: 0, precision: 18, scale: 2, defaultValue: 0, externalId: false,
+    },
+    IsPrivate: {
+      name: 'IsPrivate', label: 'Private', type: 'boolean', size: 0, defaultValue: false, externalId: false,
+    },
+    Description: {
+      name: 'Description', label: 'Description', type: 'text', size: 32000, defaultValue: null, externalId: false,
+    },
+  },
+});
+
+test('Test validateSchema accepts a valid schema', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  expect(validateSchema(makeValidSchema())).toEqual({ valid: true, errors: [] });
+  expect(validateSchema({})).toEqual({ valid: true, errors: [] });
+});
+
+test('Test validateSchema accepts a schema built from Salesforce describes', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const buildFields = sfcalls.__get__('buildFields');
+  const describes = JSON.parse(fs.readFileSync('src/tests/sampleSObjectDescribes.json'));
+  sfcalls.setPreferences(samplePrefs);
+
+  const schema = {
+    Account: buildFields(describes.Account.fields),
+    Contact: buildFields(describes.Contact.fields),
+  };
+  // Round trip through JSON, as saving and loading the schema does.
+  expect(validateSchema(JSON.parse(JSON.stringify(schema)))).toEqual({ valid: true, errors: [] });
+});
+
+test.each([
+  ['the top level is an array', () => [], 'Schema must be an object of tables.'],
+  ['the top level is null', () => null, 'Schema must be an object of tables.'],
+  ['the top level is a string', () => 'schema', 'Schema must be an object of tables.'],
+  ['a table name is empty', (s) => ({ ...s, '': {} }), 'Table names must not be empty.'],
+  ['a table is not an object', (s) => ({ ...s, Bad: [] }), 'Bad: table must be an object of fields.'],
+  ['a field is not an object', (s) => { s.Opportunity.Bad = 'text'; return s; }, 'Opportunity.Bad: field must be an object.'],
+  ['a field name is missing', (s) => { delete s.Opportunity.Amount.name; return s; }, 'Opportunity.Amount: name must be a string matching its key.'],
+  ['a field name does not match its key', (s) => { s.Opportunity.Amount.name = 'Other'; return s; }, 'Opportunity.Amount: name must be a string matching its key.'],
+  ['a field type is unknown', (s) => { s.Opportunity.Amount.type = 'enum'; return s; }, 'Opportunity.Amount: type "enum" is not a known field type.'],
+  ['a field type is missing', (s) => { delete s.Opportunity.Amount.type; return s; }, 'Opportunity.Amount: type undefined is not a known field type.'],
+  ['a field type is an inherited property', (s) => { s.Opportunity.Amount.type = 'constructor'; return s; }, 'Opportunity.Amount: type "constructor" is not a known field type.'],
+  ['size is not an integer', (s) => { s.Opportunity.Amount.size = 1.5; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is a string', (s) => { s.Opportunity.Amount.size = '18) ; DROP TABLE t; --'; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is negative', (s) => { s.Opportunity.Amount.size = -1; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is too large', (s) => { s.Opportunity.Amount.size = 2147483648; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['precision is too large', (s) => { s.Opportunity.Amount.precision = 66; return s; }, 'Opportunity.Amount: precision must be an integer from 0 to 65.'],
+  ['precision is null', (s) => { s.Opportunity.Amount.precision = null; return s; }, 'Opportunity.Amount: precision must be an integer from 0 to 65.'],
+  ['scale is too large', (s) => { s.Opportunity.Amount.scale = 31; return s; }, 'Opportunity.Amount: scale must be an integer from 0 to 30.'],
+  ['scale is negative', (s) => { s.Opportunity.Amount.scale = -2; return s; }, 'Opportunity.Amount: scale must be an integer from 0 to 30.'],
+  ['values is not an array', (s) => { s.Opportunity.StageName.values = 'Open'; return s; }, 'Opportunity.StageName: values must be an array of strings.'],
+  ['values contains a non-string', (s) => { s.Opportunity.StageName.values = ['Open', 1]; return s; }, 'Opportunity.StageName: values must be an array of strings.'],
+  ['a picklist has no values', (s) => { delete s.Opportunity.StageName.values; return s; }, 'Opportunity.StageName: picklist fields must have values.'],
+  ['defaultValue is an object', (s) => { s.Opportunity.Amount.defaultValue = {}; return s; }, 'Opportunity.Amount: defaultValue must be a string, number, boolean, or null.'],
+  ['defaultValue is an array', (s) => { s.Opportunity.Amount.defaultValue = [0]; return s; }, 'Opportunity.Amount: defaultValue must be a string, number, boolean, or null.'],
+  ['externalId is not a boolean', (s) => { s.Opportunity.Amount.externalId = 'true'; return s; }, 'Opportunity.Amount: externalId must be a boolean.'],
+  ['isRestricted is not a boolean', (s) => { s.Opportunity.StageName.isRestricted = 1; return s; }, 'Opportunity.StageName: isRestricted must be a boolean.'],
+  ['label is not a string', (s) => { s.Opportunity.Amount.label = 5; return s; }, 'Opportunity.Amount: label must be a string.'],
+  ['target is not an array', (s) => { s.Opportunity.AccountId.target = 'Account'; return s; }, 'Opportunity.AccountId: target must be an array of strings.'],
+  ['target contains a non-string', (s) => { s.Opportunity.AccountId.target = ['Account', null]; return s; }, 'Opportunity.AccountId: target must be an array of strings.'],
+])('Test validateSchema rejects a schema when %s', (_description, mutate, expectedError) => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const result = validateSchema(mutate(makeValidSchema()));
+  expect(result.valid).toBe(false);
+  expect(result.errors).toEqual([expectedError]);
+});
+
+test('Test validateSchema reports every error it finds', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const schema = makeValidSchema();
+  schema.Opportunity.Amount.size = -1;
+  schema.Opportunity.Amount.externalId = 'yes';
+  schema.Account = 'not a table';
+
+  const result = validateSchema(schema);
+  expect(result.valid).toBe(false);
+  expect(result.errors).toEqual([
+    'Opportunity.Amount: size must be an integer from 0 to 2147483647.',
+    'Opportunity.Amount: externalId must be a boolean.',
+    'Account: table must be an object of fields.',
+  ]);
 });
 
 // DEPRECATED(password-login): remove or convert to OAuth when #290 is done.
@@ -1106,8 +1287,12 @@ const resetTypeResolver = () => {
   typeResolverBases.reference = 'reference';
 };
 
+// Stands in for a knex instance on a dialect that restricts values with checkIn().
+const pgDbStub = { client: { dialect: 'postgresql' } };
+
 // Creates a minimal knex column stub with the methods buildTable may call.
 const makeColumnMock = () => ({
+  checkIn: jest.fn().mockReturnThis(),
   collate: jest.fn().mockReturnThis(),
   defaultTo: jest.fn().mockReturnThis(),
   index: jest.fn().mockReturnThis(),
@@ -1122,9 +1307,9 @@ const makeTableMock = (tableName) => ({
   date: jest.fn().mockReturnValue(makeColumnMock()),
   datetime: jest.fn().mockReturnValue(makeColumnMock()),
   decimal: jest.fn().mockReturnValue(makeColumnMock()),
-  enu: jest.fn().mockReturnValue(makeColumnMock()),
   float: jest.fn().mockReturnValue(makeColumnMock()),
   integer: jest.fn().mockReturnValue(makeColumnMock()),
+  specificType: jest.fn().mockReturnValue(makeColumnMock()),
   string: jest.fn().mockReturnValue(makeColumnMock()),
   text: jest.fn().mockReturnValue(makeColumnMock()),
   time: jest.fn().mockReturnValue(makeColumnMock()),
@@ -1176,7 +1361,7 @@ test('Test buildTable invokes the correct column method for each field type', ()
   });
 
   const table = makeTableMock('TestObject');
-  buildTable(table);
+  buildTable(table, pgDbStub);
 
   expect(table.binary).toHaveBeenCalledWith('BinaryFld', 8);
   expect(table.boolean).toHaveBeenCalledWith('BoolFld');
@@ -1184,7 +1369,8 @@ test('Test buildTable invokes the correct column method for each field type', ()
   expect(table.date).toHaveBeenCalledWith('DateFld');
   expect(table.datetime).toHaveBeenCalledWith('DatetimeFld');
   expect(table.decimal).toHaveBeenCalledWith('DecimalFld', 15, 2);
-  expect(table.enu).toHaveBeenCalledWith('EnumFld', ['A', 'B']);
+  expect(table.text).toHaveBeenCalledWith('EnumFld');
+  expect(table.text.mock.results[0].value.checkIn).toHaveBeenCalledWith(['A', 'B']);
   expect(table.integer).toHaveBeenCalledWith('IntFld');
   expect(table.string).toHaveBeenCalledWith('RefFld', 18);
   expect(table.string).toHaveBeenCalledWith('StrFld', 100);
@@ -1279,13 +1465,13 @@ test('Test buildTable creates index for picklist fields', () => {
   });
 
   const table = makeTableMock('Opportunity');
-  // Override both enu and string: if the type resolver has been mutated by an earlier
+  // Override both text and string: if the type resolver has been mutated by an earlier
   // test, picklist may resolve to 'string' (default branch) instead of 'enum'. Either
   // way the field is still indexed because addIndex checks field.type, not fieldType.
-  table.enu = jest.fn().mockReturnValue(colMock);
+  table.text = jest.fn().mockReturnValue(colMock);
   table.string = jest.fn().mockReturnValue(colMock);
 
-  buildTable(table);
+  buildTable(table, pgDbStub);
 
   expect(colMock.index).toHaveBeenCalledWith('Opportunity_StageName');
 });
@@ -1317,17 +1503,163 @@ test('Test buildTable does NOT create index when index preferences are disabled'
     date: jest.fn().mockReturnValue(colMock),
     datetime: jest.fn().mockReturnValue(colMock),
     decimal: jest.fn().mockReturnValue(colMock),
-    enu: jest.fn().mockReturnValue(colMock),
     float: jest.fn().mockReturnValue(colMock),
     integer: jest.fn().mockReturnValue(colMock),
+    specificType: jest.fn().mockReturnValue(colMock),
     string: jest.fn().mockReturnValue(colMock),
     text: jest.fn().mockReturnValue(colMock),
     time: jest.fn().mockReturnValue(colMock),
   };
 
-  buildTable(table);
+  buildTable(table, pgDbStub);
 
   expect(colMock.index).not.toHaveBeenCalled();
+});
+
+// ==========================================
+// Picklist value escaping in generated DDL
+// ==========================================
+
+// Picklist values that break naive quoting in at least one dialect.
+const hostilePicklistValues = ["Don't know", 'a\\', "x\\'", "x'); DROP TABLE t; --"];
+
+/**
+ * Splits generated SQL into its string literals and the text outside them,
+ * following the quoting rules of the given dialect. Only the escapes the test
+ * values need are decoded: doubled quotes, and backslash escapes where the
+ * dialect treats backslash as an escape character.
+ * @param {String} sql the SQL statement to scan.
+ * @param {String} dialect the knex dialect name.
+ * @returns {Object} the decoded literals, and the SQL outside of any literal.
+ */
+const scanSqlLiterals = (sql, dialect) => {
+  const literals = [];
+  let outside = '';
+  let i = 0;
+  while (i < sql.length) {
+    const isPgEscapeString = dialect === 'postgresql' && sql[i] === 'E' && sql[i + 1] === "'"
+      && !/\w/.test(sql[i - 1] || '');
+    if (sql[i] === "'" || isPgEscapeString) {
+      const backslashEscapes = dialect === 'mysql' || isPgEscapeString;
+      i += isPgEscapeString ? 2 : 1;
+      let value = '';
+      let closed = false;
+      while (!closed) {
+        if (i >= sql.length) {
+          throw new Error(`Unterminated literal in: ${sql}`);
+        }
+        if (backslashEscapes && sql[i] === '\\') {
+          value += sql[i + 1];
+          i += 2;
+        } else if (sql[i] === "'" && sql[i + 1] === "'") {
+          value += "'";
+          i += 2;
+        } else if (sql[i] === "'") {
+          closed = true;
+          i += 1;
+        } else {
+          value += sql[i];
+          i += 1;
+        }
+      }
+      literals.push(value);
+    } else {
+      outside += sql[i];
+      i += 1;
+    }
+  }
+  return { literals, outside };
+};
+
+/**
+ * Generates the DDL for a single table from the proposed schema with a real knex client.
+ * @param {String} client the knex client name.
+ * @param {String} tableName the table in the proposed schema to build.
+ * @returns {Promise<Array>} the generated SQL statements as strings.
+ */
+const generatePicklistDdl = async (client, tableName) => {
+  const buildTable = sfcalls.__get__('buildTable');
+  const db = jest.requireActual('knex')({ client, useNullAsDefault: true });
+  const result = await db.schema
+    .createTable(tableName, (table) => buildTable(table, db))
+    .generateDdlCommands();
+  // SQLite returns plain strings, the other dialects return { sql } objects.
+  return {
+    dialect: db.client.dialect,
+    statements: result.sql.map((statement) => statement.sql || statement),
+  };
+};
+
+// The literal each hostile value should produce, per dialect.
+const expectedPicklistLiterals = {
+  mysql2: ["'Don\\'t know'", "'a\\\\'", "'x\\\\\\''", "'x\\'); DROP TABLE t; --'"],
+  pg: ["'Don''t know'", "E'a\\\\'", "E'x\\\\'''", "'x''); DROP TABLE t; --'"],
+  sqlite3: ["'Don''t know'", "'a\\'", "'x\\'''", "'x''); DROP TABLE t; --'"],
+};
+
+test.each(['mysql2', 'pg', 'sqlite3'])('Test picklist values are escaped in %s DDL', async (client) => {
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  sfcalls.__set__('proposedSchema', {
+    Survey: {
+      Answer: {
+        name: 'Answer', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: [...hostilePicklistValues], isRestricted: true,
+      },
+    },
+  });
+
+  const { dialect, statements } = await generatePicklistDdl(client, 'Survey');
+
+  // One create table statement, with nothing outside the literals that ends it early.
+  expect(statements).toHaveLength(1);
+  const { literals, outside } = scanSqlLiterals(statements[0], dialect);
+  expect(outside).not.toContain(';');
+  expect(outside).not.toMatch(/drop/i);
+
+  // Each value appears exactly once, as a literal that decodes back to the raw value.
+  expect(literals).toEqual(hostilePicklistValues);
+  expectedPicklistLiterals[client].forEach((literal) => {
+    expect(statements[0].split(literal)).toHaveLength(2);
+  });
+});
+
+test.each(['mysql2', 'pg', 'sqlite3'])('Test ensureBlanks adds an escaped blank value in %s DDL', async (client) => {
+  resetTypeResolver();
+  sfcalls.setPreferences({
+    ...buildTablePrefs,
+    picklists: { ...buildTablePrefs.picklists, ensureBlanks: true },
+  });
+  sfcalls.__set__('proposedSchema', {
+    Survey: {
+      Answer: {
+        name: 'Answer', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: ["Don't know"], isRestricted: true,
+      },
+      Empty: {
+        name: 'Empty', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: [], isRestricted: true,
+      },
+    },
+  });
+
+  const { dialect, statements } = await generatePicklistDdl(client, 'Survey');
+
+  expect(statements).toHaveLength(1);
+  expect(scanSqlLiterals(statements[0], dialect).literals).toEqual(["Don't know", '', '']);
+});
+
+test('Test picklist with no values allows only a blank value', async () => {
+  resetTypeResolver();
+  sfcalls.setPreferences(buildTablePrefs);
+  sfcalls.__set__('proposedSchema', {
+    Survey: {
+      Empty: {
+        name: 'Empty', type: 'picklist', size: 255, defaultValue: null, externalId: false, values: [], isRestricted: true,
+      },
+    },
+  });
+
+  const { statements } = await generatePicklistDdl('pg', 'Survey');
+
+  expect(statements[0]).toContain('"Empty" text check ("Empty" in (\'\'))');
 });
 
 // ==========================================
