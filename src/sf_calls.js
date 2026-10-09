@@ -160,25 +160,12 @@ const updateLoader = (message) => {
 };
 
 /**
- * Extracts the list of field values from a picklist value set.
+ * Extracts the list of field values from a picklist value set. Values are kept
+ * raw; they are escaped for the target database when the DDL is built.
  * @param {Array} valueList list of values from a Salesforce describe response.
- * @returns the actual list of values.
+ * @returns the actual list of de-duplicated values.
  */
-const extractPicklistValues = (valueList) => {
-  let values = [];
-  let val;
-  for (let i = 0; i < valueList.length; i += 1) {
-    val = valueList[i].value;
-    // When https://github.com/knex/knex/issues/4481 resolves, this may create a double escape.
-    if (val.includes("'")) {
-      // When Node 14 support is dropped this can be switched to replaceAll().
-      val = val.replace(/'/g, '\\\'');
-    }
-    values.push(val);
-  }
-  values = [...new Set(values)];
-  return values;
-};
+const extractPicklistValues = (valueList) => [...new Set(valueList.map((item) => item.value))];
 
 /**
  * Generates the details of all the fields in the schema.
@@ -288,10 +275,32 @@ const loadSchemaFromFile = () => {
 };
 
 /**
+ * Adds a column restricted to a list of values, escaping each value for the
+ * database dialect in use. Knex's enu() quotes values without escaping them,
+ * so it must not be used with picklist values.
+ * @param {object} table the table builder to add the column to.
+ * @param {*} db the knex instance the table is built with.
+ * @param {String} name the column name.
+ * @param {Array} values the raw, unescaped list of allowed values.
+ * @returns the new column builder.
+ */
+const addRestrictedValueColumn = (table, db, name, values) => {
+  // An empty value list is not valid SQL, so allow only a blank value.
+  const allowed = values.length ? values : [''];
+  if (db.client.dialect === 'mysql') {
+    const literals = allowed.map((value) => db.raw('?', [value]).toQuery());
+    return table.specificType(name, `enum(${literals.join(', ')})`);
+  }
+  // checkIn() escapes through the client's own literal escaper.
+  return table.text(name).checkIn(allowed);
+};
+
+/**
  * A callback to build out tables.
  * @param {object} table the table we're building out.
+ * @param {*} db the knex instance the table is built with, used to escape values.
  */
-const buildTable = (table) => {
+const buildTable = (table, db) => {
   const fields = proposedSchema[table._tableName];
   let field;
   let fieldType;
@@ -357,7 +366,7 @@ const buildTable = (table) => {
         if (preferences.picklists.ensureBlanks && !field.values.includes('')) {
           field.values.push('');
         }
-        column = table.enu(field.name, field.values);
+        column = addRestrictedValueColumn(table, db, field.name, field.values);
         break;
       case 'float':
         column = table.float(field.name, field.precision, field.scale);
@@ -596,7 +605,8 @@ const saveSchemaToSql = (settings) => {
   const tables = Object.getOwnPropertyNames(proposedSchema);
 
   // Simple callback used to generate the DDL statements.
-  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+  const createDbTable = (schema, table) => schema
+    .createTable(table, (tableBuilder) => buildTable(tableBuilder, db))
     .generateDdlCommands();
 
   const dialogOptions = {
@@ -638,7 +648,8 @@ const buildDatabase = (settings) => {
 
   // Helper to keep one line of logic for creating the tables.
   const tableStatuses = {};
-  const createDbTable = (schema, table) => schema.createTable(table, buildTable)
+  const createDbTable = (schema, table) => schema
+    .createTable(table, (tableBuilder) => buildTable(tableBuilder, db))
     .then(() => {
       tableStatuses[table] = true;
       if (Object.getOwnPropertyNames(tableStatuses).length === tables.length) {
