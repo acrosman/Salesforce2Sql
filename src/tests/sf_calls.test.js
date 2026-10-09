@@ -491,6 +491,7 @@ test('Test loadSchemaFromFile calls showOpenDialog with correct options', async 
     electron.mainWindow,
     expect.objectContaining({
       title: 'Load Schema',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],
     }),
   );
@@ -587,6 +588,186 @@ test('Test loadSchemaFromFile logs error when file contains invalid JSON', async
   const { calls } = electron.mainWindow.webContents.send.mock;
   const responseSchemaCalls = calls.filter((c) => c[0] === 'response_schema');
   expect(responseSchemaCalls).toHaveLength(0);
+});
+
+test('Test loadSchemaFromFile rejects an invalid schema and keeps the current one', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  const currentSchema = { Account: { Id: { name: 'Id', type: 'id', size: 18 } } };
+  sfcalls.__set__('proposedSchema', currentSchema);
+
+  const badSchema = {
+    Survey: {
+      Answer: { name: 'Answer', type: 'picklist', size: 255 },
+    },
+  };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(badSchema)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(sfcalls.__get__('proposedSchema')).toBe(currentSchema);
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: expect.stringContaining('Survey.Answer: picklist fields must have values.'),
+    }),
+  );
+
+  const { calls } = electron.mainWindow.webContents.send.mock;
+  expect(calls.filter((c) => c[0] === 'response_schema')).toHaveLength(0);
+});
+
+test('Test loadSchemaFromFile reports only the first few schema errors', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  // Seven tables that are not objects: five errors shown, two summarized.
+  const badSchema = {
+    T1: 1, T2: 2, T3: 3, T4: 4, T5: 5, T6: 6, T7: 7,
+  };
+  jest.spyOn(fs, 'readFile').mockImplementationOnce((_path, callback) => {
+    callback(null, Buffer.from(JSON.stringify(badSchema)));
+  });
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  const errorCalls = electron.mainWindow.webContents.send.mock.calls
+    .filter((c) => c[0] === 'log_message' && c[1].channel === 'Error');
+  expect(errorCalls).toHaveLength(1);
+  const { message } = errorCalls[0][1];
+  expect(message).toContain('T5: table must be an object of fields.');
+  expect(message).not.toContain('T6');
+  expect(message).toContain('...and 2 more.');
+});
+
+test('Test loadSchemaFromFile logs error when the open dialog fails', async () => {
+  jest.clearAllMocks();
+  const loadSchemaFromFile = sfcalls.__get__('loadSchemaFromFile');
+  sfcalls.setwindow(electron.mainWindow);
+
+  electron.dialog.showOpenDialog.mockRejectedValueOnce(new Error('dialog failed'));
+
+  loadSchemaFromFile();
+  await new Promise((resolve) => { process.nextTick(resolve); });
+
+  expect(electron.mainWindow.webContents.send).toHaveBeenCalledWith(
+    'log_message',
+    expect.objectContaining({
+      sender: 'File',
+      channel: 'Error',
+      message: 'Unable to open schema file: dialog failed',
+    }),
+  );
+});
+
+// ==========================================
+// validateSchema tests
+// ==========================================
+
+// A schema that uses every property validateSchema checks.
+const makeValidSchema = () => ({
+  Opportunity: {
+    Id: {
+      name: 'Id', label: 'Opportunity ID', type: 'id', size: 18, defaultValue: null, externalId: false,
+    },
+    AccountId: {
+      name: 'AccountId', label: 'Account ID', type: 'reference', size: 18, defaultValue: null, externalId: false, target: ['Account'],
+    },
+    StageName: {
+      name: 'StageName', label: 'Stage', type: 'picklist', size: 255, defaultValue: 'Prospecting', externalId: false, values: ["Don't know", ''], isRestricted: true,
+    },
+    Amount: {
+      name: 'Amount', label: 'Amount', type: 'currency', size: 0, precision: 18, scale: 2, defaultValue: 0, externalId: false,
+    },
+    IsPrivate: {
+      name: 'IsPrivate', label: 'Private', type: 'boolean', size: 0, defaultValue: false, externalId: false,
+    },
+    Description: {
+      name: 'Description', label: 'Description', type: 'text', size: 32000, defaultValue: null, externalId: false,
+    },
+  },
+});
+
+test('Test validateSchema accepts a valid schema', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  expect(validateSchema(makeValidSchema())).toEqual({ valid: true, errors: [] });
+  expect(validateSchema({})).toEqual({ valid: true, errors: [] });
+});
+
+test('Test validateSchema accepts a schema built from Salesforce describes', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const buildFields = sfcalls.__get__('buildFields');
+  const describes = JSON.parse(fs.readFileSync('src/tests/sampleSObjectDescribes.json'));
+  sfcalls.setPreferences(samplePrefs);
+
+  const schema = {
+    Account: buildFields(describes.Account.fields),
+    Contact: buildFields(describes.Contact.fields),
+  };
+  // Round trip through JSON, as saving and loading the schema does.
+  expect(validateSchema(JSON.parse(JSON.stringify(schema)))).toEqual({ valid: true, errors: [] });
+});
+
+test.each([
+  ['the top level is an array', () => [], 'Schema must be an object of tables.'],
+  ['the top level is null', () => null, 'Schema must be an object of tables.'],
+  ['the top level is a string', () => 'schema', 'Schema must be an object of tables.'],
+  ['a table name is empty', (s) => ({ ...s, '': {} }), 'Table names must not be empty.'],
+  ['a table is not an object', (s) => ({ ...s, Bad: [] }), 'Bad: table must be an object of fields.'],
+  ['a field is not an object', (s) => { s.Opportunity.Bad = 'text'; return s; }, 'Opportunity.Bad: field must be an object.'],
+  ['a field name is missing', (s) => { delete s.Opportunity.Amount.name; return s; }, 'Opportunity.Amount: name must be a string matching its key.'],
+  ['a field name does not match its key', (s) => { s.Opportunity.Amount.name = 'Other'; return s; }, 'Opportunity.Amount: name must be a string matching its key.'],
+  ['a field type is unknown', (s) => { s.Opportunity.Amount.type = 'enum'; return s; }, 'Opportunity.Amount: type "enum" is not a known field type.'],
+  ['a field type is missing', (s) => { delete s.Opportunity.Amount.type; return s; }, 'Opportunity.Amount: type undefined is not a known field type.'],
+  ['a field type is an inherited property', (s) => { s.Opportunity.Amount.type = 'constructor'; return s; }, 'Opportunity.Amount: type "constructor" is not a known field type.'],
+  ['size is not an integer', (s) => { s.Opportunity.Amount.size = 1.5; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is a string', (s) => { s.Opportunity.Amount.size = '18) ; DROP TABLE t; --'; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is negative', (s) => { s.Opportunity.Amount.size = -1; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['size is too large', (s) => { s.Opportunity.Amount.size = 2147483648; return s; }, 'Opportunity.Amount: size must be an integer from 0 to 2147483647.'],
+  ['precision is too large', (s) => { s.Opportunity.Amount.precision = 66; return s; }, 'Opportunity.Amount: precision must be an integer from 0 to 65.'],
+  ['precision is null', (s) => { s.Opportunity.Amount.precision = null; return s; }, 'Opportunity.Amount: precision must be an integer from 0 to 65.'],
+  ['scale is too large', (s) => { s.Opportunity.Amount.scale = 31; return s; }, 'Opportunity.Amount: scale must be an integer from 0 to 30.'],
+  ['scale is negative', (s) => { s.Opportunity.Amount.scale = -2; return s; }, 'Opportunity.Amount: scale must be an integer from 0 to 30.'],
+  ['values is not an array', (s) => { s.Opportunity.StageName.values = 'Open'; return s; }, 'Opportunity.StageName: values must be an array of strings.'],
+  ['values contains a non-string', (s) => { s.Opportunity.StageName.values = ['Open', 1]; return s; }, 'Opportunity.StageName: values must be an array of strings.'],
+  ['a picklist has no values', (s) => { delete s.Opportunity.StageName.values; return s; }, 'Opportunity.StageName: picklist fields must have values.'],
+  ['defaultValue is an object', (s) => { s.Opportunity.Amount.defaultValue = {}; return s; }, 'Opportunity.Amount: defaultValue must be a string, number, boolean, or null.'],
+  ['defaultValue is an array', (s) => { s.Opportunity.Amount.defaultValue = [0]; return s; }, 'Opportunity.Amount: defaultValue must be a string, number, boolean, or null.'],
+  ['externalId is not a boolean', (s) => { s.Opportunity.Amount.externalId = 'true'; return s; }, 'Opportunity.Amount: externalId must be a boolean.'],
+  ['isRestricted is not a boolean', (s) => { s.Opportunity.StageName.isRestricted = 1; return s; }, 'Opportunity.StageName: isRestricted must be a boolean.'],
+  ['label is not a string', (s) => { s.Opportunity.Amount.label = 5; return s; }, 'Opportunity.Amount: label must be a string.'],
+  ['target is not an array', (s) => { s.Opportunity.AccountId.target = 'Account'; return s; }, 'Opportunity.AccountId: target must be an array of strings.'],
+  ['target contains a non-string', (s) => { s.Opportunity.AccountId.target = ['Account', null]; return s; }, 'Opportunity.AccountId: target must be an array of strings.'],
+])('Test validateSchema rejects a schema when %s', (_description, mutate, expectedError) => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const result = validateSchema(mutate(makeValidSchema()));
+  expect(result.valid).toBe(false);
+  expect(result.errors).toEqual([expectedError]);
+});
+
+test('Test validateSchema reports every error it finds', () => {
+  const validateSchema = sfcalls.__get__('validateSchema');
+  const schema = makeValidSchema();
+  schema.Opportunity.Amount.size = -1;
+  schema.Opportunity.Amount.externalId = 'yes';
+  schema.Account = 'not a table';
+
+  const result = validateSchema(schema);
+  expect(result.valid).toBe(false);
+  expect(result.errors).toEqual([
+    'Opportunity.Amount: size must be an integer from 0 to 2147483647.',
+    'Opportunity.Amount: externalId must be a boolean.',
+    'Account: table must be an object of fields.',
+  ]);
 });
 
 // DEPRECATED(password-login): remove or convert to OAuth when #290 is done.
